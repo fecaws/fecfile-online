@@ -1,0 +1,17 @@
+.btn-primary {
+  background-color: $blueZodiac;
+  border-color: $blueZodiac;
+  &:hover {
+    background-color: darken($blueZodiac, 10%);
+    border-color: darken($blueZodiac, 10%);
+  }
+}
+
+.btn-secondary {
+  background-color: $pelorous;
+  border-color: $pelorous;
+  &:hover {
+    background-color: darken($pelorous, 10%);
+    border-color: darken($pelorous, 10%);
+  }
+}

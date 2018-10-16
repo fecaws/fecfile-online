@@ -1,0 +1,16 @@
+@import '../shared/scss/global';
+
+.forms-container {
+	color: $black;
+	.grid-row {
+		margin: 0;
+		.grid-row__col {
+			margin-bottom: 15px;
+			padding: 0;
+
+		} //.grid__row-col
+	}
+}
+
+
+

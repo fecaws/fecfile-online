@@ -1,0 +1,20 @@
+.rich-text-editor {
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 20px;
+  z-index: 0;
+  .angular-editor {
+    z-index: 0;
+    .angular-editor-toolbar {
+      .angular-editor-toolbar-set {
+        select[title='Custom Style'],
+        .angular-editor-button[title='Insert Image'],
+        .angular-editor-button[title='Insert Link'],
+        .angular-editor-button[title='Unlink'] {
+          display: none;
+        }
+
+      }
+    }
+  }
+}

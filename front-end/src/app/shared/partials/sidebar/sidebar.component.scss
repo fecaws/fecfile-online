@@ -1,0 +1,32 @@
+@import '../../scss/global';
+
+.sidebar {
+  background-color: $primaryBlue;
+  min-height: 100vh;
+  .sidebar__logo {
+    padding-top: 15px;
+    text-align: center;
+  }
+  .sidebar__nav {
+  	color: $white;
+  	margin-top: 35px;
+    padding-top: 40px;
+    text-align: center;
+    .sidebar__nav--header {
+      font-weight: bold;
+    }
+    .sidebar__nav--links {
+      margin-bottom: 50px;
+      li {
+        margin-bottom: 15px;
+        a {
+          color: $white;
+          text-decoration: none;
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+  }
+}

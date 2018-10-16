@@ -1,0 +1,34 @@
+<div class="forms__wizard">
+  <div class="form__steps">
+    <app-steps
+      [steps]="[
+        {text: 'Type', step: 'step_1'},
+        {text: 'Form', step: 'step_2'},
+        {text: 'Preview', step: 'step_3'},
+        {text: 'File', step: 'step_4'}
+      ]"
+      [current_step]="currentStep"
+    >
+    </app-steps>
+  </div>
+  <div class="form__content" *ngIf="!isLoading">
+    <div
+      class="form__step"
+      [hidden]="step!=='step_1'"
+    >
+      <app-type (status)='onNotify($event)'></app-type>
+    </div>
+    <div
+      class="form__step"
+      [hidden]="step!=='step_2'"
+    >
+      <app-reason (status)='onNotify($event)'></app-reason>
+    </div>
+    <div
+      class="form__step"
+      [hidden]="step!=='step_3'"
+    >
+      <app-preview (status)='onNotify($event)'></app-preview>
+    </div>
+  </div>
+</div>

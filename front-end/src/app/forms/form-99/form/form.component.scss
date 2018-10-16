@@ -1,0 +1,52 @@
+@import '../../../shared/scss/global';
+
+.forms__wizard {
+  margin: 0 auto;
+  width: 95%;
+  button {
+    &:first-child {
+      margin-right: 20px;
+    }
+  }
+  .forms__btn-container {
+    margin: 0 auto;
+    .btn-container-row {
+      @include clearfix();
+      border-bottom: 1px solid $dustyGray;
+      height: 55px;
+      margin-bottom: 10px;
+      width: 100%;
+      .btn {
+        margin-right: 0;
+      }
+    }
+    .btn-left {
+      float: left;
+    }
+    .btn-right {
+      float: right;
+    }
+    @include clearfix();
+  }
+  .preview-container {
+    margin: 0 auto;
+    width: 80%;
+  }
+}
+.forms__wizard {
+  aw-wizard-navigation-bar.horizontal {
+    ul.steps-indicator {
+      li.done {
+        &:after {
+          background-color: $alto !important;
+        }
+      }
+      li.current,
+      li.editing {
+        &:after {
+          background-color: $dustyGray !important;
+        }
+      }
+    }
+  }
+}
