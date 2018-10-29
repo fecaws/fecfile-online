@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { environment } from '../../environments/environment';
+import { ValidateComponent } from '../shared/partials/validate/validate.component';
 
 @Component({
   selector: 'app-forms',
@@ -23,8 +24,10 @@ export class FormsComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-  	this._activeRoute.params.subscribe( params => {
-  		this.form_type = params.form_id;
+  	this._activeRoute
+      .params
+      .subscribe( params => {
+  		  this.form_type = params.form_id;
   	});
   }
 

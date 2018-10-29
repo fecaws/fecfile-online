@@ -50,10 +50,6 @@ describe('DashboardComponent', () => {
       ],
       providers: [
         CookieService
-        {
-          provide: ApiService,
-          useClass: MockApiService
-        }
       ]
     })
     .compileComponents();

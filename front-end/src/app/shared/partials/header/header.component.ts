@@ -17,7 +17,7 @@ export class HeaderComponent implements OnInit {
     private _authService: AuthService
   ) { }
 
-  ngOnInit() {}
+  ngOnInit(): void {}
 
   /**
    * Logs a user out.

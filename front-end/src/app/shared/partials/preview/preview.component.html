@@ -1,7 +1,8 @@
 <div class="preview-container">
   <div class="grid-row">
     <div class="grid-row__col grid-row__col--12">
-      <h1>Form 99</h1>
+      <h1 class="text-left" *ngIf="!type_selected">Form {{ form_type }}</h1>
+      <h1 class="text-left" *ngIf="type_selected">Form {{ form_type }} / {{ type_selected }}</h1>
       <hr/>
     </div>
   </div>
@@ -11,12 +12,15 @@
         <b>Name of Committee in Full</b>
       </p>
       <p>
-        American Hotel and Lodging Association
+        {{ committee_details?.committeename }}
       </p>
     </div>
     <div class="grid-row__col grid-row__col--4">
       <p><b>Address</b></p>
-      <p>1250 I Street, NW #1100</p>
+      <p>
+        {{ committee_details?.street1 }}<br/>
+        {{ committee_details?.street2 }}
+      </p>
     </div>
   </div>
   <div class="grid-row">
@@ -25,7 +29,7 @@
       <b>City</b>
     </p>
     <p>
-      Washington
+      {{ committee_details?.city }}
     </p>
     </div>
     <div class="grid-row__col grid-row__col--3">
@@ -33,7 +37,7 @@
         <b>State</b>
       </p>
       <p>
-        Washington
+        {{ committee_details?.state }}
       </p>
     </div>
     <div class="grid-row__col grid-row__col--3">
@@ -41,32 +45,50 @@
         <b>Zip Code</b>
       </p>
       <p>
-        20005
+        {{ committee_details?.zipcode }}
+      </p>
+    </div>
+    <div class="grid-row__col grid-row__col--3">
+      <p>
+        <b>Treasurer Last Name</b>
+      </p>
+      <p>
+        {{ committee_details?.treasurerlastname }}
       </p>
     </div>
   </div>
   <div class="grid-row">
     <div class="grid-row__col grid-row__col--3">
       <p>
-        <b>Treasurer Name*</b>
+        <b>Treasurer First Name</b>
       </p>
       <p>
-        Milan Kundera
+       {{ committee_details?.treasurerfirstname }}
       </p>
     </div>
     <div class="grid-row__col grid-row__col--3">
       <p>
-        <b>Signee Name*</b>
+        <b>Treasurer Middle Name</b>
       </p>
       <p>
-        Charlie Brown Jr
+       {{ committee_details?.treasurermiddlename }}
       </p>
     </div>
     <div class="grid-row__col grid-row__col--3">
       <p>
-        <b>Date*</b>
+        <b>Treasurer Prefix</b>
       </p>
-      <p>08/20/2018</p>
+      <p>
+       {{ committee_details?.treasurerprefix }}
+      </p>
+    </div>
+    <div class="grid-row__col grid-row__col--3">
+      <p>
+        <b>Treasurer Sufix</b>
+      </p>
+      <p>
+       {{ committee_details?.treasurersuffix }}
+      </p>
     </div>
   </div>
   <div class="grid-row">
@@ -75,24 +97,46 @@
     </div>
   </div>
   <div class="grid-row">
-    <div class="grid-row__col grid-row__col--12" [innerHtml]="reasonText"></div>
+    <div class="grid-row__col grid-row__col--6 text-left">
+      <h4>Text</h4>
+    </div>
+    <div class="grid-row__col grid-row__col--6 text-right">
+      <button
+        type="button"
+        class="btn btn-edit"
+        (click)="goToPreviousStep()"
+      >
+          Edit
+        </button>
+    </div>
+  </div>
+  <div class="grid-row">
+    <div class="grid-row__col grid-row__col--12" [innerHtml]="form_details?.text"></div>
+  </div>
+  <div class="grid-row">
+    <div class="grid-row-col grid-row__col--12">
+      <hr />
+      <h4>Attachments</h4>
+      <hr />
+      <br />
+    </div>
   </div>
   <div class="grid-row">
     <div class="grid-row__col grid-row__col--12 text-center">
       <div class="forms__btn-container">
         <button
           type="button"
-          class="btn btn-default btn-left"
+          class="btn btn-previous btn-left"
           (click)="goToPreviousStep()"
         >
-          Back
+          Previous
         </button>
         <button
           type="button"
           class="btn btn-primary btn-right"
-          (click)="fileForm()"
+          (click)="goToNextStep()"
         >
-          File
+          Next
         </button>
       </div>
     </div>

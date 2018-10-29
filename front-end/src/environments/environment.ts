@@ -5,8 +5,8 @@
 export const environment = {
   production: false,
   name: 'development',
-  apiUrl: 'http://localhost:8080/api/v1'
-  //apiUrl: 'http://35.172.199.97/api/v1',
+  apiUrl: 'http://35.172.199.97/api/v1',
+  validateSuccess: 'All required fields have been validated.'
 };
 
 /*

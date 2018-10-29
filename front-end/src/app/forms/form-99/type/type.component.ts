@@ -2,7 +2,9 @@ import { Component, EventEmitter, ElementRef, OnInit, Output, ViewChild } from '
 import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { environment } from '../../../../environments/environment';
+import { form99 } from '../../../shared/interfaces/FormsService/FormsService';
 import { MessageService } from '../../../shared/services/MessageService/message.service';
+import { ValidateComponent } from '../../../shared/partials/validate/validate.component';
 
 @Component({
   selector: 'app-type',
@@ -15,12 +17,12 @@ export class TypeComponent implements OnInit {
   @ViewChild('mswCollapse') mswCollapse;
 
   public frmType: FormGroup;
-  public reasonSelected: string = '';
-  public reasonFailed: boolean = false;
+  public typeSelected: string = '';
+  // public reasonFailed: boolean = false;
   public isValidType: boolean = false;
   public typeFailed: boolean = false;
 
-  private _form_99_details: any = JSON.parse(localStorage.getItem('form_99_details'));
+  private _form_99_details: form99;
 
   constructor(
     private _fb: FormBuilder,
@@ -31,8 +33,11 @@ export class TypeComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this._form_99_details = JSON.parse(localStorage.getItem('form_99_details'));
+
     if(this._form_99_details) {
       if(this._form_99_details.reason) {
+        this.typeSelected = this._form_99_details.reason;
         this.frmType = this._fb.group({
           reasonTypeRadio: [this._form_99_details.reason, Validators.required]
         });
@@ -54,7 +59,7 @@ export class TypeComponent implements OnInit {
    * @param      {<type>}  val     The value
    */
   public updateTypeSelected(val: string): void {
-    this.reasonSelected = val;
+    this.typeSelected = val;
 
     this.frmType.controls['reasonTypeRadio'].setValue(val);
   }
@@ -67,8 +72,11 @@ export class TypeComponent implements OnInit {
     if (this.frmType.get('reasonTypeRadio').value) {
         this.typeFailed = false;
         this.isValidType = true;
+        this._form_99_details = JSON.parse(localStorage.getItem('form_99_details'));
 
-        localStorage.setItem('form99-type', this.frmType.get('reasonTypeRadio').value);
+        this._form_99_details.reason = this.frmType.get('reasonTypeRadio').value;
+
+        localStorage.setItem('form_99_details', JSON.stringify(this._form_99_details));
 
         this.status.emit({
           form: this.frmType,
@@ -95,6 +103,10 @@ export class TypeComponent implements OnInit {
 
   public frmTypeValid() {
     return this.isValidType;
+  }
+
+  public cancel(): void {
+    this._router.navigateByUrl('/dashboard');
   }
 
 }

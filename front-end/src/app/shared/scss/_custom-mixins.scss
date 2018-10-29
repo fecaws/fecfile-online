@@ -79,3 +79,42 @@
     }
   }
 }
+
+/**
+ * Targets Webkit based browsers. (e.g. Chrome, Safari)
+ *
+ */
+@mixin webkitBrowser() {
+  @media screen and (-webkit-min-device-pixel-ratio:0) {
+     @content;
+  }
+}
+
+@mixin safariOnly() {
+  @media not all and (min-resolution:.001dpcm) {
+    @content;
+  }
+}
+
+@mixin form-btns() {
+  .forms__btn-container {
+    margin: 0 auto;
+    .btn-container-row {
+      @include clearfix();
+      border-bottom: 1px solid $dustyGray;
+      height: 55px;
+      margin-bottom: 10px;
+      width: 100%;
+      .btn {
+        margin-right: 0;
+      }
+    }
+    .btn-left {
+      float: left;
+    }
+    .btn-right {
+      float: right;
+    }
+    @include clearfix();
+  }
+}

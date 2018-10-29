@@ -10,13 +10,15 @@ $fa-font-path: '../node_modules/font-awesome/fonts';
 @import '../node_modules/bootstrap/scss/modal';
 @import '../node_modules/bootstrap/scss/close';
 
-html,body { height:100%; }
+html,body {
+  height: 100%;
+}
 
 body {
   color: $white;
   font-family: arial, helvetica, sans-serif;
   font-size: 1em;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
   overflow-y: scroll;
 }

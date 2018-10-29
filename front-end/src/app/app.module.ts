@@ -11,6 +11,7 @@ import { CollapseModule } from 'ngx-bootstrap/collapse';
 import { ArchwizardModule } from 'angular-archwizard';
 import { QuillModule } from 'ngx-quill';
 import { AngularEditorModule } from '@kolkov/angular-editor';
+import { NgbModule } from "@ng-bootstrap/ng-bootstrap";
 
 import { CanActivateGuard } from './shared/utils/can-activate/can-activate.guard';
 
@@ -33,6 +34,9 @@ import { TypeComponent } from './forms/form-99/type/type.component';
 import { ReasonComponent } from './forms/form-99/reason/reason.component';
 import { StepsComponent } from './shared/partials/steps/steps.component';
 import { PreviewComponent } from './shared/partials/preview/preview.component';
+import { ValidateComponent } from './shared/partials/validate/validate.component';
+import { SignComponent } from './shared/partials/sign/sign.component';
+import { SubmitComponent } from './shared/partials/submit/submit.component';
 
 @NgModule({
   declarations: [
@@ -51,7 +55,10 @@ import { PreviewComponent } from './shared/partials/preview/preview.component';
     TypeComponent,
     ReasonComponent,
     StepsComponent,
-    PreviewComponent
+    PreviewComponent,
+    ValidateComponent,
+    SignComponent,
+    SubmitComponent
   ],
   imports: [
     BrowserModule,
@@ -65,7 +72,8 @@ import { PreviewComponent } from './shared/partials/preview/preview.component';
     TooltipModule.forRoot(),
     CollapseModule.forRoot(),
     QuillModule,
-    AngularEditorModule
+    AngularEditorModule,
+    NgbModule.forRoot()
   ],
   providers: [CookieService, CanActivateGuard],
   bootstrap: [AppComponent],

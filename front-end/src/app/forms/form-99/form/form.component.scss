@@ -1,52 +1,23 @@
 @import '../../../shared/scss/global';
 
 .forms__wizard {
+  height: 100%;
   margin: 0 auto;
-  width: 95%;
-  button {
-    &:first-child {
-      margin-right: 20px;
-    }
-  }
-  .forms__btn-container {
+  width: 96%;
+  @include clearfix();
+  .form__steps {
+    display: block;
     margin: 0 auto;
-    .btn-container-row {
-      @include clearfix();
-      border-bottom: 1px solid $dustyGray;
-      height: 55px;
-      margin-bottom: 10px;
-      width: 100%;
-      .btn {
-        margin-right: 0;
-      }
-    }
-    .btn-left {
-      float: left;
-    }
-    .btn-right {
-      float: right;
-    }
+    width: 100%;
     @include clearfix();
   }
-  .preview-container {
-    margin: 0 auto;
-    width: 80%;
-  }
-}
-.forms__wizard {
-  aw-wizard-navigation-bar.horizontal {
-    ul.steps-indicator {
-      li.done {
-        &:after {
-          background-color: $alto !important;
-        }
-      }
-      li.current,
-      li.editing {
-        &:after {
-          background-color: $dustyGray !important;
-        }
-      }
+  .form__container {
+    display: block;
+    height: 100%;
+    width: 100%;
+    .form__content {
+      float: left;
+      width: 100%;
     }
-  }
+  } // .form__container
 }
