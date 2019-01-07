@@ -2,9 +2,6 @@
 
 CREATE SEQUENCE public.due_date_id_seq;
 
-ALTER SEQUENCE public.due_date_id_seq OWNER TO fecdbuser;
-GRANT ALL ON TABLE public.due_date_id_seq TO fecdbuser;
-GRANT ALL ON TABLE public.due_date_id_seq TO developer;
 
 --Due Dates Table
 CREATE TABLE public.due_dates
