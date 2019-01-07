@@ -1,4 +1,4 @@
-CREATE TABLE efile.committee
+CREATE TABLE public.committee_lookup
 (
    cmte_id            CHARACTER (9) NOT NULL,
    cmte_name          CHARACTER (200),
@@ -23,6 +23,6 @@ CREATE TABLE efile.committee
    PRIMARY KEY (cmte_id)
 );
 
-ALTER TABLE efile.committee  OWNER to fecdbuser;
-GRANT ALL ON TABLE efile.committee TO fecdbuser;
-GRANT ALL ON TABLE efile.committee TO developer;
+
+GRANT ALL ON TABLE public.committee_lookup TO fecdbuser;
+
