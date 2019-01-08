@@ -1,60 +1,252 @@
  @import '../shared/scss/global';
 
 .app-container {
+  background-color: $mercury;
   color: $black;
-  height: 100%;
-  padding-left: $sideBarWidth;
+  font-family: $mainFontFamily;
+  min-height: 100vh;
   transition: all 0.4s ease 0s;
   &.active {
     padding-left: 0;
+    @include media(tablet) {
+      padding-left: 0
+    }
+    @include media(mediumDesktop) {
+      padding-left: 200px;
+    }         
+    @include media(largeDesktop) {
+      padding-left: 200px;
+    }     
     .app__side-nav {
       left: 0;
     }
+    footer {
+      .app__footer {
+        padding-left: 80px;
+        @include media(tablet) {
+          padding-left: 100px;
+        }
+        @include media(mediumDesktop) {
+          padding-left: 130px;
+        }         
+        @include media(largeDesktop) {
+          padding-left: 130px;
+        }
+      }
+    }    
   }
-  .app__top {
-    left: 0;
+  &.dashboard.active {
+    padding-left: 0;
+    @include media(tablet) {
+      padding-left: 0
+    }
+    @include media(mediumDesktop) {
+      padding-left: 240px;
+    }         
+    @include media(largeDesktop) {
+      padding-left: 240px;
+    }     
+    .app__side-nav {
+      left: 0;
+    }   
+    footer {
+      .app__footer {
+        font-family: $mainFontFamily;
+        padding-left: 80px;
+        @include media(tablet) {
+          padding-left: 100px;
+        }
+        @include media(mediumDesktop) {
+          padding-left: 130px;
+        }         
+        @include media(largeDesktop) {
+          padding-left: 130px;
+        }         
+      }
+    } 
+  }
+ .app__top {
+    background-color: $dustyGray;
+    font-family: $mainFontFamily;
+    height: $topNavHeight;
     position: fixed;
     right: 0;
     vertical-align: middle;
     width: 100%;
-    z-index: 1;
-    .app__top-logo {
-      float: left;
-      margin-right: 25px;
-      width: auto;
-      img {
-        padding-top: 5px;
-        width: 350px;
+    z-index: 1001;    
+    .navbar {
+      background-color: $dustyGray;
+      height: $topNavHeight;
+      margin: 0 !important;
+      padding: 0 !important;      
+      .navbar-toggler {
+        padding-right: 20px;
+        @include media(tablet) {
+          padding-right: 10px;
+        }
+        @include media(mediumDesktop) {
+          padding-right: 0;
+        }         
+        @include media(largeDesktop) {
+          padding-right: 0;
+        }         
+      } 
+      .app__top-logo { 
+        float: left;
+        margin: 0 !important;
+        padding: 0 !important;
+        img {
+          width: 200px;
+          @include media(tablet) {
+            width: 200px;
+          }
+          @include media(mediumDesktop) {
+            width: 200px;
+          }         
+          @include media(largeDesktop) {
+            width: 260px;
+          }           
+        }
+      } // .app__top-logo
+      .app__top-nav {
+        float: left;
+        width: auto;
+        &.toggleMenuStyle {  
+          background: $dustyGray;
+          display: block;
+          float: none;
+          height: 675px;
+          position: absolute;
+          top: 60px;
+          width: 100%;
+          @include media(tablet) {
+            display: block;
+            float: none;
+            height: 675px;
+            position: absolute;
+            top: 60px;
+            width: 100%;
+          }
+          @include media(mediumDesktop) {
+            height: 60px;
+            position: relative;
+            top: 0;
+          }         
+          @include media(largeDesktop) {
+            height: 60px;
+            position: relative;
+            top: 0;
+          }                 
+        }        
+        @include media(tablet) {
+          width: auto;
+        }           
+        @include media(mediumDesktop) {
+          width: 80%;
+        }         
+        @include media(largeDesktop) {
+          width: 90%;
+        }         
       }
-    } // .app__top-logo
-    .app__side-nav-toggle {
-      float: left;
-      padding-top: 20px;
-      .side-nav-toggle {
-        color: $black;
-        cursor: pointer;
-        text-decoration: none;
-      }
-    }// .app__side-nav-toggle
+      @include clearfix();
+    } 
     @include clearfix();
-  } // .app__top
+  } // .app__top  
   .app__side-nav {
+    font-family: $mainFontFamily;
     height: 100%;
-    left: $sideBarWidth;
-    margin-left: -$sideBarWidth;
+    left: -235px;
     position: fixed;
-    top: 25px;
+    top: 60px;
     transition: all 0.4s ease 0s;
     width: $sideBarWidth;
     z-index: 1000;
-  } // .app__side-nav
+  } // .app__side-nav  
   main {
-    height: 98%;
+    height: 80%;
     .app__content-wrapper {
-      //height: 95%;
+      background-color: $mercury;
+      font-family: $mainFontFamily;
+      margin: 0 auto;
+      min-height: $mainContentHeight;
+      padding-left: 50px;
       padding-top: 60px;
       transition: all 0.4s ease 0s;
-      width: 100%;
+      z-index: 0;
+      .app__committee-info {
+        background-color: $mercury;
+        height: 90px;
+        padding-left: 60px;
+        padding-right: 60px;
+        padding-top: 35px;
+        position: relative;
+        vertical-align: bottom;
+        @include media(tablet) {
+          height: 60px;
+          line-height: 60px;
+          padding-top: 0;
+        }
+        @include media(mediumDesktop) {
+          height: 60px;
+          line-height: 60px;
+          padding-top: 0;
+        }         
+        @include media(largeDesktop) {
+          height: 60px;
+          line-height: 60px;
+          padding-top: 0;
+        }         
+        .committee-name,
+        .committee-id {
+          display: inline-block;
+          position: relative;
+        }
+        .committee-id {
+          font-size: 1.5em;
+          font-family: $committeeInfoFontFamily;
+          margin-right: 25px;
+        }
+        .committee-name {
+          font-size: 1em;
+          font-family: $committeeInfoFontFamily;
+        }
+        @include clearfix();
+      }
+      .app__content {
+        background-color: $white;
+        margin: 0 auto;
+        min-height: $mainContentHeight;
+        width: 90%;
+      }
     }
-  }
-}
+  } // main
+  .app__footer {
+    background-color: $mercury;
+    color: $black;
+    margin-top: 5px;
+    padding-left: 80px;
+    @include media(tablet) {
+      padding-left: 100px;
+    }
+    @include media(mediumDesktop) {
+      padding-left: 130px;
+    }         
+    @include media(largeDesktop) {
+      padding-left: 130px;
+    }     
+    .row {
+      margin-left: 0;
+      margin-right: 0;
+      div[class^="col-sm"] {
+        a {
+          color: $dodgerBlue;
+          &:hover,
+          &:active,
+          &:visited {
+            color: $dodgerBlue;
+          }
+        }
+      }
+    }
+  }      
+} // .app-container   

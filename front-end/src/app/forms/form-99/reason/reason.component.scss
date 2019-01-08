@@ -1,18 +1,73 @@
 @import '../../../shared/scss/global';
 
 .reason-container {
+  display: block;
+  height: 100%;
+  hr {
+    margin: 0 auto 5px auto;
+    width: 99%;
+  }
+  .grid-row {
+    margin-left: 0;
+    margin-right: 0;
+  }
   header {
     .header-container {
       display: block;
-      width: 100%;
+      width: 80%;
+      @include media(tablet) {
+        width: 100%;
+      }
+      @include media(mediumDesktop) {
+        width: 100%;
+      }         
+      @include media(largeDesktop) {
+        width: 100%;
+      }       
       .header__text {
-        float: left;
-        width: 72%
+        float: none;
+        display: block;
+        font-size: 0.85em;
+        width: 100%;
+        @include media(tablet) {
+          float: none;
+          font-size: 0.85em;
+          display: block;
+          width: 100%;
+        }
+        @include media(mediumDesktop) {
+          float: left;
+          font-size: 1em;
+          width: 50%;
+        }         
+        @include media(largeDesktop) {
+          float: left;
+          font-size: 1em;
+          width: 50%;
+        }         
       }
       .header__btns {
-        float: right;
+        display: block;
+        float: none;
         padding-top: 15px;
-        width: 25%;
+        text-align: left;
+        width: 100%;
+        @include media(tablet) {
+          display: block;
+          float: none;
+          text-align: left;
+          width: 100%;
+        }
+        @include media(mediumDesktop) {
+          float: left;
+          text-align: right;
+          width: 50%;
+        }         
+        @include media(largeDesktop) {
+          float: left;
+          text-align: right;
+          width: 50%;
+        }         
         .btn-print-preview {
           @extend .btn-secondary-gray;
           margin-right: 5px;
@@ -31,12 +86,61 @@
     .content {
       display: block;
       width: 100%;
-      .rich-text-editor {
+      .validate__form {
+        &.show-alerts {
+          display: block;
+          @include media(tablet) {
+            display: block;
+          }
+          @include media(mediumDesktop) {
+            display: none;
+          }         
+          @include media(largeDesktop) {
+            display: none;
+          }           
+        }
+        background-color: $bombay;
+        display: none;
+        height: 80px;
+        margin-top: 10px;
+        width: 100%;
+        @include media(tablet) {
+          background-color: $bombay;
+          display: none;
+          height: 80px;
+          margin-top: 10px;
+          width: 100%;        
+        }
+        @include media(mediumDesktop) {
+          display: none;
+        }         
+        @include media(largeDesktop) {
+          display: none;
+        }         
+      }      
+      .text-editor {
         margin-left: auto;
         margin-right: auto;
         margin-top: 20px;
         z-index: 0;
-        .angular-editor {
+        textarea {
+          border-radius: 3px;
+          font-size: 1em;
+          height: 250px !important;
+          overflow: scroll;
+          padding: 10px;
+          width: 90%;
+          @include media(tablet) {
+            width: 96%;
+          }
+          @include media(mediumDesktop) {
+            width: 96%;
+          }         
+          @include media(largeDesktop) {
+            width: 96%;
+          }           
+        }
+        /* .angular-editor {
           z-index: 0;
           .angular-editor-toolbar {
             .angular-editor-toolbar-set {
@@ -50,9 +154,31 @@
 
             }
           }
-        }
+        } */
         @include clearfix();
       } // .rich-text-editor
+
+      .file-attached-container {
+        .close-icon {
+          // @extend .close-icon;          
+          color: $red;
+          vertical-align: top
+        }
+      }
+
+      .tooltip-inner {
+        max-width: 300px;
+        text-align: left;
+        @include media(tablet) {
+          max-width: 300px;
+        }
+        @include media(mediumDesktop) {
+          max-width: 500px;
+        }         
+        @include media(largeDesktop) {
+          max-width: 600px;
+        }               
+      }
       .editor-character-count,
       .error-text {
         float: left;
@@ -60,7 +186,36 @@
       .error-text {
         padding-left: 20px;
       }
-      @include form-btns();
-    } // .content
-  }
+    } // .content  
+  } // section
+  footer {
+    margin-top: 20px;
+    .grid-row {
+      margin-bottom: 15px !important;
+      .grid-row__col--12 {
+        .forms__btn-container {
+          margin: 0 auto;
+          padding: 0;
+          width: 80%;
+          @include media(tablet) {
+            margin: 0;
+            padding: 0;
+            width: 95%;
+          }
+          @include media(mediumDesktop) {
+            width: 98%;
+            .btn-right {
+              margin-right: 20px;
+            }              
+          }         
+          @include media(largeDesktop) {
+            width: 98%;
+            .btn-right {
+              margin-right: 20px;
+            }              
+          }          
+        }       
+      }
+    }
+}
 }

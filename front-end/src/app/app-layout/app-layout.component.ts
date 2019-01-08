@@ -1,6 +1,8 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, HostListener, Input, OnInit } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { SessionService } from '../shared/services/SessionService/session.service';
+import { MessageService } from '../shared/services/MessageService/message.service';
+import { ApiService } from '../shared/services/APIService/api.service';
 import { HeaderComponent } from '../shared/partials/header/header.component';
 import { SidebarComponent } from '../shared/partials/sidebar/sidebar.component';
 import { FormsComponent } from '../forms/forms.component';
@@ -12,44 +14,71 @@ import { FormsComponent } from '../forms/forms.component';
 })
 export class AppLayoutComponent implements OnInit {
 
-	public showSideBar: boolean = true;
+  @Input() status: any;
 
+	public showSideBar: boolean = true;
+  public sideBarClass: string = 'dashboard active';
+  public toggleMenu: boolean = false;
+  public committeeName: string = '';
+  public committeeId: string = '';
+  public dashboardClass: string = '';
+  public showLegalDisclaimer: boolean = false;
+  
 	constructor(
+    private _apiService: ApiService,
 		private _sessionService: SessionService,
+    private _messageService: MessageService,
     private _router: Router
 	) { }
 
-	ngOnInit() {
+	ngOnInit(): void {
     let route: string = this._router.url;
 
-    if(route) {
-      if(route.indexOf('forms/form/') >= 1) {
-        this.showSideBar = false;
-      }
-    }
+    this._apiService
+      .getCommiteeDetails()
+      .subscribe(res => {
+        if(res) {
+          localStorage.setItem('committee_details', JSON.stringify(res));
 
+          this.committeeName = res.committeename;
+          this.committeeId = res.committeeid;
+          this._messageService
+            .sendMessage({'committee_details_loaded': true});
+        }
+      });      
+  
     this._router
       .events
       .subscribe(val => {
         if(val instanceof NavigationEnd) {
-          if(val.url.indexOf('forms/form/') >= 1) {
-            this.showSideBar = false;
-          } else {
-            this.showSideBar = true;
+          if(this.toggleMenu) {
+            this.toggleMenu = false;
+          }
+          if(val.url.indexOf('/dashboard') === 0) {
+            this.sideBarClass = 'dashboard active';
+          } else if(val.url.indexOf('/forms') === 0) {
+            if(this.toggleMenu) {
+              this.sideBarClass = 'visible';
+            } else {
+              this.sideBarClass = ''; 
+            }
+          }else if(val.url.indexOf('/dashboard') === -1 && val.url.indexOf('/forms') === -1) {
+            this.sideBarClass = 'active';
           }
         }
-      })
-	}
+      });
+  }
+  
+  @HostListener('window:beforeunload', ['$event'])
+  unloadNotification($event: any) {
+    localStorage.clear();
+  }   
 
   /**
-   * Show's or hides the sidebar navigation.
+   * Shows the top nav in tablet and mobile phone view when clicked.
    */
-  public toggleSideNav(): void {
-    if (this.showSideBar) {
-      this.showSideBar = false;
-    } else if (!this.showSideBar) {
-      this.showSideBar = true;
-    }
+  public toggleTopNav(): void {
+    this.toggleMenu = !this.toggleMenu;
   }
 
   /**
@@ -58,4 +87,31 @@ export class AppLayoutComponent implements OnInit {
   public logout(): void {
     this._sessionService.destroy();
   }
+
+  /**
+   * Get's message from child components.
+   *
+   * @param      {Object}  e       The event object.
+   */
+  public onNotify(e): void {
+    let route: string = this._router.url;
+    this.showSideBar = e.showSidebar;
+
+    if(this.showSideBar) {
+      if(route) {
+        if(route.indexOf('/dashboard') === 0) {
+          this.sideBarClass = 'dashboard active';
+        } else if(route.indexOf('/dashboard') === -1) {
+          this.sideBarClass = 'active';
+        }
+      }
+    } else {
+      this.sideBarClass = '';
+    }
+  }  
+
+  public open(): void{
+    this.showLegalDisclaimer = !this.showLegalDisclaimer;
+  }
+
 }
