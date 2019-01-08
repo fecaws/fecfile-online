@@ -39,6 +39,12 @@
       }
       .grid-row__col {
         padding: 0;
+        label {
+          font-family: $titleFontFamily;
+        }
+        .link {
+          font-family: $mainFontFamily;
+        }
         .login-input {
           @include make-text-input(265px, 1.5em, 1em, 1em);
           @include media(tablet) {
@@ -59,10 +65,15 @@
         .right-text {
           padding-right: 15px;
         }
+        .error__committee-id,
+        .error__password-error {
+          @extend .text-error;
+        }
         .login__btn {
           @include button-variant($primaryBlue, $primaryBlue);
           @include button-size($input-btn-padding-y, $input-btn-padding-x, 1.5em, $input-btn-line-height, $btn-border-radius);
           cursor: pointer;
+          font-family: $mainFontFamily;
           margin-bottom: 15px;
           margin-top: 30px;
           width: 275px;
@@ -77,7 +88,6 @@
           }
         }
         .logged-out-msg {
-          color: $blue;
           font-size: 1em;
           font-weight: bold;
           margin-bottom: 20px;

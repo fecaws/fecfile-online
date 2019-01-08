@@ -2,6 +2,7 @@
   background-color: $blueZodiac;
   border-color: $blueZodiac;
   color: $white;
+  font-family: $mainFontFamily;
   &:hover {
     background-color: darken($blueZodiac, 10%);
     border-color: darken($blueZodiac, 10%);
@@ -12,6 +13,7 @@
   background-color: $pelorous;
   border-color: $pelorous;
   color: $white;
+  font-family: $mainFontFamily;
   &:hover {
     background-color: darken($pelorous, 10%);
     border-color: darken($pelorous, 10%);
@@ -22,6 +24,7 @@
   background-color: $mercury;
   border-color: $mercury;
   color: $shuttleGray;
+  font-family: $mainFontFamily;
   &:hover {
     background-color: darken($mercury, 10%);
     border-color: darken($mercury, 10%);
@@ -38,4 +41,37 @@
 
 .btn-edit {
   @extend .btn-secondary-gray;
+}
+
+.btn-info {
+  background-color: Transparent;
+  background-repeat: no-repeat;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  overflow: hidden;
+  outline: none;
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: Transparent !important;
+    background-repeat: no-repeat;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    overflow: hidden;
+    outline: none;    
+  }
+  .info-icon {
+    color: $blueZodiac; 
+    outline: none;
+  }
+}
+
+.btn-right {
+  float: right;
+}
+
+.btn-left {
+  float: left;
 }
