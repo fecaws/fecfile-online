@@ -1,0 +1,25 @@
+delete from ref_rpt_types where rpt_type='M1';
+update ref_rpt_types set rpt_type_desc='Monthly Semi-Annual(Year-End)' where rpt_type='MSY';
+update ref_rpt_types set rpt_type_desc='July 20 Monthly / Semi-Annual' where rpt_type='M7S';
+update ref_rpt_types set rpt_type_desc='Monthly Semi-Annual (Mid-Year)' where rpt_type='MSA';
+update ref_rpt_types set rpt_type_desc='Monthly Year End / Semi-Annual' where rpt_type='MYS';
+update ref_rpt_types set rpt_type_info ='In an election year covers activity from January 1 thru March 31 and due on the 15th of April.' where rpt_type='Q1';
+update ref_rpt_types set rpt_type_info ='In an election year covers overs activity from April 1 thru June 30 and due on the 15th of July.' where  rpt_type='Q2';	
+update ref_rpt_types set rpt_type_info ='In an election year covers activity from July 1 thru September 30 and due on the 15th of October.' where  rpt_type='Q3';	
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from January 1 thru January 31 and due on the 20th of February.' where rpt_type='M2';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from February 1 thru February 28 and due on the 20th of March.' where rpt_type='M3';	
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from March 1 thru March 31 and due on the 20th of April.' where rpt_type='M4';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from April 1 thru April 30 and due on the 20th of May.' where rpt_type='M5';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from May 1 thru May 31 and due on the 20th of June.' where rpt_type='M6';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from June 1 thru June 30 and due on the 20th of July.' where rpt_type='M7';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from July 1 thru July 31 and due on the 20th of August.' where rpt_type='M8';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from August 1 thru August 31 and due on the 20th of September.' where rpt_type='M9';
+update ref_rpt_types set rpt_type_info ='In an election year/non-election year covers activity from September 1 thru September 30 and due on the 20th of October.' where rpt_type='M10';
+update ref_rpt_types set rpt_type_info ='In an election year covers activity from October 1 thru October 31 and due on the 20th of November.' where rpt_type='M11';
+update ref_rpt_types set rpt_type_info ='In an election year covers activity from November 1 thru October 31 and due on the 20th of December.' where rpt_type='M12';
+update ref_rpt_types set rpt_type_info ='In an election year covers activity from the close of the previous report through December 31, and is due on January 31 of the following year.' where rpt_type='YE';
+update ref_rpt_types set rpt_type_info ='In a non-election year covers activity from January 1 thru June 30 and due on the 31st of July.' where rpt_type='MY';
+update ref_rpt_types set rpt_type_info ='In an election year covers activity from October 1 through the 20th day before the general election.' where rpt_type='12G';	
+update ref_rpt_types set rpt_type_info ='Due 12 days before the election, covers activity from the close of books of the previous report filed through the 20th day before the primary. A committee must file pre-primary reports only if the committee has made previously undisclosed contributions or expenditures (including independent expenditures) in connection with a primary election as of the closing date of the report.' where rpt_type='12G';	
+update ref_rpt_types set rpt_type_info ='In an election year covers activity that occurred after the closing date of the last report through the 20th day after the general election.  The report is due 30 days after the election.' where rpt_type='30G';	
+ 
