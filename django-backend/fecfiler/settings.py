@@ -30,14 +30,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 DATA_RECEIVE_API_URL=os.environ.get('DATA_RECEIVER_URL', 'http://127.0.0.1:8002')
 DATA_RECEIVE_API_VERSION = "/api/v1/"
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ''
+SECRET_KEY = '!0)(sp6(&$=_70&+_(zogh24=)@5&smwtuwq@t*v88tn-#m=)z'
 
 
-ROOT_URLCONF = ''
-WSGI_APPLICATION = ''
-AUTH_USER_MODEL = ''
+ROOT_URLCONF = 'fecfiler.urls'
+WSGI_APPLICATION = 'fecfiler.wsgi.application'
+AUTH_USER_MODEL = 'authentication.Account'
 
 ALLOWED_HOSTS = ['*']
 
@@ -60,7 +62,11 @@ INSTALLED_APPS = [
     #'fecfiler.posts',
     'fecfiler.forms',
     'db_file_storage',
-		'django_ses_boto3',
+
+    'fecfiler.form3x',
+
+
+
 ]
 
 
@@ -105,7 +111,21 @@ CORS_ALLOW_HEADERS = default_headers + (
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
-  
+
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    # }
+
+     #'default': {
+     #    'ENGINE': 'django.db.backends.postgresql_psycopg2',
+     #    'NAME': 'postgres',
+     #    'USER': 'postgres',
+     #    'PASSWORD': 'postgres',
+     #    'HOST': 'localhost',
+     #    'PORT': '5432',
+     #}
+
      'default': {
          'ENGINE': 'django.db.backends.postgresql_psycopg2',
          'NAME': os.environ.get('DB_NAME', 'postgres'),
@@ -162,6 +182,9 @@ STATIC_ROOT = 'static'
 
 COMPRESS_ENABLED = os.environ.get('COMPRESS_ENABLED', not DEBUG)
 
+#DEFAULT_FILE_STORAGE = 'db_file_storage.storage.DatabaseFileStorage'
+#AWS_ACCESS_KEY_ID = os.environ.get('ACCESS_KEY', None)
+#AWS_SECRET_ACCESS_KEY = os.environ.get('SECRET_KEY', None)
 AWS_HOST_NAME = 'us-east-1'
 AWS_REGION = 'us-east-1'
 
@@ -170,8 +193,10 @@ AWS_SES_AUTO_THROTTLE = 0.5 # (default; safety factor applied to rate limit, tur
 
 
 # add the credentials from IAM and bucket name
-AWS_STORAGE_BUCKET_NAME = '' # or None if using service role
-AWS_STORAGE_UPLOAD_BUCKET_NAME = '' # or None if using service role
+AWS_STORAGE_BUCKET_NAME = 'fecfile-filing' # or None if using service role
+AWS_STORAGE_UPLOAD_BUCKET_NAME = 'fecfile-filing-uploads' # or None if using service role
+#AWS_ACCESS_KEY_ID = '<aws access key >' # or None if using service role
+#AWS_SECRET_ACCESS_KEY = '<aws secret access key>'
 
 
 # if False it will create unique file names for every uploaded file
@@ -301,8 +326,10 @@ for logger in LOGGING['loggers']:
 
 
 # AWS SES Configuration Settings
-EMAIL_BACKEND = 'django_ses_boto3.ses_email_backend.SESEmailBackend'
+#EMAIL_BACKEND = 'django_ses_boto3.ses_email_backend.SESEmailBackend'
 
+AWS_ACCESS_KEY_ID = os.environ.get('ACCESS_KEY', None)
+AWS_SECRET_ACCESS_KEY = os.environ.get('SECRET_KEY', None)
 AWS_HOST_NAME = 'us-east-1'
 AWS_REGION = 'us-east-1'
 
