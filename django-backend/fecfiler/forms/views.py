@@ -1,13 +1,13 @@
 from django.shortcuts import render
 
-# Create your views here.
 from rest_framework.decorators import api_view
 import maya
+
 #from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import CommitteeInfo, Committee
+from .models import CommitteeInfo, Committee, CommitteeMaster, RefFormTypes, My_Forms_View
 from .serializers import CommitteeInfoSerializer, CommitteeSerializer, CommitteeInfoListSerializer
 import json
 import os
@@ -27,6 +27,9 @@ from django.template import Context, Template
 import PyPDF2
 from PyPDF2 import PdfFileWriter, PdfFileReader, PdfFileMerger
 from PyPDF2.generic import BooleanObject, NameObject, IndirectObject
+import urllib
+
+
 
 # API view functionality for GET DELETE and PUT
 # Exception handling is taken care to validate the committeinfo
@@ -337,7 +340,7 @@ def update_f99_info(request):
                     return Response({"FEC Error 003":"This form Id number does not exist"}, status=status.HTTP_400_BAD_REQUEST)
             else:
                 print('new id is created')
-                create_f99_info(request)
+                #create_f99_info(request)
         except CommitteeInfo.DoesNotExist:
             logger.debug("FEC Error 004:There is no unsubmitted data. Please create f99 form object before submitting")
             return Response({"FEC Error 004":"There is no unsubmitted data. Please create f99 form object before submitting."}, status=status.HTTP_400_BAD_REQUEST)
@@ -448,7 +451,7 @@ def submit_comm_info(request):
             
         if serializer.is_valid():
             serializer.save()
-            email(True, serializer.data)
+            #email(True, serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
          
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -752,7 +755,7 @@ def get_rad_analyst_info(request):
         except:
             return JsonResponse({"ERROR":"ERR_f99_03: Unexpected Error. Please contact administrator."})
 
-
+        
 @api_view(['GET'])
 def get_form99list(request):
     """
@@ -803,8 +806,8 @@ def delete_forms(request):
                 return Response({"error":"There is an error while deleting forms."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"Forms deleted successfully"}, status=status.HTTP_200_OK)
     else:
-        return Response({"error":"ERRCODE: FEC02. POST method is expected."}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response({"error":"ERRCODE: FEC02. POST method is expected."}, status=status.HTTP_400_BAD_REQUEST) 
+
 #email through AWS SES
 def email(boolean, data):
     SENDER = "donotreply@fec.gov"
@@ -841,6 +844,7 @@ def email(boolean, data):
 
     BODY_HTML = render_to_string('email_ack.html',{'data':data})
     #data.get('committeeid')
+
     """<html>
     <head></head>
     <body>
@@ -853,7 +857,7 @@ def email(boolean, data):
     CHARSET = "UTF-8"
 
     # Create a new SES resource and specify a region.
-    client = boto3.client('ses', aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,region_name=settings.AWS_REGION)
+    client = boto3.client('ses')
 
     # Try to send the email.
     try:
@@ -887,17 +891,99 @@ def email(boolean, data):
     except ClientError as e:
         print(e.response['Error']['Message'])
 
+
+
+"""
+@api_view(['GET'])
+def get_comm_lookup(request):
+   
+    #fields for comm lookup
+    
+    try:
+        import ipdb; ipdb.set_trace()
+
+        comm = CommitteeLookup.objects.get(cmte_id=request.user.username)
+    except CommitteeLookup.DoesNotExist:
+        return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+    # get details wrt to the committeeid
+    if request.method == 'GET':
+        new_obj = {'committeeid':comm.cmte_id, 'committee_type': comm.cmte_type, 'committee_name':comm.cmte_name, 'committee_design':comm.cmte_dsgn, 'committee_filing_freq':comm.cmte_filing_freq}
+        return Response(new_obj)
+"""
+
+@api_view(['GET'])
+def get_filed_form_types(request):
+    """
+    Fields for identifying the committee type and committee design and filter the forms category 
+    """
+    try:
+        comm_id = request.user.username
+        
+        #forms_obj = [obj.__dict__ for obj in RefFormTypes.objects.raw("select  rctf.category,rft.form_type,rft.form_description,rft.form_tooltip,rft.form_pdf_url from ref_form_types rft join ref_cmte_type_vs_forms rctf on rft.form_type=rctf.form_type where rctf.cmte_type='" + cmte_type + "' and rctf.cmte_dsgn='" + cmte_dsgn +  "'")]
+        forms_obj = [obj.__dict__ for obj in My_Forms_View.objects.raw("select * from my_forms_view where cmte_id='"  + comm_id + "' order by category,form_type")]
+
+        for form_obj in forms_obj:
+            if form_obj['due_date']:
+                form_obj['due_date'] = form_obj['due_date'].strftime("%m-%d-%Y")
+            
+        resp_data = [{k:v.strip(" ") for k,v in form_obj.items() if k not in ["_state"] and type(v) == str } for form_obj in forms_obj]
+        return Response(resp_data, status=status.HTTP_200_OK)
+    except:
+        return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+
+"""
+@api_view(['GET'])
+def get_report_types_(request):
+    
+    #fields fordentifying the committee type and committee design and filter the forms category 
+    
+    try:
+        comm_id = request.user.username
+
+        #forms_obj = [obj.__dict__ for obj in RefFormTypes.objects.raw("select  rctf.category,rft.form_type,rft.form_description,rft.form_tooltip,rft.form_pdf_url from ref_form_types rft join ref_cmte_type_vs_forms rctf on rft.form_type=rctf.form_type where rctf.cmte_type='" + cmte_type + "' and rctf.cmte_dsgn='" + cmte_dsgn +  "'")]
+        forms_obj = [obj.__dict__ for obj in My_Forms_View.objects.raw("select * from my_forms_view where cmte_id='"  + comm_id + "' order by category,form_type")]
+
+        for form_obj in forms_obj:
+            if form_obj['due_date']:
+                form_obj['due_date'] = form_obj['due_date'].strftime("%m-%d-%Y")
+
+        resp_data = [{k:v.strip(" ") for k,v in form_obj.items() if k not in ["_state"] and type(v) == str } for form_obj in forms_obj]
+        return Response(resp_data, status=status.HTTP_200_OK)
+    except:
+        return Response({}, status=status.HTTP_404_NOT_FOUND)
+"""
+
 @api_view(['POST'])
 def save_print_f99(request):
     """"
     Fetches the last unsubmitted comm_info object saved in db. This obviously is for the object persistence between logins.
     """
     #import ipdb; ipdb.set_trace()
-    createresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/create_f99_info", data=request.data)
+    logger.debug("Incoming parameters: save_print_f99" + str(request.data))
+    token_use = request.auth.decode("utf-8")
+
+    token_use = "JWT" + " " + token_use
+
+    if 'file' in request.data:
+        filename = request.data.get('file').name
+        attachment = request.data.get('file')
+        decode_file = attachment.read()
+        #attachment = open(request.data.get('file'), 'rb')
+        files = {'file': (filename, decode_file, 'application/pdf')}
+        #'file': ('attachment.pdf', myfile, 'application/pdf')
+        createresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/create_f99_info", data=request.data, files=files, headers={'Authorization': token_use})
+    else:
+        createresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/create_f99_info", data=request.data, headers={'Authorization': token_use})
+    
+    #print(request.auth)
     if not createresp.ok:
         return Response(createresp.json(), status=status.HTTP_400_BAD_REQUEST)
     #try:
-    comm_info = CommitteeInfo.objects.filter(id=request.data['id']).last()
+    create_json_data = json.loads(createresp.text)
+
+    comm_info = CommitteeInfo.objects.filter(id=create_json_data['id']).last()
     if comm_info:
         serializer = CommitteeInfoSerializer(comm_info)
         imageno = datetime.datetime.now().strftime('%Y%m%d%H%M%S')+ "{}".format(comm_info.id)
@@ -913,6 +999,15 @@ def save_print_f99(request):
             treasurer_name = treasurer_name +  " " +  comm_info.treasurerlastname
         if not comm_info.treasurersuffix is None:
             treasurer_name = treasurer_name +  " " +  comm_info.treasurersuffix
+        if comm_info.updated_at is None:
+            date_signed_mm = comm_info.created_at.strftime('%m')
+            date_signed_dd = comm_info.created_at.strftime('%d')
+            date_signed_yy = comm_info.created_at.strftime('%Y')
+        else:
+            date_signed_mm = comm_info.updated_at.strftime('%m')
+            date_signed_dd = comm_info.updated_at.strftime('%d')
+            date_signed_yy = comm_info.updated_at.strftime('%Y')
+
 
         data = {
             'IMGNO': imageno,
@@ -924,20 +1019,19 @@ def save_print_f99(request):
             'STATE': comm_info.state,
             'ZIP': comm_info.zipcode,
             'REASON_TYPE': comm_info.reason,
-            'DATE_SIGNED_MM':comm_info.updated_at.strftime('%m'),
-            'DATE_SIGNED_DD':comm_info.updated_at.strftime('%d'),
-            'DATE_SIGNED_YY':comm_info.updated_at.strftime('%Y'),
+            'DATE_SIGNED_MM':date_signed_mm,
+            'DATE_SIGNED_DD':date_signed_dd,
+            'DATE_SIGNED_YY':date_signed_mm,
             'TREASURER_FULL_NAME': treasurer_name,
             'TREASURER_NAME': comm_info.treasurerfirstname + " " + comm_info.treasurerlastname,
             'EF_STAMP':"[Electronically Filed]",
             'MISCELLANEOUS_TEXT': comm_info.text,
-
         }
 
         if not comm_info.street2 is None:
             data['STREET_2'] = comm_info.street2    
 
-        print(data)
+        #print(data)
 
         with open('data.json', 'w') as outfile:
             json.dump(data, outfile, ensure_ascii=False)
@@ -960,9 +1054,11 @@ def save_print_f99(request):
         if not (comm_info.file in [None, '', 'null', ' ',""]):
             filename = comm_info.file.name 
             #print(filename)
-            myurl = "https://fecfile-filing.s3.amazonaws.com/media/" + filename
+            myurl = "https://{}.s3.amazonaws.com/media/".format(settings.AWS_STORAGE_BUCKET_NAME) + filename
             #print(myurl)
-            myfile = urllib.request.urlopen(myurl)
+            #url_request = urllib.request.Request(myurl, headers = {"User-Agent", "Mozilla/5.0"})
+            url_request = urllib.request.Request(myurl)
+            myfile = urllib.request.urlopen(url_request)
 
             #s3 = boto3.client('s3')
 
@@ -979,7 +1075,7 @@ def save_print_f99(request):
                 'data1': ('data.json', open('data.json', 'r'), 'application/json')
             }
         #printresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/print_pdf", data=data_obj, files=file_obj)
-        printresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/print_pdf", data=data_obj, files=file_obj)
+        printresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/print_pdf", data=data_obj, files=file_obj, headers={'Authorization': token_use})
         if not printresp.ok:
             return Response(printresp.json(), status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -989,6 +1085,7 @@ def save_print_f99(request):
             #merged_dict = {key: value for (key, value) in (dictcreate.items() + dictprint.items())}
             return JsonResponse(merged_dict, status=status.HTTP_201_CREATED)
             #return Response(printresp.json(), status=status.HTTP_201_CREATED)
+        
     else:
         return Response({"FEC Error 003":"This form Id number does not exist"}, status=status.HTTP_400_BAD_REQUEST)
     """    
@@ -1004,7 +1101,11 @@ def update_print_f99(request):
     Fetches the last unsubmitted comm_info object saved in db. This obviously is for the object persistence between logins.
     """
     #import ipdb; ipdb.set_trace()
-    createresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/update_f99_info", data=request.data)
+    token_use = request.auth.decode("utf-8")
+
+    token_use = "JWT" + " " + token_use
+
+    createresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/update_f99_info", data=request.data, headers={'Authorization': token_use})
     if not createresp.ok:
         return Response(createresp.json(), status=status.HTTP_400_BAD_REQUEST)
     #try:
@@ -1048,7 +1149,7 @@ def update_print_f99(request):
         if not comm_info.street2 is None:
             data['STREET_2'] = comm_info.street2    
 
-        print(data)
+        #print(data)
 
         with open('data.json', 'w') as outfile:
             json.dump(data, outfile, ensure_ascii=False)
@@ -1071,7 +1172,8 @@ def update_print_f99(request):
         if not (comm_info.file in [None, '', 'null', ' ',""]):
             filename = comm_info.file.name 
             #print(filename)
-            myurl = "https://fecfile-filing.s3.amazonaws.com/media/" + filename
+            myurl = "https://{}.s3.amazonaws.com/media/".format(settings.AWS_STORAGE_BUCKET_NAME) + filename
+            #myurl = "https://fecfile-filing.s3.amazonaws.com/media/" + filename
             #print(myurl)
             myfile = urllib.request.urlopen(myurl)
 
@@ -1082,15 +1184,15 @@ def update_print_f99(request):
             #attachment = open(file_object['Body'], 'rb')
 
             file_obj = {
-                'data1': ('data.json', open('data.json', 'r'), 'application/json'),
+                'data1': ('data.json', open('data.json', 'rb'), 'application/json'),
                 'file': ('attachment.pdf', myfile, 'application/pdf')
             }
         else:
             file_obj = {
-                'data1': ('data.json', open('data.json', 'r'), 'application/json')
+                'data1': ('data.json', open('data.json', 'rb'), 'application/json')
             }
         #printresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/print_pdf", data=data_obj, files=file_obj)
-        printresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/print_pdf", data=data_obj, files=file_obj)
+        printresp = requests.post("http://" + settings.NXG_FEC_API_URL + settings.NXG_FEC_API_VERSION + "f99/print_pdf", data=data_obj, files=file_obj, headers={'Authorization': token_use})
         if not printresp.ok:
             return Response(printresp.json(), status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -1139,8 +1241,15 @@ def set_need_appearances_writer(writer):
 
         return writer
 
- 
-
+def update_checkbox_values(page, fields):
+   for j in range(0, len(page['/Annots'])):
+       writer_annot = page['/Annots'][j].getObject()
+       for field in fields:
+           if writer_annot.get('/T') == field:
+               writer_annot.update({
+                   NameObject("/V"): NameObject(fields[field]),
+                   NameObject("/AS"): NameObject(fields[field])
+               }) 
  
 
 # API which prints Form 99 data
@@ -1151,8 +1260,9 @@ def print_pdf(request):
 
     #try:
     data1 = request.data.get('data1')
-    #data_file = open('request.data.get('data1')', 'r')
-    #print(data1['IMGNO'])
+    #buff = data1.read()
+
+
     data_decode = json.load(data1)
     #print(data_decode['IMGNO'])
     #if data_decode['REASON_TYPE'] = "MST":
@@ -1162,22 +1272,26 @@ def print_pdf(request):
 
     outfile = 'templates/forms/media/{}.pdf'.format(data_decode['IMGNO'])
 
+    #print(data_decode['REASON_TYPE'])
+
+    data_decode['FILER_FEC_ID_NUMBER'] = data_decode['FILER_FEC_ID_NUMBER'][1:]
+
     if data_decode['REASON_TYPE'] == 'MST':
-        data_decode['REASON_TYPE_1'] = 1
+        reason_type_data = {"REASON_TYPE_MST":"/MST"}
 
     if data_decode['REASON_TYPE'] == 'MSM':
-        data_decode['REASON_TYPE_2'] = 1
+        reason_type_data = {"REASON_TYPE_MSM":"/MSM"}
 
     if data_decode['REASON_TYPE'] == 'MSI':
-        data_decode['REASON_TYPE_3'] = 1
+        reason_type_data = {"REASON_TYPE_MSI":"/MSI"}
 
     if data_decode['REASON_TYPE'] == 'MSW':
-        data_decode['REASON_TYPE_4'] = 1
+        reason_type_data = {"REASON_TYPE_MSW":"/MSW"}
     # open the input file
 
     input_stream = open(infile, "rb")
 
-    pdf_reader = PdfFileReader(input_stream, strict=False)
+    pdf_reader = PdfFileReader(input_stream, strict=True)
 
     if "/AcroForm" in pdf_reader.trailer["/Root"]:
 
@@ -1191,7 +1305,9 @@ def print_pdf(request):
 
     set_need_appearances_writer(pdf_writer)
 
-
+    if "/AcroForm" in pdf_writer._root_object:
+        pdf_writer._root_object["/AcroForm"].update(
+            {NameObject("/NeedAppearances"): BooleanObject(True)})
 
     for page_num in range(pdf_reader.numPages):
 
@@ -1199,9 +1315,11 @@ def print_pdf(request):
 
         pdf_writer.addPage(page_obj)
 
+        update_checkbox_values(page_obj, reason_type_data)
+
         pdf_writer.updatePageFormFieldValues(page_obj, data_decode)
 
-        print(data_decode)
+        #print(data_decode)
 
 
 
@@ -1212,7 +1330,7 @@ def print_pdf(request):
 
         #attachment_stream = open(attachment_file, "rb")
 
-        attachment_reader = PdfFileReader(attachment_stream, strict=False)
+        attachment_reader = PdfFileReader(attachment_stream, strict=True)
 
         for attachment_page_num in range(attachment_reader.numPages):
 
@@ -1239,3 +1357,4 @@ def print_pdf(request):
     }
 
     return JsonResponse(resp, status=status.HTTP_201_CREATED)
+
