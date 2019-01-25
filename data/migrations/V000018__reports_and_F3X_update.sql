@@ -181,8 +181,8 @@ create index idx_form_3x_cmte_id on public.form_3x(cmte_id);
 
 
 --Sched_A table
-delete sched_a;
-create table sched_a
+drop table public.sched_a;
+create table public.sched_a
 (
    cmte_id                   	character varying (9) 	NOT NULL,
    report_id		     	bigint			NOT NULL,
@@ -206,8 +206,8 @@ create table sched_a
 );
 
  
-CREATE INDEX sched_a_transaction_id_idx ON public.sched_a (transaction_id);    
-CREATE INDEX sched_a_cmte_id_idx ON public.sched_a USING btree (cmte_id);
-CREATE INDEX sched_a_report_id_idx ON public.sched_a USING btree (report_id);
-CREATE INDEX sched_a_contribution_date_idx ON public.sched_a USING btree (contribution_date);
-CREATE INDEX sched_a_line_number_idx ON public.sched_a USING btree (line_number);
+CREATE INDEX idx_sched_a_transaction_id ON public.sched_a (transaction_id);    
+CREATE INDEX idx_sched_a_cmte_id ON public.sched_a USING btree (cmte_id);
+CREATE INDEX idx_sched_a_report_id ON public.sched_a USING btree (report_id);
+CREATE INDEX idx_sched_a_contribution_date ON public.sched_a USING btree (contribution_date);
+CREATE INDEX idx_sched_a_line_number ON public.sched_a USING btree (line_number);
