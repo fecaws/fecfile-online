@@ -1,4 +1,4 @@
-DROP TABLE entity;
+DROP TABLE public.entity;
 DROP FUNCTION public.get_next_entity_id;
 --Function for Entity Id Sequence.   Format: ENTYYYYYMMDDSSSSSSS
 CREATE OR REPLACE FUNCTION public.get_next_entity_id (p_entity_type character)
@@ -12,7 +12,7 @@ $BODY$;
 
 
 --Table to save Entity Information
-create table entity(
+create table public.entity(
         entity_id character varying(20) default get_next_entity_id('ENT'),
         entity_type character varying(8) NOT NULL,
         cmte_id character varying(9) NOT NULL,    
@@ -36,9 +36,9 @@ create table entity(
         CONSTRAINT entity_pk PRIMARY KEY (entity_id)
 );
 
-CREATE INDEX entity_cmte_id_idx ON public.entity USING btree (cmte_id);   
-CREATE INDEX entity_cmte_entity_type_idx ON public.entity USING btree (entity_type);   
-CREATE INDEX entity_entity_id_idx ON public.entity(entity_id); 
+CREATE INDEX idx_entity_cmte_id ON public.entity USING btree (cmte_id);   
+CREATE INDEX idx_entity_cmte_entity_type ON public.entity USING btree (entity_type);   
+CREATE INDEX idx_entity_entity_id ON public.entity(entity_id); 
 
 
 
