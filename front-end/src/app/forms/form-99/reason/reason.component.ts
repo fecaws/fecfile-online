@@ -24,8 +24,6 @@ export class ReasonComponent implements OnInit {
   @Input('editor') editor: any;
   @ViewChild('fileInput') fileInput: ElementRef;
 
-  @ViewChild('fileInput') fileInput: ElementRef;
-
   public frmReason: FormGroup;
   public reasonType: string = null;
   public reasonFailed: boolean = false;
@@ -174,79 +172,6 @@ export class ReasonComponent implements OnInit {
         this._form99Details.filename = '';
         this.PdfUploaded = false;
         localStorage.setItem(`form_${this._formType}_details`, JSON.stringify(this._form99Details));
-    }
-  }
-
-  /**
-   * Sets the file.
-   *
-   * @param      {Object}  e The event object.
-   */
-  /*public setFile(e): void {
-    if(e.target.files.length === 1) {
-       this.file = e.target.files[0];
-       if (this.file.name.includes('.pdf')){
-         console.log("pdf uploaded");
-         localStorage.setItem(`form_${this._form_type}_file`, this.file.name);
-         this._not_valid_pdf=false;
-         this._valid_file=true;
-         this._show_file_delete_button=true;
-      }
-      else {
-        this._not_valid_pdf=true;
-        this._valid_file=false;
-        this.file=null;
-        this._show_file_delete_button=true;
-      }
-
-
-    } else {
-      localStorage.setItem(`form_${this._form_type}_file`, '');
-    }
-    console.log ('_valid_file:',this._valid_file);
-  }*/
-
-  public setFile(e): void {
-    if(e.target.files.length === 1) {
-       this.file = e.target.files[0];
-       if (this.file.name.includes('.pdf')) {
-         let fileNameObj: any = {
-           'fileName': this.file.name
-         };
-
-         if (this.file.size > 33554432) {
-          this._not_correct_pdf_size=true;
-         }
-         else
-         {
-          this._not_correct_pdf_size=false;
-         }
-
-         localStorage.setItem(`form_${this._form_type}_file`, JSON.stringify(fileNameObj));
-         this._not_valid_pdf=false;
-         this._valid_file=true;
-         this._show_file_delete_button=true;
-         this._form_99_details.filename = this.file.name;
-      }
-      else
-      {
-        this._not_valid_pdf=true;
-        this._valid_file=false;
-        this.file=null;
-        this._not_correct_pdf_size=false;
-      }
-    } else {
-         let fileNameObj: any = {
-           'fileName': ''
-         };
-         localStorage.setItem(`form_${this._form_type}_file`, JSON.stringify(fileNameObj));
-        this._not_valid_pdf=true;
-        this._valid_file=false;
-        this.file=null;
-        this._show_file_delete_button=false;
-        this.fileInput.nativeElement.value = '';
-        this._form_99_details.filename = '';
-        localStorage.setItem(`form_${this._form_type}_details`, JSON.stringify(this._form_99_details));
     }
   }
 
@@ -454,8 +379,6 @@ export class ReasonComponent implements OnInit {
     this._form99Details.text = this.frmReason.get('reasonText').value;
 
     localStorage.setItem('form_99_details', JSON.stringify(this._form99Details));
-
-    this.showValidateBar = true;
 
     this.showValidateBar = true;
 

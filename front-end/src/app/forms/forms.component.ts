@@ -77,37 +77,5 @@ export class FormsComponent implements OnInit {
     } else {
       return true;
     }
-
-    return false;
   }
-
-  /**
-   * Open's the modal window.
-   *
-   * @param      {Object}  content  The content
-   */
-  /*public openModal(): void {
-    console.log('openModal: ');
-    console.log('this.modalContent: ', this.modalContent);
-    console.log('this._modalService.open(this.modalContent): ', this._modalService.open(this.modalContent));
-    this._openModal = this._modalService.open(this.modalContent);
-
-    this.confirmModal.next(false);
-  }
-
-  public modalResponse(response: string): void {
-    console.log('modalResponse: ');
-    console.log('response: ',  response);
-    let result: boolean = false;
-
-    if(response === 'okay') {
-      this._modalService.dismissAll();
-      result = true;
-    } else if(response === 'cancel') {
-      this._modalService.dismissAll();
-      result = false;
-    }
-
-    this.confirmModal.next(result);
-  }*/
 }

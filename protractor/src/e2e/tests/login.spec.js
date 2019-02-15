@@ -4,7 +4,7 @@ describe('Login Test Suite',function(){
 
     beforeAll(function(done){
         //console.log('Hello beforeAll..');
-        browser.get('http://example.gov/');
+        browser.get('http://dev-fecfile.efdev.fec.gov/');
         done();
     });
 

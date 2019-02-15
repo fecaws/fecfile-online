@@ -67,6 +67,7 @@ export class F3xComponent implements OnInit {
     private _config: NgbTooltipConfig,
     private _router: Router,
     private _activatedRoute: ActivatedRoute
+  
   ) {
     this._config.placement = 'right';
     this._config.triggers = 'click';

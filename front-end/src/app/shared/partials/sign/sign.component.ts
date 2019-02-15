@@ -139,12 +139,6 @@ export class SignComponent implements OnInit {
             this._form_details.additional_email_2 = '';
           }
         }
-
-        if(this._form_details.additional_email_2.length >= 1) {
-          if(this._form_details.additional_email_2 === '-') {
-            this._form_details.additional_email_2 = '';
-          }
-        }        
       }
 
       this.frmSignee = this._fb.group({
@@ -451,20 +445,4 @@ export class SignComponent implements OnInit {
      }
    }
 
-     localStorage.setItem(`form_${this.form_type}_details`, JSON.stringify(this._form_details));
-     
-     /*.saveForm({}, {}, this.form_type)*/
-     console.log("Accessing Sign printPriview ...");
-     this._formsService
-       .PreviewForm_Preview_sign_Screen({}, this.form_type)
-       .subscribe(res => {
-         if(res) {
-           console.log("Accessing Sign printPriview res ...",res);
-         }
-       },
-       (error) => {
-         console.log('error: ', error);
-       });
-   }
- }
 }

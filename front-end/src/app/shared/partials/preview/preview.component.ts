@@ -208,8 +208,6 @@ export class PreviewComponent implements OnInit {
         }            
       });          
   }
-  public printPriview(): void {
-    this._form_details = JSON.parse(localStorage.getItem(`form_${this.form_type}_details`));
 
   public validateForm(): void {
     this.showValidateBar = true;
