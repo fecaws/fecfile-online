@@ -35,13 +35,14 @@ exports.config = {
     showColors: true
   },
   suites:{
-   // smoke: ['**/*.spec.js']
-    login: ['**/login.spec.js'],
-    form99: ['**/form99.spec.js']
+    smoke: ['**/*.spec.js']
+    //smoke: ['**/form99.spec.js' ]
+   //smoke: ['**/login.spec.js']
   },
  
   onPrepare: function () {
     //browser.baseUrl
+    browser.get(browser.baseUrl);
     var AllureReporter = require('jasmine-allure-reporter');
     jasmine.getEnv().addReporter(new AllureReporter());
     jasmine.getEnv().afterEach(function(done){

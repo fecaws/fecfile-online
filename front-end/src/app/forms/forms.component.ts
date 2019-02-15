@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { environment } from '../../environments/environment';
+import { FormsService } from '../shared/services/FormsService/forms.service';
 import { MessageService } from '../shared/services/MessageService/message.service';
 import { DialogService } from '../shared/services/DialogService/dialog.service';
 import { ValidateComponent } from '../shared/partials/validate/validate.component';
@@ -16,7 +17,7 @@ import { ConfirmModalComponent } from '../shared/partials/confirm-modal/confirm-
 })
 export class FormsComponent implements OnInit {
 
-	public form_type: string = '';
+	public formType: string = '';
   public closeResult: string = '';
   public canContinue: boolean = false;
   public showValidateBar: boolean = false;
@@ -29,14 +30,15 @@ export class FormsComponent implements OnInit {
     private _modalService: NgbModal,
     private _ngZone: NgZone,
     private _messageService: MessageService,
-    private _dialogService: DialogService
+    private _dialogService: DialogService,
+    private _formsService: FormsService
   ) { }
 
   ngOnInit(): void {
   	this._activeRoute
       .params
       .subscribe( params => {
-  		  this.form_type = params.form_id;
+  		  this.formType = params.form_id;
   	});
 
     this._messageService
@@ -54,7 +56,7 @@ export class FormsComponent implements OnInit {
    * @return     {boolean}  True if able to deactivate, False otherwise.
    */
   public async canDeactivate(): Promise<boolean> {
-    if (this.hasUnsavedData()) {
+    if (this._formsService.formHasUnsavedData(this.formType)) {
       let result: boolean = null;
 
       result = await this._dialogService
@@ -74,24 +76,6 @@ export class FormsComponent implements OnInit {
       return result;
     } else {
       return true;
-    }
-  }
-
-  /**
-   * Determines if form has unsaved data.
-   * TODO: Move to service.
-   *
-   * @return     {boolean}  True if has unsaved data, False otherwise.
-   */
-  public hasUnsavedData(): boolean {
-    let formSaved: any = JSON.parse(localStorage.getItem(`form_${this.form_type}_saved`)); 
-
-    if(formSaved !== null) {
-      let formStatus: boolean = formSaved.saved;
-
-      if(!formStatus) {
-        return true;
-      }      
     }
 
     return false;
