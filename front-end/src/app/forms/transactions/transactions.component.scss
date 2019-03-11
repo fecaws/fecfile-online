@@ -1,0 +1,84 @@
+@import '../../shared/scss/global';
+
+.forms__wizard {
+  display: table;
+  table-layout: fixed;
+  min-height: $mainContentHeight;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  .form__sidebar {
+    background-color: $bombay;
+    flex-grow: 1;
+    display: none;
+    padding-left: 0;
+    @include media(tablet) {
+      display: none;
+    }
+    @include media(mediumDesktop) {
+      display: table-cell;
+      width: 250px;
+    }
+    @include media(largeDesktop) {
+      display: table-cell;
+      width: 250px;
+    }
+  }
+
+
+  .transactions-container {
+    .grid-row {
+      margin-left: 0;
+      margin-right: 0;
+      .grid-row__col {
+        padding-left: 0;
+        padding-right: 0;
+      }
+    }
+
+    header {
+      .header-content {
+        display: block;
+        margin: 0 auto;
+        width: 96%;
+        padding: .75em 0 .25em 0;
+        @include clearfix();
+        .btn-options {
+          color: $shuttleGray;
+          text-decoration: none;
+          &:hover,
+          &:visited,
+          &:active {
+            color: $shuttleGray;
+            text-decoration: none;
+          }
+        }
+      }
+    }
+
+    .forms__btn-container {
+      height: 100%;
+      margin-bottom: 10px;
+    }
+
+    .forms__trx-btn {
+      margin: 5px;
+      width: 10em;
+    }
+
+    .forms__trx-search {
+      width: 27%;
+      float: right;
+      margin-right: 5px;
+    }
+
+    .forms__trx-applied-filter-row {
+      min-height: 48px;
+    }
+
+  }
+}
+
+
+
+

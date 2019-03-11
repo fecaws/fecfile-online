@@ -42,6 +42,7 @@ export class IndividualReceiptComponent implements OnInit {
     private _formService: FormsService,
     private _activatedRoute: ActivatedRoute,
     private _config: NgbTooltipConfig,
+    private _router: Router,
   ) {
     this._config.placement = 'right'
     this._config.triggers = 'click';
@@ -178,7 +179,9 @@ export class IndividualReceiptComponent implements OnInit {
       this.frmIndividualReceipt.controls['transactionType'].setValue(null);
     }
   }
-
+  /**
+   * @param  {} e
+   */
   public transactionTypeSelected(e): void {
     if(typeof e !== 'undefined') {
       this.transactionType = e.text;
@@ -196,5 +199,12 @@ export class IndividualReceiptComponent implements OnInit {
       this.formSubmitted = false;
     }
     return;
+  }
+
+  public viewTransactions() {
+    //this._router.navigate(['/forms/transactions', this._formType], { queryParams: { step: this.step } }); 
+
+    //let form_id = this._formType;
+    this._router.navigate(['/forms/transactions', this._formType]); 
   }
 }

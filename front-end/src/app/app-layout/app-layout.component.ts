@@ -27,8 +27,10 @@ export class AppLayoutComponent implements OnInit {
   public dashboardClass: string = '';
   public showLegalDisclaimer: boolean = false;
   public showForm3XDashBoard: boolean = false;
-  public form3XReportDashBoardLine1 = '';
-  public form3XReportDashBoardLine2 = '';
+  public form3XReportDashBoardLine1: string = '';
+  public form3XReportDashBoardLine2: string = '';
+  public radAnalystInfo: any = {};
+
 	constructor(
     private _apiService: ApiService,
 		private _sessionService: SessionService,
@@ -53,6 +55,16 @@ export class AppLayoutComponent implements OnInit {
         }
       });
 
+    this._apiService
+      .getRadAnalyst()
+      .subscribe(res => {
+        if (res) {
+          if (Array.isArray(res.response)) {
+            this.radAnalystInfo = res.response[0];
+          }
+        }
+      });
+
     this._router
       .events
       .subscribe(val => {
@@ -64,7 +76,7 @@ export class AppLayoutComponent implements OnInit {
             this.sideBarClass = 'dashboard active';
           } else if(val.url.indexOf('/forms') === 0) {
             if(this.toggleMenu) {
-              this.sideBarClass = 'visible';
+              this.sideBarClass = 'active';
             } else {
               this.sideBarClass = '';
             }
@@ -78,25 +90,31 @@ export class AppLayoutComponent implements OnInit {
   ngDoCheck(): void {
     let route: string = this._router.url;
 
-    if(route.indexOf('/forms') === 0) {
-      if(this.toggleMenu) {
-        this.sideBarClass = 'visible';
-      } else {
-        this.sideBarClass = '';
-      }
-    }
-     console.log("AppLayoutComponent ngDoCheck ...");
-    if(localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){
+    if( typeof localStorage.getItem('form3XReportInfo.showDashBoard') !== 'undefined' && localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){
       this.showForm3XDashBoard = true;
       this.form3XReportDashBoardLine1 = localStorage.getItem('form3XReportInfo.DashBoardLine1');
       this.form3XReportDashBoardLine2 = localStorage.getItem('form3XReportInfo.DashBoardLine2');
-      
-    }
+    } else {
+        this.showForm3XDashBoard = false;
+        this.form3XReportDashBoardLine1 = "";
+        this.form3XReportDashBoardLine2 = ""}
   }
 
   @HostListener('window:beforeunload', ['$event'])
   unloadNotification($event: any) {
     localStorage.clear();
+  }
+
+  ngOnChanges(): void{
+    console.log("AppLayoutComponent ngOnChanges ...");
+    if( typeof localStorage.getItem('form3XReportInfo.showDashBoard') !== 'undefined' && localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){
+      this.showForm3XDashBoard = true;
+      this.form3XReportDashBoardLine1 = localStorage.getItem('form3XReportInfo.DashBoardLine1');
+      this.form3XReportDashBoardLine2 = localStorage.getItem('form3XReportInfo.DashBoardLine2');
+    } else {
+        this.showForm3XDashBoard = false;
+        this.form3XReportDashBoardLine1 = "";
+        this.form3XReportDashBoardLine2 = ""}
   }
 
   /**
@@ -121,6 +139,16 @@ export class AppLayoutComponent implements OnInit {
   public onNotify(e): void {
     let route: string = this._router.url;
     this.showSideBar = e.showSidebar;
+
+    if( typeof localStorage.getItem('form3XReportInfo.showDashBoard') !== 'undefined' && localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){
+      this.showForm3XDashBoard = true;
+      this.form3XReportDashBoardLine1 = localStorage.getItem('form3XReportInfo.DashBoardLine1');
+      this.form3XReportDashBoardLine2 = localStorage.getItem('form3XReportInfo.DashBoardLine2');
+    } else {
+        this.showForm3XDashBoard = false;
+        this.form3XReportDashBoardLine1 = "";
+        this.form3XReportDashBoardLine2 = "";
+      }
 
     if(this.showSideBar) {
       if(route) {

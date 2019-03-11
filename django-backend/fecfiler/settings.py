@@ -32,6 +32,8 @@ DATA_RECEIVE_API_VERSION = "/api/v1/"
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
 
+TIME_ZONE = "America/New_York"
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '!0)(sp6(&$=_70&+_(zogh24=)@5&smwtuwq@t*v88tn-#m=)z'
@@ -62,10 +64,13 @@ INSTALLED_APPS = [
     #'fecfiler.posts',
     'fecfiler.forms',
     'db_file_storage',
-    'fecfiler.form3x',
+
+    'fecfiler.core',
+    #'fecfiler.form3x',
     'fecfiler.sched_A',
-
-
+    'storages',
+  
+  
 
 ]
 
@@ -135,6 +140,7 @@ DATABASES = {
          'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
          'PORT': os.environ.get('DB_PORT', '5432')
      }
+
 }
 
 
@@ -252,10 +258,6 @@ ADMIN_SHORTCUTS = [
 ]
 
 
-try:
-  from .local_settings import *
-except:
-   pass
 
 """
 LOGGING = {
@@ -377,5 +379,13 @@ MEDIA_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_UPLOAD_DOMAIN, MEDIAFILES_LOCATION
 NXG_FEC_API_URL = os.environ.get('NXG_API_URL', '127.0.0.1:8080')
 NXG_FEC_API_VERSION = os.environ.get('NXG_API_VERSION', '/api/v1/')
 
+
+NXG_FEC_API_URL = "127.0.0.1:8080"
+NXG_FEC_API_VERSION = "/api/v1/"
 NXG_FEC_PRINT_API_URL = os.environ.get('PRINTPDF_URL', 'https://dev-efile-api.efdev.fec.gov/printpdf')
 NXG_FEC_PRINT_API_VERSION = "/v1/print"
+
+try:
+  from .local_settings import *
+except:
+   pass

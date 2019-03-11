@@ -2,8 +2,10 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view
 import maya
-from .models import Cmte_Report_Types_View
+from .models import Cmte_Report_Types_View, My_Forms_View #, GenericDocument
 from rest_framework.response import Response
+from fecfiler.forms.models import CommitteeInfo
+from fecfiler.forms.serializers import CommitteeInfoSerializer
 import json
 import datetime
 import os
@@ -13,6 +15,11 @@ import logging
 from django.db import connection
 from django.http import JsonResponse
 from datetime import datetime
+import boto3
+from botocore.exceptions import ClientError
+import boto
+from boto.s3.key import Key
+from django.conf import settings
 
 # Create your views here.
 
@@ -39,7 +46,7 @@ def get_filed_report_types(request):
 
         forms_obj = []
         with connection.cursor() as cursor:
-            cursor.execute("select report_type,rpt_type_desc,regular_special_report_ind,rpt_type_info, cvg_start_date,cvg_end_date,due_date from public.cmte_report_types_view where cmte_id='" + comm_id + "' order by rpt_type_order")
+            cursor.execute("select report_type,rpt_type_desc,regular_special_report_ind,rpt_type_info, cvg_start_date,cvg_end_date,due_date from public.cmte_report_types_view where cmte_id = %s order by rpt_type_order", [comm_id])
             for row in cursor.fetchall():
                 #forms_obj.append(data_row)
                 data_row = list(row)
@@ -73,7 +80,7 @@ def get_transaction_categories(request):
         with connection.cursor() as cursor:
             forms_obj= {}
             form_type = request.query_params.get('form_type')
-            cursor.execute("select transaction_category_json from transaction_category_json_view where form_type='"+ form_type +"'")
+            cursor.execute("select transaction_category_json from transaction_category_json_view where form_type = %s", [form_type])
             for row in cursor.fetchall():
                 data_row = list(row)
                 forms_obj=data_row[0]
@@ -99,12 +106,8 @@ def get_report_types(request):
             #report_year = datetime.datetime.now().strftime('%Y')
             forms_obj = {}
             cmte_id = request.user.username
-            form_type = request.query_params.get('form_type')
-
-            query_string = """select report_types_json From public.report_type_and_due_dates_view where cmte_id='""" + cmte_id + """' and form_type='""" + form_type + """';"""
-            
-            cursor.execute(query_string)
-
+            form_type = request.query_params.get('form_type')            
+            cursor.execute("select report_types_json From public.report_type_and_due_dates_view where cmte_id = %s and form_type = %s", [cmte_id, form_type])
             for row in cursor.fetchall():
                 data_row = list(row)
                 forms_obj= json.loads(data_row[0])
@@ -115,6 +118,29 @@ def get_report_types(request):
         return JsonResponse(forms_obj, status=status.HTTP_200_OK, safe=False)
     except Exception as e:
         return Response("The get_report_types API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_filed_form_types(request):
+    """
+    Fields for identifying the committee type and committee design and filter the forms category 
+    """
+    try:
+        comm_id = request.user.username
+
+        #forms_obj = [obj.__dict__ for obj in RefFormTypes.objects.raw("select  rctf.category,rft.form_type,rft.form_description,rft.form_tooltip,rft.form_pdf_url from ref_form_types rft join ref_cmte_type_vs_forms rctf on rft.form_type=rctf.form_type where rctf.cmte_type='" + cmte_type + "' and rctf.cmte_dsgn='" + cmte_dsgn +  "'")]
+        forms_obj = [obj.__dict__ for obj in My_Forms_View.objects.raw("select * from my_forms_view where cmte_id = %s order by category,form_type", [comm_id])]
+
+        for form_obj in forms_obj:
+            if form_obj['due_date']:
+                form_obj['due_date'] = form_obj['due_date'].strftime("%m-%d-%Y")
+
+        resp_data = [{k:v.strip(" ") for k,v in form_obj.items() if k not in ["_state"] and type(v) == str } for form_obj in forms_obj]
+        return Response(resp_data, status=status.HTTP_200_OK)
+    except:
+        return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+
 
 """
 ********************************************************************************************************************************
@@ -131,12 +157,8 @@ def get_dynamic_forms_fields(request):
             cmte_id = request.user.username
             form_type = request.query_params.get('form_type')
             transaction_type = request.query_params.get('transaction_type')
-            forms_obj = {}
-            
-            query_string = """select form_fields from dynamic_forms_view where form_type='""" + form_type + """' and transaction_type='""" + transaction_type + """'"""
-            
-            cursor.execute(query_string)
-
+            forms_obj = {}            
+            cursor.execute("select form_fields from dynamic_forms_view where form_type = %s and transaction_type = %s", [form_type, transaction_type])
             for row in cursor.fetchall():
                 data_row = list(row)
                 forms_obj=data_row[0]
@@ -161,6 +183,19 @@ def check_form_type(form_type):
     if not (form_type in form_list):
         raise Exception('Form Type is not correctly specified. Input received is: {}'.format(form_type))
 
+def check_form_data(field, data):
+
+    try:
+        if field in data:
+            if not data.get(field) in [None, "null", '', ""]:
+                return data.get(field)
+            else:
+                return None    
+        else:
+            return None
+    except Exception as e:
+        raise
+
 def check_list_cvg_dates(args):
 
     try:
@@ -171,8 +206,7 @@ def check_list_cvg_dates(args):
 
         forms_obj = []
         with connection.cursor() as cursor: 
-            query_string = """SELECT report_id, cvg_start_date, cvg_end_date FROM public.reports WHERE cmte_id='""" + cmte_id + """' and form_type='""" + form_type + """' AND delete_ind is distinct from 'Y' ORDER BY report_id DESC"""
-            cursor.execute(query_string)
+            cursor.execute("SELECT report_id, cvg_start_date, cvg_end_date FROM public.reports WHERE cmte_id = %s and form_type = %s AND delete_ind is distinct from 'Y' ORDER BY report_id DESC", [cmte_id, form_type])
 
             if len(args) == 4:
                 for row in cursor.fetchall():
@@ -191,7 +225,9 @@ def check_list_cvg_dates(args):
 
 def date_format(cvg_date):
     try:
-        cvg_dt = datetime.strptime(cvg_date, '%m/%d/%Y').date()
+        if cvg_date == None:
+            return None
+        cvg_dt = datetime.strptime(cvg_date, '%Y-%m-%d').date()
         return cvg_dt
     except:
         raise
@@ -215,7 +251,7 @@ def get_prev_report_id(report_id):
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT setval('report_id_seq', """ + str(report_id) + """, false)""")
+            cursor.execute("SELECT setval('report_id_seq', %s, false)", [report_id])
     except Exception:
         raise
 
@@ -235,7 +271,7 @@ def post_sql_report(report_id, cmte_id, form_type, amend_ind, report_type, cvg_s
         with connection.cursor() as cursor:
             # INSERT row into Reports table
             cursor.execute("""INSERT INTO public.reports (report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s)""",(report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date))                                          
+                                VALUES (%s,%s,%s,%s,%s,%s,%s)""",[report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date])                                          
     except Exception:
         raise
 
@@ -245,16 +281,15 @@ def get_list_all_report(cmte_id):
         with connection.cursor() as cursor:
             # GET all rows from Reports table
             query_string = """SELECT report_id, cmte_id, form_type, report_type, amend_ind, amend_number, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, create_date, last_update_date
-                                                    FROM public.reports WHERE cmte_id ='""" + cmte_id + """' AND delete_ind is distinct from 'Y'"""
-
-            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""")
-
+                                                    FROM public.reports WHERE delete_ind is distinct from 'Y' AND cmte_id = %s""" 
+            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t""", [cmte_id])
+           
             for row in cursor.fetchall():
             #forms_obj.append(data_row)
                 data_row = list(row)
                 forms_obj=data_row[0]
         if forms_obj is None:
-            raise NoOPError()
+            raise NoOPError('The Committee: {} does not have any reports listed'.format(cmte_id))
         return forms_obj
     except Exception:
         raise
@@ -264,19 +299,17 @@ def get_list_report(report_id, cmte_id):
     try:
         with connection.cursor() as cursor:
             # GET single row from Reports table
-            print("get_list_report: ")
             query_string = """SELECT report_id, cmte_id, form_type, report_type, amend_ind, amend_number, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, create_date, last_update_date 
-                                            FROM public.reports WHERE cmte_id='""" + cmte_id + """' AND delete_ind is distinct from 'Y' AND report_id='""" + report_id + """'"""
+                                            FROM public.reports WHERE cmte_id = %s AND delete_ind is distinct from 'Y' AND report_id = %s"""
             
-            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""")
+            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t""", [cmte_id, report_id])
 
             for row in cursor.fetchall():
             #forms_obj.append(data_row)
                 data_row = list(row)
                 forms_obj=data_row[0]
-                print("get_list_report:")
         if forms_obj is None:
-            raise NoOPError()
+            raise NoOPError('The Report ID: {} does not exist or is deleted'.format(report_id))
         return forms_obj
     except Exception:
         raise
@@ -289,7 +322,7 @@ def put_sql_report(report_id, cmte_id, report_type, cvg_start_date, cvg_end_date
             # cursor.execute("""UPDATE public.reports SET report_type = %s, cvg_start_date = %s, cvg_end_date = %s, last_update_date = %s WHERE report_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""",
             #                     (data.get('report_type'), data.get('cvg_start_dt'), data.get('cvg_end_dt'), datetime.now(), data.get('report_id'), cmte_id))
             cursor.execute("""UPDATE public.reports SET report_type = %s, cvg_start_date = %s, cvg_end_date = %s WHERE report_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""",
-                                (report_type, cvg_start_date, cvg_end_date, report_id, cmte_id))
+                                [report_type, cvg_start_date, cvg_end_date, report_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('The Report ID: {} does not exist in Reports table'.format(report_id))
     except Exception:
@@ -302,7 +335,7 @@ def delete_sql_report(report_id, cmte_id):
 
             # UPDATE delete_ind flag on a single row from Reports table
             # cursor.execute("""UPDATE public.reports SET delete_ind = 'Y', last_update_date = %s WHERE report_id = '""" + report_id + """' AND cmte_id = '""" + cmte_id + """'""", (datetime.now()))
-            cursor.execute("""UPDATE public.reports SET delete_ind = 'Y' WHERE report_id = '""" + report_id + """' AND cmte_id = '""" + cmte_id + """' AND delete_ind is distinct from 'Y'""")
+            cursor.execute("""UPDATE public.reports SET delete_ind = 'Y' WHERE report_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""", [report_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('The Report ID: {} is either deleted or does not exist in Reports table'.format(report_id))
     except Exception:
@@ -315,7 +348,7 @@ def undo_delete_sql_report(report_id, cmte_id):
 
             # UPDATE delete_ind flag on a single row from Reports table
             # cursor.execute("""UPDATE public.reports SET delete_ind = 'Y', last_update_date = %s WHERE report_id = '""" + report_id + """' AND cmte_id = '""" + cmte_id + """'""", (datetime.now()))
-            cursor.execute("""UPDATE public.reports SET delete_ind = '' WHERE report_id = '""" + report_id + """' AND cmte_id = '""" + cmte_id + """' AND delete_ind = 'Y'""")
+            cursor.execute("""UPDATE public.reports SET delete_ind = '' WHERE report_id = %s AND cmte_id = %s AND delete_ind = 'Y'""", [report_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('The Report ID: {} is not deleted or does not exist in Reports table'.format(report_id))
     except Exception:
@@ -326,7 +359,7 @@ def remove_sql_report(report_id, cmte_id):
     try:
         with connection.cursor() as cursor:
             # DELETE row into Reports table
-            cursor.execute("""DELETE FROM public.reports WHERE report_id = '""" + str(report_id) + """' AND cmte_id = '""" + cmte_id +"""'""")           
+            cursor.execute("""DELETE FROM public.reports WHERE report_id = %s AND cmte_id = %s""", [report_id, cmte_id])           
     except Exception:
         raise 
 
@@ -339,7 +372,7 @@ def post_sql_form3x(report_id, cmte_id, form_type, amend_ind, report_type, elect
         with connection.cursor() as cursor:
             # Insert data into Form 3X table
             cursor.execute("""INSERT INTO public.form_3x (report_id, cmte_id, form_type, amend_ind, report_type, election_code, date_of_election, state_of_election, cvg_start_dt, cvg_end_dt, coh_bop)
-                                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",(report_id, cmte_id, form_type, amend_ind, report_type, election_code, date_of_election, state_of_election, cvg_start_dt, cvg_end_dt, coh_bop))           
+                                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",[report_id, cmte_id, form_type, amend_ind, report_type, election_code, date_of_election, state_of_election, cvg_start_dt, cvg_end_dt, coh_bop])           
     except Exception:
         raise
 
@@ -351,7 +384,7 @@ def put_sql_form3x(report_type, election_code, date_of_election, state_of_electi
             # cursor.execute("""UPDATE public.form_3x SET report_type = %s, election_code = %s, date_of_election = %s, state_of_election = %s, cvg_start_dt = %s, cvg_end_dt = %s, coh_bop = %s, last_update_date = %s WHERE report_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""",
             #                     (data.get('report_type'), data.get('election_code'), data.get('date_of_election'), data.get('state_of_election'), data.get('cvg_start_dt'), data.get('cvg_end_dt'), data.get('coh_bop'), datetime.now(), data.get('report_id'), cmte_id))
             cursor.execute("""UPDATE public.form_3x SET report_type = %s, election_code = %s, date_of_election = %s, state_of_election = %s, cvg_start_dt = %s, cvg_end_dt = %s, coh_bop = %s WHERE report_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""",
-                                (report_type, election_code, date_of_election, state_of_election, cvg_start_dt, cvg_end_dt, coh_bop, report_id, cmte_id))
+                                [report_type, election_code, date_of_election, state_of_election, cvg_start_dt, cvg_end_dt, coh_bop, report_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('This Report ID: {} is either already deleted or does not exist in Form 3X table'.format(report_id))              
     except Exception:
@@ -364,7 +397,7 @@ def delete_sql_form3x(report_id, cmte_id):
 
             # UPDATE delete_ind flag on a single row from form3x table
             # cursor.execute("""UPDATE public.form_3x SET delete_ind = 'Y', last_update_date = %s WHERE report_id = '""" + report_id + """' AND cmte_id = '""" + cmte_id + """'AND delete_ind is distinct from 'Y'""", (datetime.now()))
-            cursor.execute("""UPDATE public.form_3x SET delete_ind = 'Y' WHERE report_id = '""" + report_id + """' AND cmte_id = '""" + cmte_id + """'AND delete_ind is distinct from 'Y'""")
+            cursor.execute("""UPDATE public.form_3x SET delete_ind = 'Y' WHERE report_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""", [report_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('This Report ID: {} is either already deleted or does not exist in Form 3X table'.format(report_id))
     except Exception:
@@ -439,7 +472,7 @@ def put_reports(data):
         report_id = data.get('report_id')
         args = [cmte_id, data.get('form_type'), data.get('cvg_start_dt'), data.get('cvg_end_dt'), data.get('report_id')]
         forms_obj = []
-        if not (cvg_start_dt is None or cvg_end_dt is None):                        
+        if not (data.get('cvg_start_dt') is None or data.get('cvg_end_dt') is None):                        
             forms_obj = check_list_cvg_dates(args)
         if len(forms_obj)== 0:
             old_list_report = get_list_report(report_id, cmte_id)
@@ -503,6 +536,9 @@ def reports(request):
                 election_code = request.data.get('election_code')
             else:
                 election_code = None
+
+            date_of_election = check_form_data('date_of_election', request.data)
+            state_of_election = check_form_data('state_of_election', request.data)     
             
             datum = {
                 'cmte_id': request.user.username,
@@ -510,8 +546,8 @@ def reports(request):
                 'amend_ind': amend_ind,
                 'report_type': request.data.get('report_type'),
                 'election_code': election_code,
-                'date_of_election': date_format(request.data.get('date_of_election')),
-                'state_of_election': request.data.get('state_of_election'),
+                'date_of_election': date_format(date_of_election),
+                'state_of_election': state_of_election,
                 'cvg_start_dt': date_format(request.data.get('cvg_start_dt')),
                 'cvg_end_dt': date_format(request.data.get('cvg_end_dt')),
                 'coh_bop': int(request.data.get('coh_bop')),
@@ -555,14 +591,16 @@ def reports(request):
     if request.method == 'PUT':
 
         try:
-            
+            date_of_election = check_form_data('date_of_election', request.data)
+            state_of_election = check_form_data('state_of_election', request.data)
+             
             datum = {
                 'report_id': request.data.get('report_id'),
                 'cmte_id': request.user.username,
                 'form_type': request.data.get('form_type'),
                 'report_type': request.data.get('report_type'),
-                'date_of_election': date_format(request.data.get('date_of_election')),
-                'state_of_election': request.data.get('state_of_election'),
+                'date_of_election': date_format(date_of_election),
+                'state_of_election': state_of_election,
                 'cvg_start_dt': date_format(request.data.get('cvg_start_dt')),
                 'cvg_end_dt': date_format(request.data.get('cvg_end_dt')),
                 'coh_bop': int(request.data.get('coh_bop')),
@@ -624,7 +662,7 @@ def get_next_entity_id(entity_type):
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT public.get_next_entity_id('""" + entity_type + """')""")
+            cursor.execute("""SELECT public.get_next_entity_id(%s)""",[entity_type])
             entity_ids = cursor.fetchone()
             entity_id = entity_ids[0]
         return entity_id
@@ -647,7 +685,7 @@ def post_sql_entity(entity_id, entity_type, cmte_id, entity_name, first_name, la
 
             # Insert data into Entity table
             cursor.execute("""INSERT INTO public.entity (entity_id, entity_type, cmte_id, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id, create_date)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",(entity_id, entity_type, cmte_id, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id, datetime.now()))
+                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",[entity_id, entity_type, cmte_id, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id, datetime.now()])
     except Exception:
         raise
 
@@ -655,15 +693,15 @@ def get_list_entity(entity_id, cmte_id):
 
     try:
         query_string = """SELECT entity_id, entity_type, cmte_id, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id
-                                                    FROM public.entity WHERE entity_id ='""" + entity_id + """' AND cmte_id ='""" + cmte_id + """' AND delete_ind is distinct from 'Y'"""
+                                                    FROM public.entity WHERE entity_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'"""
         forms_obj = None
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""")
+            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""", [entity_id, cmte_id])
             for row in cursor.fetchall():
                 data_row = list(row)
                 forms_obj=data_row[0]
         if forms_obj is None:
-            raise NoOPError()   
+            raise NoOPError('The Entity ID: {} does not exist or is deleted'.format(entity_id))   
         return forms_obj
     except Exception:
         raise
@@ -672,15 +710,15 @@ def get_list_all_entity(cmte_id):
 
     try:
         query_string = """SELECT entity_id, entity_type, cmte_id, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id
-                                                    FROM public.entity WHERE cmte_id ='""" + cmte_id + """' AND delete_ind is distinct from 'Y'"""
+                                                    FROM public.entity WHERE cmte_id = %s AND delete_ind is distinct from 'Y'"""
         forms_obj = None
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""")
+            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""", [cmte_id])
             for row in cursor.fetchall():
                 data_row = list(row)
                 forms_obj=data_row[0]
         if forms_obj is None:
-            raise NoOPError()
+            raise NoOPError('The Committee: {} does not have any entities listed'.format(cmte_id))
         return forms_obj
     except Exception:
         raise
@@ -693,7 +731,7 @@ def put_sql_entity(entity_type, entity_name, first_name, last_name, middle_name,
             # cursor.execute("""UPDATE public.entity SET entity_type = %s, entity_name = %s, first_name = %s, last_name = %s, middle_name = %s, preffix = %s, suffix = %s, street_1 = %s, street_2 = %s, city = %s, state = %s, zip_code = %s, occupation = %s, employer = %s, ref_cand_cmte_id = %s, last_update_date = %s WHERE entity_id = %s AND cmte_id = %s AND delete_ind is distinct FROM 'Y'""",
             #             (entity_type, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id, last_update_date, entity_id, cmte_id))                       
             cursor.execute("""UPDATE public.entity SET entity_type = %s, entity_name = %s, first_name = %s, last_name = %s, middle_name = %s, preffix = %s, suffix = %s, street_1 = %s, street_2 = %s, city = %s, state = %s, zip_code = %s, occupation = %s, employer = %s, ref_cand_cmte_id = %s WHERE entity_id = %s AND cmte_id = %s AND delete_ind is distinct FROM 'Y'""",
-                        (entity_type, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id, entity_id, cmte_id))                       
+                        [entity_type, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id, entity_id, cmte_id])                       
             if (cursor.rowcount == 0):
                 raise Exception('The Entity ID: {} does not exist in Entity table'.format(entity_id))
     except Exception:
@@ -705,7 +743,7 @@ def delete_sql_entity(entity_id, cmte_id):
         with connection.cursor() as cursor:
             # UPDATE delete_ind flag to Y in DB
             # cursor.execute("""UPDATE public.entity SET delete_ind = 'Y', last_update_date = %s WHERE entity_id = '""" + entity_id + """' AND cmte_id = '""" + cmte_id + """' AND delete_ind is distinct from 'Y'""", (datetime.now()))
-            cursor.execute("""UPDATE public.entity SET delete_ind = 'Y' WHERE entity_id = '""" + entity_id + """' AND cmte_id = '""" + cmte_id + """' AND delete_ind is distinct from 'Y'""")
+            cursor.execute("""UPDATE public.entity SET delete_ind = 'Y' WHERE entity_id = %s AND cmte_id = %s AND delete_ind is distinct from 'Y'""", [entity_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('The Entity ID: {} is either already deleted or does not exist in Entity table'.format(entity_id))
     except Exception:
@@ -717,7 +755,7 @@ def undo_delete_sql_entity(entity_id, cmte_id):
         with connection.cursor() as cursor:
             # UPDATE delete_ind flag to Y in DB
             # cursor.execute("""UPDATE public.entity SET delete_ind = 'Y', last_update_date = %s WHERE entity_id = '""" + entity_id + """' AND cmte_id = '""" + cmte_id + """' AND delete_ind is distinct from 'Y'""", (datetime.now()))
-            cursor.execute("""UPDATE public.entity SET delete_ind = '' WHERE entity_id = '""" + entity_id + """' AND cmte_id = '""" + cmte_id + """' AND delete_ind = 'Y'""")
+            cursor.execute("""UPDATE public.entity SET delete_ind = '' WHERE entity_id = %s AND cmte_id = %s AND delete_ind = 'Y'""", [entity_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('The Entity ID: {} is not deleted or does not exist in Entity table'.format(entity_id))
     except Exception:
@@ -728,7 +766,7 @@ def remove_sql_entity(entity_id, cmte_id):
     try:
         with connection.cursor() as cursor:
             # DELETE row from entity table    
-            cursor.execute("""DELETE FROM public.entity WHERE entity_id = '""" + entity_id + """' AND cmte_id = '""" + cmte_id +"""'""")
+            cursor.execute("""DELETE FROM public.entity WHERE entity_id = %s AND cmte_id = %s""", [entity_id, cmte_id])
             if (cursor.rowcount == 0):
                 raise Exception('The Entity ID: {} does not exist in Entity table'.format(entity_id))
     except Exception:
@@ -938,10 +976,10 @@ def search_entities(request):
             order_string = key + ","
 
         query_string = """SELECT entity_id, entity_type, cmte_id, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, ref_cand_cmte_id
-                                                    FROM public.entity WHERE cmte_id ='""" + cmte_id + """'""" + param_string +""" AND delete_ind is distinct from 'Y' ORDER BY """ + order_string[:-1]
+                                                    FROM public.entity WHERE cmte_id = '""" + cmte_id + """'""" + param_string + """ AND delete_ind is distinct from 'Y' ORDER BY """ + order_string[:-1]
         print(query_string)
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t;""")
+            cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t""")
             for row in cursor.fetchall():
                 data_row = list(row)
                 forms_obj=data_row[0]
@@ -955,5 +993,90 @@ def search_entities(request):
 """
 ******************************************************************************************************************************
 END - SEARCH ENTITIES API - CORE APP
+******************************************************************************************************************************
+"""
+
+@api_view(["POST"])
+def create_json_file(request):
+    #creating a JSON file so that it is handy for all the public API's
+
+        
+    try:
+        #comm_info = CommitteeInfo.objects.filter(committeeid=request.user.username, is_submitted=True).last()
+        comm_info = CommitteeInfo.objects.get(committeeid=request.user.username, id=request.data['id'])
+
+        if comm_info:
+            serializer = CommitteeInfoSerializer(comm_info)
+            conn = boto.connect_s3(settings.AWS_ACCESS_KEY_ID, settings.AWS_SECRET_ACCESS_KEY)
+            bucket = conn.get_bucket("dev-efile-repo")
+            k = Key(bucket)
+            k.content_type = "application/json"
+            k.set_contents_from_string(json.dumps(serializer.data))
+            url = k.generate_url(expires_in=0, query_auth=False).replace(":443","")
+            return Response(url, status=status.HTTP_200_OK)
+            
+        else:
+            return Response({"FEC Error 007":"This user does not have a submitted CommInfo object"}, status=status.HTTP_400_BAD_REQUEST)
+            
+    except CommitteeInfo.DoesNotExist:
+        return Response({"FEC Error 009":"An unexpected error occurred while processing your request"}, status=status.HTTP_400_BAD_REQUEST)
+
+"""
+******************************************************************************************************************************
+GET ALL TRANSACTIONS API - CORE APP - SPRINT 8 - FNE 613 - BY PRAVEEN JINKA
+******************************************************************************************************************************
+"""
+@api_view(['GET'])
+def get_all_transactions(request):
+    try:
+        cmte_id = request.user.username
+        param_string = ""
+        # if 'order_params' in request.query_params:
+        #     order_string = request.query_params.get('order_params')
+        # else:
+        #     order_string = "transaction_id"
+        for key, value in request.query_params.items():
+            try:
+                check_value = int(value)
+                param_string = param_string + " AND " + key + "=" + str(value)
+            except Exception as e:
+                if key == 'transaction_date':
+                    transaction_date = date_format(request.query_params.get('transaction_date'))
+                    param_string = param_string + " AND " + key + "='" + str(transaction_date) + "'"
+                else:
+                    param_string = param_string + " AND LOWER(" + key + ") LIKE LOWER('" + value +"%')"
+
+        query_string = """SELECT count(*) total_transactions,sum((case when memo_code is null then transaction_amount else 0 end))total_transaction_amount from all_transactions_view
+                            where cmte_id='""" + cmte_id + """'""" + param_string + """ AND delete_ind is distinct from 'Y'"""
+                            # + """ ORDER BY """ + order_string
+        # print(query_string)
+        with connection.cursor() as cursor:
+            cursor.execute(query_string)
+            result = cursor.fetchone()
+            count = result[0]
+            sum_trans = result[1]
+            
+        trans_query_string = """SELECT transaction_type, transaction_type_desc, transaction_id, name, street_1, street_2, city, state, zip_code, transaction_date, transaction_amount, purpose_description, occupation, employer, memo_code, memo_text from all_transactions_view
+                                    where cmte_id='""" + cmte_id + """'""" + param_string + """ AND delete_ind is distinct from 'Y'"""
+                                    # + """ ORDER BY """ + order_string
+        # print(trans_query_string)
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT json_agg(t) FROM (""" + trans_query_string + """) t""")
+            for row in cursor.fetchall():
+                data_row = list(row)
+                forms_obj=data_row[0]
+        status_value = status.HTTP_200_OK
+        if forms_obj is None:
+            forms_obj =[]
+            status_value = status.HTTP_204_NO_CONTENT
+
+        json_result = { 'transactions': forms_obj, 'totalAmount': sum_trans, 'totalTransactionCount': count}
+        return Response(json_result, status=status_value)
+
+    except Exception as e:
+        return Response("The get_all_transactions API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+"""
+******************************************************************************************************************************
+END - GET ALL TRANSACTIONS API - CORE APP
 ******************************************************************************************************************************
 """
