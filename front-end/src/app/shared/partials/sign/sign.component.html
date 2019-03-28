@@ -132,7 +132,8 @@
 
               <div class="grid-row__col grid-row__col--3">
                   <br />
-                    <label for="additional_email_1"> Additional Email 01 </label> <br />
+                    <label for="additional_email_1"> Additional Email 1</label> <br />
+                  <ng-container>
                     <input
                       type="email"
                       name="additional_email_1"
@@ -140,18 +141,19 @@
                       (change)="changeAdditionalEmail($event)"
                       (blur)="updateAdditionalEmail($event)"
                       formControlName="additional_email_1"
-                    > &nbsp;&nbsp;
+                    ></ng-container> &nbsp;&nbsp;
                     <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
                         <div class="text-error" *ngIf="frmSignee.controls.additional_email_1.errors?.email">
-                          &nbsp;&nbsp;Additional email 1 must <br />&nbsp;be valid email address.
+                          &nbsp;Additional email 1 must <br />&nbsp;be valid email address.
                         </div>
                     </div>
               </div>
 
               <div class="grid-row__col grid-row__col--2">
                   <br />
-                  <label for="confirm_email_1"> Confirm Email 01 </label> 
+                  <label for="confirm_email_1"> Confirm Email 1</label> 
                   &nbsp;&nbsp;
+                  <ng-container>
                       <input
                         type="email"
                         name="confirm_email_1"
@@ -160,9 +162,10 @@
                         (blur)="updateAdditionalEmail($event)"
                         formControlName="confirm_email_1"
                       >
+                    </ng-container>    
                       <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
                           <div class="text-error" *ngIf="frmSignee.controls.confirm_email_1.errors?.email">
-                              &nbsp;Confirm email 1 must<br /> be valid email address.
+                              &nbsp;confirm email 1 must<br /> be valid email address.
                           </div>
                       </div>
               </div>
@@ -170,10 +173,11 @@
               <div class="grid-row__col grid-row__col--3">
                   <br /> &nbsp;&nbsp;
                      <div class="text-error" *ngIf="additionalEmail1Invalid && showAdditionalEmail1Warn">
-                        &nbsp;&nbsp;&nbsp;Confirm additional Email 01.
+                        <br />
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Confirm additional email 1.
                     </div>
                     <div class="text-success" *ngIf="!additionalEmail1Invalid && showAdditionalEmail1Warn">
-                      &nbsp;&nbsp;&nbsp;{{this.confirm_email_1}}<br /> &nbsp;&nbsp;&nbsp;has been successfully added.
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{this.confirm_email_1}}<br /> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;has been successfully added.
                     </div>
                </div>   
            </div>
@@ -185,34 +189,37 @@
                  
                <div class="grid-row__col grid-row__col--3">
                   <br />
-                      <label for="additional_email_2"> Additional Email 02</label>
+                      <label for="additional_email_2"> Additional Email 2</label>
                       &nbsp;&nbsp;
-                      <input
+                      <ng-container>
+                        <input
                         type="email"
                         name="additional_email_2"
                         value=""
                         (change)="changeAdditionalEmail($event)"
                         (blur)="updateAdditionalEmail($event)"
                         formControlName="additional_email_2"
-                      > 
+                      >
+                      </ng-container> 
                       <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
                           <div class="text-error" *ngIf="frmSignee.controls.additional_email_2.errors?.email">
-                            &nbsp;&nbsp;Additional email 2 must <br />&nbsp;&nbsp;be valid email address.
+                            &nbsp;Additional email 2 must <br />&nbsp;&nbsp;be valid email address.
                           </div>
                       </div>
                </div> 
 
                <div class="grid-row__col grid-row__col--2">
                   <br />
-                  <label for="confirm_email_2"> Confirm Email  02 </label> 
-                  &nbsp;&nbsp;<input
+                  <label for="confirm_email_2"> Confirm Email 2 </label> 
+                  &nbsp;&nbsp;
+                  <ng-container><input
                        type="email"
                        name="confirm_email_2"
                        value=""
                        (change)="changeAdditionalEmail($event)"
                        (blur)="updateAdditionalEmail($event)"
                        formControlName="confirm_email_2"
-                     > 
+                     >  </ng-container>
                      <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
                         <div class="text-error" *ngIf="frmSignee.controls.confirm_email_2.errors?.email">
                             &nbsp;Confirm email 2 must <br />be valid email address.
@@ -225,10 +232,11 @@
                       <br />
                       <br />
                       <div class="text-error" *ngIf="additionalEmail2Invalid && showAdditionalEmail2Warn">
-                          &nbsp;&nbsp;&nbsp;Confirm additional Email 02.
+                        <br />
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Confirm additional email 2.
                       </div>
                       <div class="text-success" *ngIf="!additionalEmail2Invalid && showAdditionalEmail2Warn">
-                          &nbsp;&nbsp;&nbsp;{{this.confirm_email_2}}<br /> &nbsp;&nbsp;&nbsp;has been successfully added.
+                          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{this.confirm_email_2}}<br /> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;has been successfully added.
                       </div>
                </div>
            </div>

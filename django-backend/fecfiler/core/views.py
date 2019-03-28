@@ -1,4 +1,4 @@
-from django.shortcuts import render
+sfrom django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view
 import maya
@@ -20,6 +20,7 @@ from botocore.exceptions import ClientError
 import boto
 from boto.s3.key import Key
 from django.conf import settings
+import re
 
 # Create your views here.
 
@@ -225,12 +226,34 @@ def check_list_cvg_dates(args):
 
 def date_format(cvg_date):
     try:
-        if cvg_date == None:
+        if cvg_date == None or cvg_date in ["none", "null", " ", ""]:
             return None
-        cvg_dt = datetime.strptime(cvg_date, '%Y-%m-%d').date()
+        cvg_dt = datetime.strptime(cvg_date, '%m/%d/%Y').date()
         return cvg_dt
     except:
         raise
+
+def check_null_value(check_value):
+    try:
+        if check_value in ["none", "null", " ", ""]:
+            return None
+        else:
+            return check_value
+    except:
+        raise
+
+def check_email(email):
+    try:
+        pattern = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
+        if not check_null_value(email):
+            return None
+        if re.fullmatch(pattern, email):
+            return email
+        else:
+            raise Exception('Email entered is in an invalid format. Input received is: {}. Expected: abc@def.xyz or abc@def.wxy.xyz'.format(email))
+    except:
+        raise
+
 
 """
 **************************************************** FUNCTIONS - REPORT IDS **********************************************************
@@ -265,13 +288,13 @@ def check_report_id(report_id):
 """
 **************************************************** FUNCTIONS - REPORTS *************************************************************
 """
-def post_sql_report(report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date):
+def post_sql_report(report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date, status, email_1, email_2):
 
     try:
         with connection.cursor() as cursor:
             # INSERT row into Reports table
-            cursor.execute("""INSERT INTO public.reports (report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s)""",[report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date])                                          
+            cursor.execute("""INSERT INTO public.reports (report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date, status, email_1, email_2)
+                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",[report_id, cmte_id, form_type, amend_ind, report_type, cvg_start_date, cvg_end_date, status, email_1, email_2])                                          
     except Exception:
         raise
 
@@ -280,7 +303,7 @@ def get_list_all_report(cmte_id):
     try:
         with connection.cursor() as cursor:
             # GET all rows from Reports table
-            query_string = """SELECT report_id, cmte_id, form_type, report_type, amend_ind, amend_number, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, create_date, last_update_date
+            query_string = """SELECT report_id, cmte_id, form_type, report_type, amend_ind, amend_number, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, email_1, email_2, filed_date, fec_id, fec_accepted_date, fec_status, create_date, last_update_date
                                                     FROM public.reports WHERE delete_ind is distinct from 'Y' AND cmte_id = %s""" 
             cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t""", [cmte_id])
            
@@ -299,7 +322,7 @@ def get_list_report(report_id, cmte_id):
     try:
         with connection.cursor() as cursor:
             # GET single row from Reports table
-            query_string = """SELECT report_id, cmte_id, form_type, report_type, amend_ind, amend_number, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, create_date, last_update_date 
+            query_string = """SELECT report_id, cmte_id, form_type, report_type, amend_ind, amend_number, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, email_1, email_2, filed_date, fec_id, fec_accepted_date, fec_status, create_date, last_update_date 
                                             FROM public.reports WHERE cmte_id = %s AND delete_ind is distinct from 'Y' AND report_id = %s"""
             
             cursor.execute("""SELECT json_agg(t) FROM (""" + query_string + """) t""", [cmte_id, report_id])
@@ -420,7 +443,7 @@ def post_reports(data):
             report_id = get_next_report_id()
             data['report_id'] = str(report_id)
             try:
-                post_sql_report(report_id, data.get('cmte_id'), data.get('form_type'), data.get('amend_ind'), data.get('report_type'), data.get('cvg_start_dt'), data.get('cvg_end_dt'))
+                post_sql_report(report_id, data.get('cmte_id'), data.get('form_type'), data.get('amend_ind'), data.get('report_type'), data.get('cvg_start_dt'), data.get('cvg_end_dt'), data.get('status'), data.get('email_1'), data.get('email_2'))
             except Exception as e:
                 # Resetting Report ID
                 get_prev_report_id(report_id)
@@ -519,6 +542,7 @@ def delete_reports(data):
     except:
         raise
 
+
 """
 ***************************************************** REPORTS - POST API CALL STARTS HERE **********************************************************
 """
@@ -528,29 +552,44 @@ def reports(request):
     if request.method == 'POST':
         try:
             if 'amend_ind' in request.data:
-                amend_ind = request.data.get('amend_ind')
+                amend_ind = check_null_value(request.data.get('amend_ind'))
             else:
                 amend_ind = "N"
 
             if 'election_code' in request.data:
-                election_code = request.data.get('election_code')
+                election_code = check_null_value(request.data.get('election_code'))
             else:
                 election_code = None
 
-            date_of_election = check_form_data('date_of_election', request.data)
-            state_of_election = check_form_data('state_of_election', request.data)     
+            if 'status' in request.data:
+                f_status = check_null_value(request.data.get('status'))
+            else:
+                f_status = "Saved"
+
+            if 'email_1' in request.data:
+                email_1 = check_email(request.data.get('email_1'))
+            else:
+                email_1 = None
+
+            if 'email_2' in request.data:
+                email_2 = check_email(request.data.get('email_2'))
+            else:
+                email_2 = None
             
             datum = {
                 'cmte_id': request.user.username,
-                'form_type': request.data.get('form_type'),
+                'form_type': check_null_value(request.data.get('form_type')),
                 'amend_ind': amend_ind,
-                'report_type': request.data.get('report_type'),
+                'report_type': check_null_value(request.data.get('report_type')),
                 'election_code': election_code,
-                'date_of_election': date_format(date_of_election),
-                'state_of_election': state_of_election,
+                'date_of_election': date_format(request.data.get('date_of_election')),
+                'state_of_election': check_null_value(request.data.get('state_of_election')),
                 'cvg_start_dt': date_format(request.data.get('cvg_start_dt')),
                 'cvg_end_dt': date_format(request.data.get('cvg_end_dt')),
                 'coh_bop': int(request.data.get('coh_bop')),
+                'status': f_status,
+                'email_1': email_1,
+                'email_2': email_2,
             }    
             data = post_reports(datum)
             if type(data) is dict:
@@ -643,6 +682,7 @@ def reports(request):
 END - REPORTS API - CORE APP
 ******************************************************************************************************************************
 """
+        
 """
 ******************************************************************************************************************************
 ENTITIES API- CORE APP - SPRINT 7 - FNE 553 - BY PRAVEEN JINKA
@@ -991,7 +1031,7 @@ def search_entities(request):
     except Exception as e:
         return Response("The search_entities API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
 """
-******************************************************************************************************************************
+************************* *****************************************************************************************************
 END - SEARCH ENTITIES API - CORE APP
 ******************************************************************************************************************************
 """
@@ -1002,18 +1042,38 @@ def create_json_file(request):
 
         
     try:
+        
         #comm_info = CommitteeInfo.objects.filter(committeeid=request.user.username, is_submitted=True).last()
         comm_info = CommitteeInfo.objects.get(committeeid=request.user.username, id=request.data['id'])
 
         if comm_info:
+            header = {
+                "version":"8.3",
+                "softwareName":"ABC Inc",
+                "softwareVersion":"1.02 Beta",
+                "additionalInfomation":"Any other useful information"
+            }
+
             serializer = CommitteeInfoSerializer(comm_info)
             conn = boto.connect_s3(settings.AWS_ACCESS_KEY_ID, settings.AWS_SECRET_ACCESS_KEY)
             bucket = conn.get_bucket("dev-efile-repo")
             k = Key(bucket)
             k.content_type = "application/json"
-            k.set_contents_from_string(json.dumps(serializer.data))
+            data_obj = {}
+            data_obj['header'] = header
+            data_obj['data'] = serializer.data
+            k.set_contents_from_string(json.dumps(data_obj))            
             url = k.generate_url(expires_in=0, query_auth=False).replace(":443","")
-            return Response(url, status=status.HTTP_200_OK)
+            tmp_filename = '/tmp/' + comm_info.committeeid + '_f99.json'
+            vdata = {}
+            vdata['form_type'] = "F99"
+            vdata['committeeid'] = comm_info.committeeid
+            json.dump(data_obj, open(tmp_filename, 'w'))
+            vfiles = {}
+            vfiles["json_file"] = open(tmp_filename, 'rb')
+            res = requests.post("http://" + settings.DATA_RECEIVE_API_URL + "/v1/send_data" , data=vdata, files=vfiles)
+            import ipdb; ipdb.set_trace()
+            return Response(res.text, status=status.HTTP_200_OK)
             
         else:
             return Response({"FEC Error 007":"This user does not have a submitted CommInfo object"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1078,5 +1138,85 @@ def get_all_transactions(request):
 """
 ******************************************************************************************************************************
 END - GET ALL TRANSACTIONS API - CORE APP
+******************************************************************************************************************************
+"""
+"""
+********************************************************************************************************************************
+STATE API- CORE APP - SPRINT 9 - FNE ??? - BY PRAVEEN JINKA 
+********************************************************************************************************************************
+"""
+@api_view(['GET'])
+def state(request):
+
+    try:
+        with connection.cursor() as cursor:
+            forms_obj= {}
+            cursor.execute("SELECT json_agg(t) FROM (SELECT state_code, state_description, st_number FROM public.ref_states order by st_number) t")
+            for row in cursor.fetchall():
+                data_row = list(row)
+                forms_obj=data_row[0]
+                
+        if forms_obj is None:
+            return Response("The ref_states table is empty", status=status.HTTP_400_BAD_REQUEST)                              
+        
+        return Response(forms_obj, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response("The states API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+"""
+******************************************************************************************************************************
+END - STATE API - CORE APP
+******************************************************************************************************************************
+"""
+"""
+******************************************************************************************************************************
+GET ALL DELETED TRANSACTIONS API - CORE APP - SPRINT 9 - FNE 744 - BY PRAVEEN JINKA
+******************************************************************************************************************************
+"""
+@api_view(['GET'])
+def get_all_deleted_transactions(request):
+    try:
+        cmte_id = request.user.username
+        param_string = ""
+        for key, value in request.query_params.items():
+            try:
+                check_value = int(value)
+                param_string = param_string + " AND " + key + "=" + str(value)
+            except Exception as e:
+                if key == 'transaction_date':
+                    transaction_date = date_format(request.query_params.get('transaction_date'))
+                    param_string = param_string + " AND " + key + "='" + str(transaction_date) + "'"
+                else:
+                    param_string = param_string + " AND LOWER(" + key + ") LIKE LOWER('" + value +"%')"
+
+        # query_string = """SELECT count(*) total_transactions,sum((case when memo_code is null then transaction_amount else 0 end))total_transaction_amount from all_transactions_view
+        #                     where cmte_id='""" + cmte_id + """'""" + param_string + """ AND delete_ind = 'Y'"""
+        # with connection.cursor() as cursor:
+        #     cursor.execute(query_string)
+        #     result = cursor.fetchone()
+        #     count = result[0]
+        #     sum_trans = result[1]
+            
+        trans_query_string = """SELECT transaction_type, transaction_type_desc, transaction_id, name, street_1, street_2, city, state, zip_code, transaction_date, transaction_amount, purpose_description, occupation, employer, memo_code, memo_text from all_transactions_view
+                                    where cmte_id='""" + cmte_id + """'""" + param_string + """ AND delete_ind = 'Y'"""
+        # print(trans_query_string)
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT json_agg(t) FROM (""" + trans_query_string + """) t""")
+            for row in cursor.fetchall():
+                data_row = list(row)
+                forms_obj=data_row[0]
+        status_value = status.HTTP_200_OK
+        if forms_obj is None:
+            forms_obj =[]
+            status_value = status.HTTP_204_NO_CONTENT
+
+        # json_result = { 'transactions': forms_obj, 'totalAmount': sum_trans, 'totalTransactionCount': count}
+        json_result = { 'transactions': forms_obj}
+        return Response(json_result, status=status_value)
+
+    except Exception as e:
+        return Response("The get_all_transactions API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+"""
+******************************************************************************************************************************
+END - GET ALL DELETED TRANSACTIONS API - CORE APP
 ******************************************************************************************************************************
 """

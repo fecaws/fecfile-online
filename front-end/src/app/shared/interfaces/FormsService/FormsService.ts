@@ -183,7 +183,7 @@ export interface Icommittee_form3x_reporttype {
   regular_special_report_ind?: string,
   rpt_type_info?: string,
   cvg_start_date?: string,
-  cvg_end_date?:string,
+  cvg_end_date?: string,
   due_date?:string
 }
 
@@ -301,7 +301,8 @@ export interface f3xTransactionTypes {
   most_recent_flag: string;
   delete_ind: string;
   create_date: string;
-  last_update_date: string
+  last_update_date: string;
+  viewtype: string;
 
   constructor(report: any) {
     this.id = report.id ? report.id : '';
@@ -325,6 +326,7 @@ export interface f3xTransactionTypes {
     this.fec_status = report.fec_status ? report.fec_status : '';
     this.create_date = report.create_date ? report.create_date : '';
     this.last_update_date = report.last_update_date ? report.last_update_date : '';
+    this.viewtype = report.viewtype ? report.viewtype : '';
     //this.selected = report.selected;
   }
  }

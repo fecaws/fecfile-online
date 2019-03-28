@@ -4,6 +4,7 @@ import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { SessionService } from '../shared/services/SessionService/session.service';
 import { MessageService } from '../shared/services/MessageService/message.service';
 import { ApiService } from '../shared/services/APIService/api.service';
+import { UtilService } from '../shared/utils/util.service';
 import { HeaderComponent } from '../shared/partials/header/header.component';
 import { SidebarComponent } from '../shared/partials/sidebar/sidebar.component';
 import { FormsComponent } from '../forms/forms.component';
@@ -18,23 +19,27 @@ export class AppLayoutComponent implements OnInit {
 
   @Input() status: any;
 
-	public showSideBar: boolean = true;
-  public sideBarClass: string = 'dashboard active';
-  public toggleMenu: boolean = false;
-  public committeeName: string = '';
-  public committeeId: string = '';
-  public closeResult: string = '';
-  public dashboardClass: string = '';
-  public showLegalDisclaimer: boolean = false;
-  public showForm3XDashBoard: boolean = false;
-  public form3XReportDashBoardLine1: string = '';
-  public form3XReportDashBoardLine2: string = '';
+  public committeeName: string = null;
+  public committeeId: string = null;
+  public closeResult: string = null;
+  public dashboardClass: string = null;
+  public formDueDate: number = null;
+  public formDescription: string = null;
+  public formType: string = null;
+  public formStartDate: string = null;
+  public formEndDate: string = null;
   public radAnalystInfo: any = {};
+  public showLegalDisclaimer: boolean = false;
+  public showFormDueDate: boolean = false
+  public showSideBar: boolean = true;
+  public sideBarClass: string = null;
+  public toggleMenu: boolean = false;
 
 	constructor(
     private _apiService: ApiService,
 		private _sessionService: SessionService,
     private _messageService: MessageService,
+    private _utilService: UtilService,
     private _router: Router,
     private _modalService: NgbModal
 	) { }
@@ -74,49 +79,66 @@ export class AppLayoutComponent implements OnInit {
           }
           if(val.url.indexOf('/dashboard') === 0) {
             this.sideBarClass = 'dashboard active';
+            this.showSideBar = true;
+            this._utilService.removeLocalItems('form_', 5);
           } else if(val.url.indexOf('/forms') === 0) {
             if(this.toggleMenu) {
+              this.showSideBar = true;
               this.sideBarClass = 'active';
-            } else {
-              this.sideBarClass = '';
             }
-          }else if(val.url.indexOf('/dashboard') === -1 && val.url.indexOf('/forms') === -1) {
-            this.sideBarClass = 'active';
+          } else if (val.url.indexOf('/forms') !== 0 || val.url.indexOf('/dashboard') !== 0) {
+            this._utilService.removeLocalItems('form_', 5);
           }
         }
       });
   }
 
+  /**
+   * TODO: Figure out why this was placed here.
+   */
+  // @HostListener('window:beforeunload', ['$event'])
+  // unloadNotification($event: any) {
+  //   localStorage.clear();
+  // }
+
   ngDoCheck(): void {
-    let route: string = this._router.url;
+    const route: string = this._router.url;
 
-    if( typeof localStorage.getItem('form3XReportInfo.showDashBoard') !== 'undefined' && localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){
-      this.showForm3XDashBoard = true;
-      this.form3XReportDashBoardLine1 = localStorage.getItem('form3XReportInfo.DashBoardLine1');
-      this.form3XReportDashBoardLine2 = localStorage.getItem('form3XReportInfo.DashBoardLine2');
+    if (route === '/dashboard') {
+      this.sideBarClass = 'dashboard active';
+      this.showFormDueDate = false;
+    } else if (route.indexOf('/forms/form/3X') === 0) {
+      if (localStorage.getItem('form_3X_report_type') !== null) {
+        const formInfo: any = JSON.parse(localStorage.getItem('form_3X_report_type'));
+        if (formInfo.hasOwnProperty('dueDate')) {
+          if (typeof formInfo.dueDate === 'string') {
+            if (formInfo.dueDate.length > 1) {
+              const oneDay: number = 24*60*60*1000;
+              const today: any = new Date();
+              const dueDateArr = formInfo.dueDate.split('/');
+              let dueDate: any = '';
+
+              if (formInfo.dueDate.indexOf('2018') === 0) {
+                dueDate = new Date(2019, dueDateArr[0], dueDateArr[1]);
+              } else {
+                dueDate = new Date(dueDateArr[2], dueDateArr[0], dueDateArr[1]);
+              }
+
+              this.showFormDueDate = true;
+              this.formType = formInfo.formType;
+              this.formDueDate = Math.round(Math.abs((today.getTime() - dueDate.getTime())/(oneDay)));
+
+              this.formDescription = formInfo.reportTypeDescription;
+              this.formStartDate = formInfo.cvgStartDate.replace('2018', 2019);
+              this.formEndDate = formInfo.cvgEndDate.replace('2018', 2019);
+            }
+          }
+        }
+      }
     } else {
-        this.showForm3XDashBoard = false;
-        this.form3XReportDashBoardLine1 = "";
-        this.form3XReportDashBoardLine2 = ""}
+        this.showFormDueDate = false;
+    }
   }
-
-  @HostListener('window:beforeunload', ['$event'])
-  unloadNotification($event: any) {
-    localStorage.clear();
-  }
-
-  ngOnChanges(): void{
-    console.log("AppLayoutComponent ngOnChanges ...");
-    if( typeof localStorage.getItem('form3XReportInfo.showDashBoard') !== 'undefined' && localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){
-      this.showForm3XDashBoard = true;
-      this.form3XReportDashBoardLine1 = localStorage.getItem('form3XReportInfo.DashBoardLine1');
-      this.form3XReportDashBoardLine2 = localStorage.getItem('form3XReportInfo.DashBoardLine2');
-    } else {
-        this.showForm3XDashBoard = false;
-        this.form3XReportDashBoardLine1 = "";
-        this.form3XReportDashBoardLine2 = ""}
-  }
-
   /**
    * Shows the top nav in tablet and mobile phone view when clicked.
    */
@@ -137,7 +159,7 @@ export class AppLayoutComponent implements OnInit {
    * @param      {Object}  e       The event object.
    */
   public onNotify(e): void {
-    let route: string = this._router.url;
+    const route: string = this._router.url;
     this.showSideBar = e.showSidebar;
 
     if( typeof localStorage.getItem('form3XReportInfo.showDashBoard') !== 'undefined' && localStorage.getItem('form3XReportInfo.showDashBoard') !== null &&  localStorage.getItem('form3XReportInfo.showDashBoard') !== ""){

@@ -16,12 +16,21 @@ export interface GetReportsResponse {
 
 export class FormsService {
 
+  private _orderByPipe: OrderByPipe;
+  
   constructor(
     private _http: HttpClient,
     private _cookieService: CookieService
-  ) { }
+  ) { 
+    this._orderByPipe = new OrderByPipe();
+  }
 
-  private _orderByPipe: OrderByPipe;
+  /**
+   * TODO:  This file is going to be removed soon
+   * in favor of individual services for each form.
+   * Please stop adding things for forms to this file now.
+   */
+
 
 
  /**
@@ -553,58 +562,6 @@ export class FormsService {
       );
   }
 
-  public getTransactionCategories( form_type: string): Observable<any> {
-    let token: string = JSON.parse(this._cookieService.get('user'));
-    let httpOptions =  new HttpHeaders();
-    let url: string = '';
-    let params = new HttpParams();
-
-
-    //url = '/f3x/get_transaction_categories?form_type=F3X';
-    url = '/core/get_transaction_categories?form_type=F3X';
-
-    httpOptions = httpOptions.append('Content-Type', 'application/json');
-    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-    console.log("${environment.apiUrl}${url}", `${environment.apiUrl}${url}`);
-
-    params = params.append('form_type', "F3X");
-    return this._http
-       .get(
-          `${environment.apiUrl}${url}`,
-          {
-           /* headers: httpOptions,
-            params*/
-            headers: httpOptions/*  */
-          }
-       );
-  }
-
-
-  public getreporttypes( form_type: string): Observable<any> {
-    let token: string = JSON.parse(this._cookieService.get('user'));
-    let httpOptions =  new HttpHeaders();
-    let url: string = '';
-    let params = new HttpParams();
-
-    //url = '/f3x/get_report_types?form_type=F3X';
-    url = '/core/get_report_types?form_type=F3X';
-
-    httpOptions = httpOptions.append('Content-Type', 'application/json');
-    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-    console.log("${environment.apiUrl}${url}", `${environment.apiUrl}${url}`);
-
-    params = params.append('form_type', "F3X");
-    return this._http
-       .get(
-          `${environment.apiUrl}${url}`,
-          {
-           /* headers: httpOptions,
-            params*/
-            headers: httpOptions
-          }
-         );
-     //return this._http.get('./assets/196.json')
- }
  public formHasUnsavedData(formType: string): boolean {
     let formSaved: any = JSON.parse(localStorage.getItem(`form_${formType}_saved`));
 
@@ -619,7 +576,7 @@ export class FormsService {
     return false;
  }
 
- public saveReport(form_type: string): Observable<any> {
+  public saveReport(form_type: string, access_type: string): Observable<any> {
   let token: string = JSON.parse(this._cookieService.get('user'));
   let httpOptions =  new HttpHeaders();
   let url: string = '/core/reports';
@@ -632,11 +589,20 @@ export class FormsService {
   console.log("${environment.apiUrl}${url}", `${environment.apiUrl}${url}`);
 
   let formF3X_ReportInfo: form3XReport = JSON.parse(localStorage.getItem(`form_${form_type}_ReportInfo`));
+  
+  console.log(" saveReport formF3X_ReportInfo ",formF3X_ReportInfo );
 
-  console.log("Save Report formF3X_ReportInfo ", formF3X_ReportInfo);
+
   formData.append('report_id', formF3X_ReportInfo.reportId);
   formData.append('form_type', `F${formF3X_ReportInfo.formType}`);
-  formData.append('amend_ind', formF3X_ReportInfo.amend_Indicator);
+  if (formF3X_ReportInfo.amend_Indicator===null || formF3X_ReportInfo.amend_Indicator===''){
+    formData.append('amend_ind', 'N');
+  }
+  else
+  {
+    formData.append('amend_ind', formF3X_ReportInfo.amend_Indicator);
+  }
+  
   formData.append('report_type', formF3X_ReportInfo.reportType);
   formData.append('election_code', formF3X_ReportInfo.electionCode);
   formData.append('date_of_election', formF3X_ReportInfo.electionDate);
@@ -644,8 +610,15 @@ export class FormsService {
   formData.append('cvg_start_dt', formF3X_ReportInfo.cvgStartDate);
   formData.append('cvg_end_dt', formF3X_ReportInfo.cvgEndDate);
   formData.append('coh_bop', formF3X_ReportInfo.coh_bop);
-  
-  console.log(" saveReport formData ",formData );
+
+  if (access_type==='Saved'){
+    formData.append('status', 'Saved');
+  }
+  else if (access_type==='Submitted'){
+    formData.append('status', 'Submitted');
+  }
+
+  console.log("form 3X saveReport formData",formData);
 
   return this._http
       .post(
@@ -664,29 +637,7 @@ export class FormsService {
           return false;
       }));
  }
-  
- public getDynamicFormFields(formType: string, transactionType: string): Observable<any> {
-  const token: string = JSON.parse(this._cookieService.get('user'));
-  const url: string = '/core/get_dynamic_forms_fields';
-  let httpOptions =  new HttpHeaders();
-  let params = new HttpParams();
-  let formData: FormData = new FormData();
 
-  httpOptions = httpOptions.append('Content-Type', 'application/json');
-  httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-
-  params = params.append('form_type', `F${formType}`);
-  params = params.append('transaction_type', transactionType);
-
-  return this._http
-      .get(
-        `${environment.apiUrl}${url}`,
-        {
-          headers: httpOptions,
-          params
-        }
-      );
- }
 
  public removeFormDashBoard(formType: string): void {
    if (formType === "3X") {
@@ -697,73 +648,8 @@ export class FormsService {
    }
  }
 
-
-  /*public getReports(formType: string, page: number, itemsPerPage: number,
-    sortColumnName: string, descending: boolean): Observable<any> 
-    {
-       let token: string = JSON.parse(this._cookieService.get('user'));
-       let httpOptions =  new HttpHeaders();
-       let params = new HttpParams();
-       let url: string = '';
-       let reports: reportModel[];
-       let reportResponse:GetReportsResponse;
-       url = '/f99/get_form99list';    
-   
-       console.log("getReports formType =", formType);
-       console.log("getReports page =", page);
-       console.log("getReports itemsPerPage =", itemsPerPage);
-       console.log("getReports sortColumnName =", sortColumnName);
-       console.log("getReports descending =", descending);
-       
   
-       httpOptions = httpOptions.append('Content-Type', 'application/json');
-       httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-  
-       console.log(`${environment.apiUrl}${url}`);
-       
-       /*this._http
-       .get(
-       `${environment.apiUrl}${url}`,
-       {
-         headers: httpOptions
-       }
-  
-       .subscribe((res: any) => {
-        console.log("getReports res = ", res);
-      
-        .subscribe(res => this.reports = <IReport[]> res);
-        console.log(this.reports) 
-  
-       let ob = this._http
-       .get(
-          `${environment.apiUrl}${url}`,
-          {
-            headers: httpOptions,
-            //params
-          }
-       ); 
-  
-       ob.subscribe((res: any) => {
-        console.log("new getReports res = ", res);
-  
-        let direction = descending ? -1 : 1;
-        this._orderByPipe.transform(res, {property: sortColumnName, direction: direction});
-  
-        let reportResponse:GetReportsResponse = {
-        reports:res
-  
-        
-        };
-      });
-      
-      
-      console.log(JSON.stringify(reportResponse));
-  
-      return Observable.of(reportResponse);
-      
-    }*/
-  
-  public getReports(formType: string, page: number, itemsPerPage: number,
+  public getReports(formType: string, view: string, page: number, itemsPerPage: number,
     sortColumnName: string, descending: boolean): Observable<any> {
   const token: string = JSON.parse(this._cookieService.get('user'));
   let httpOptions =  new HttpHeaders();
@@ -772,16 +658,12 @@ export class FormsService {
 
   httpOptions = httpOptions.append('Content-Type', 'application/json');
   httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-
-  // TODO these will be used for filtering
-  // params = params.append('report_id', '1');
-  // params = params.append('line_number', '11AI');
-  // params = params.append('transaction_type', '15');
-  // params = params.append('transaction_type_desc', 'Individual Receipt');
-  // params = params.append('transaction_id', 'VVBSTFQ9Z78');
-  // params = params.append('transaction_date', '2018-10-18');
+  
+  params = params.append('view', view);
 
   console.log("${environment.apiUrl}${url}", `${environment.apiUrl}${url}`);
+  console.log("httpOptions",httpOptions)
+  console.log("params",params);
   
   return this._http
   .get(
@@ -794,31 +676,7 @@ export class FormsService {
   
   }
 
-  /*private createMockTrx() {
-    const t1: any = {};
-    t1.aggregate = 1000;
-    t1.amount = 1500;
-    t1.city = 'New York';
-    t1.contributorEmployer = 'Exxon';
-    t1.contributorOccupation = 'Lawyer';
-    const date = new Date('2019-01-01');
-    t1.date = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
-    t1.deletedDate = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
-    t1.memoCode = 'Memo Code';
-    t1.memoText = 'The memo text';
-    t1.name = 'Mr. John Doe';
-    t1.purposeDescription = 'The purpose of this is to...';
-    t1.selected = false;
-    t1.state = 'New York';
-    t1.street = '7th Avenue';
-    t1.transactionId = this.transactionId;
-    t1.type = 'Individual';
-    t1.zip = '22222';
-
-    return t1;
-  }*/
-
-
+  
   /**
    * Map server fields from the response to the model.
    */
@@ -838,6 +696,8 @@ export class FormsService {
       model.fec_id = row.fec_id;
       model.amend_ind = row.amend_ind;
       model.cvg_start_date = row.cvg_start_date;
+      model.cvg_end_date = row.cvg_end_date;
+      model.last_update_date = row.last_update_date;
       model.report_type_desc = row.report_type_desc;
       model.filed_date = row.filed_date;
       modelArray.push(model);
@@ -853,6 +713,10 @@ export class FormsService {
    * @param descending
    */
   public sortTransactions(array: any, sortColumnName: string, descending: boolean) {
+
+    console.log("sortTransactions array =", array);
+    console.log("sortTransactions sortColumnName =", sortColumnName);
+    console.log("sortTransactions descending =", descending);
     const direction = descending ? -1 : 1;
     this._orderByPipe.transform(array, {property: sortColumnName, direction: direction});
     console.log("sortTransactions array= ", array);
@@ -860,4 +724,30 @@ export class FormsService {
       
   }
 
+public getTransactionCategories( form_type: string): Observable<any> {
+    let token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions =  new HttpHeaders();
+    let url: string = '';
+    let params = new HttpParams();
+
+
+    //url = '/f3x/get_transaction_categories?form_type=F3X';
+    url = '/core/get_transaction_categories?form_type=F3X';
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+    console.log("${environment.apiUrl}${url}", `${environment.apiUrl}${url}`);
+
+    params = params.append('form_type', "F3X");
+
+    return this._http
+       .get(
+          `${environment.apiUrl}${url}`,
+          {
+           /* headers: httpOptions,
+            params*/
+            headers: httpOptions/*  */
+          }
+       );
+  }
 }

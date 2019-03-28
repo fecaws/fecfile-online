@@ -12,6 +12,7 @@ import { TransactionsMessageService } from '../service/transactions-message.serv
 import { Subscription } from 'rxjs/Subscription';
 import { ConfirmModalComponent, ModalHeaderClassEnum } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
 import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
+import { TransactionFilterModel } from '../model/transaction-filter.model';
 
 
 
@@ -19,7 +20,7 @@ import { DialogService } from 'src/app/shared/services/DialogService/dialog.serv
   selector: 'app-transactions-table',
   templateUrl: './transactions-table.component.html',
   styleUrls: [
-    './transactions-table.component.scss', 
+    './transactions-table.component.scss',
     '../../../shared/partials/confirm-modal/confirm-modal.component.scss'
   ],
   encapsulation: ViewEncapsulation.None,
@@ -60,8 +61,11 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
   public config: PaginationInstance;
   public numberOfPages = 0;
 
+  private filters: TransactionFilterModel;
+  // private keywords = [];
   private firstItemOnPage = 0;
   private lastItemOnPage = 0;
+
 
   // Local Storage Keys
   private readonly transactionSortableColumnsLSK =
@@ -76,6 +80,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     'transactions.trx.page';
   private readonly recyclePageLSK =
     'transactions.recycle.page';
+  private readonly filtersLSK =
+    'transactions.filters';
 
   /**.
 	 * Array of columns to be made sortable.
@@ -99,6 +105,13 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    */
   private showPinColumnsSubscription: Subscription;
 
+
+  /**
+   * Subscription for running the keyword and filter search
+   * to the transactions obtained from the server.
+   */
+  private keywordFilterSearchSubscription: Subscription;
+
   private columnOptionCount = 0;
   private readonly maxColumnOption = 5;
   private allTransactionsSelected: boolean;
@@ -110,11 +123,26 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     private _utilService: UtilService,
     private _dialogService: DialogService,
   ) {
-    this.showPinColumnsSubscription = this._transactionsMessageService.getMessage().subscribe(
-      message => {
-        this.showPinColumns();
-      }
-    );
+    this.showPinColumnsSubscription = this._transactionsMessageService.getShowPinColumnMessage()
+      .subscribe(
+        message => {
+          this.showPinColumns();
+        }
+      );
+
+    this.keywordFilterSearchSubscription = this._transactionsMessageService.getDoKeywordFilterSearchMessage()
+      .subscribe(
+        (filters: TransactionFilterModel) => {
+
+          if (filters) {
+            this.filters = filters;
+            if (filters.formType) {
+              this.formType = filters.formType;
+            }
+          }
+          this.getPage(this.config.currentPage);
+        }
+      );
   }
 
 
@@ -143,11 +171,12 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
 
 
   /**
-   * When component is destroyed, save off user column options to be applied upon return.
+   * A method to run when component is destroyed.
    */
   public ngOnDestroy(): void {
     this.setCachedValues();
     this.showPinColumnsSubscription.unsubscribe();
+    this.keywordFilterSearchSubscription.unsubscribe();
   }
 
 
@@ -187,16 +216,18 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
       this._tableService.getColumnByName(this.currentSortedColumnName, this.sortableColumns);
 
     this._transactionsService.getFormTransactions(this.formType, page, this.config.itemsPerPage,
-      this.currentSortedColumnName, sortedCol.descending)
+      this.currentSortedColumnName, sortedCol.descending, this.filters)
       .subscribe((res: GetTransactionsResponse) => {
         this.transactionsModel = [];
 
+        this._transactionsService.mockAddUIFileds(res);
         this._transactionsService.mockApplyRestoredTransaction(res);
+        this._transactionsService.mockApplyFilters(res, this.filters);
 
         const transactionsModelL = this._transactionsService.mapFromServerFields(res.transactions);
 
         this.transactionsModel = this._transactionsService.sortTransactions(
-            transactionsModelL, this.currentSortedColumnName, sortedCol.descending);
+          transactionsModelL, this.currentSortedColumnName, sortedCol.descending);
 
         this.totalAmount = res.totalAmount;
         this.config.totalItems = res.totalTransactionCount;
@@ -220,6 +251,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     this._transactionsService.getUserDeletedTransactions(this.formType)
       .subscribe((res: GetTransactionsResponse) => {
 
+        this._transactionsService.mockAddUIFileds(res);
+        this._transactionsService.mockApplyFilters(res, this.filters);
         const transactionsModelL = this._transactionsService.mapFromServerFields(res.transactions);
 
         this.transactionsModel = this._transactionsService.sortTransactions(
@@ -534,21 +567,84 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
 
     this._dialogService
       .confirm('You are about to restore transaction ' + trx.transactionId + '.',
-          ConfirmModalComponent,
-          'Caution!')
+        ConfirmModalComponent,
+        'Caution!')
       .then(res => {
         if (res === 'okay') {
           this._transactionsService.restoreTransaction(trx)
             .subscribe((res: GetTransactionsResponse) => {
               this.getRecyclingPage(this.config.currentPage);
               this._dialogService
-              .confirm('Transaction ' + trx.transactionId + ' has been restored!',
+                .confirm('Transaction ' + trx.transactionId + ' has been restored!',
                   ConfirmModalComponent, 'Success!', false, ModalHeaderClassEnum.successHeader);
             });
         } else if (res === 'cancel') {
         }
       });
   }
+
+
+  /**
+   * Delete selected transactions from the the recyle bin.
+   *
+   * @param trx the Transaction to delete
+   */
+  public deleteRecyleBin(): void {
+
+    let beforeMessage = '';
+    // if (this.bulkActionCounter === 1) {
+    //   let id = '';
+    //   for (const trx of this.transactionsModel) {
+    //     if (trx.selected) {
+    //       id = trx.transactionId;
+    //     }
+    //   }
+    //   beforeMessage = (id !== '') ?
+    //     'Are you sure you want to permanently delete Transaction ' + id + '?' :
+    //     'Are you sure you want to permanently delete this Transaction?';
+    // } else {
+    //   beforeMessage = 'Are you sure you want to permanently delete these transactions?';
+    // }
+
+    const selectedTransactions: Array<TransactionModel> = [];
+    for (const trx of this.transactionsModel) {
+      if (trx.selected) {
+        selectedTransactions.push(trx);
+      }
+    }
+
+    if (selectedTransactions.length === 1) {
+      beforeMessage = 'Are you sure you want to permanently delete Transaction ' +
+        selectedTransactions[0].transactionId + '?';
+    } else {
+      beforeMessage = 'Are you sure you want to permanently delete these transactions?';
+    }
+
+    this._dialogService
+      .confirm(beforeMessage,
+        ConfirmModalComponent,
+        'Caution!')
+      .then(res => {
+        if (res === 'okay') {
+          this._transactionsService.deleteRecycleBinTransaction(selectedTransactions)
+            .subscribe((res: GetTransactionsResponse) => {
+              this.getRecyclingPage(this.config.currentPage);
+
+              let afterMessage = '';
+              if (selectedTransactions.length === 1) {
+                  afterMessage = `Transaction ${selectedTransactions[0].transactionId} has been successfully deleted`;
+              } else {
+                afterMessage = 'Transactions have been successfully deleted.';
+              }
+              this._dialogService
+                .confirm(afterMessage,
+                  ConfirmModalComponent, 'Success!', false, ModalHeaderClassEnum.successHeader);
+           });
+        } else if (res === 'cancel') {
+        }
+      });
+  }
+
 
 
   /**
@@ -598,7 +694,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    */
   public changeAllTransactionsSelected() {
 
-    // TODO Iterating over the trsnactionsModel and setting the slected prop
+    // TODO Iterating over the trsnactionsModel and setting the selected prop
     // works when we have server-side pagination as the model will only contain
     // transactions for the current page.
 
@@ -615,14 +711,13 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     //   }
     // }
 
-    // TODO replace this with the commented code above when server paginatin is ready.
+    // TODO replace this with the commented code above when server pagination is ready.
     for (let i = (this.firstItemOnPage - 1); i <= (this.lastItemOnPage - 1); i++) {
       this.transactionsModel[i].selected = this.allTransactionsSelected;
       if (this.allTransactionsSelected) {
         this.bulkActionCounter++;
       }
     }
-    console.log('this.bulkActionCounter multi = ' + this.bulkActionCounter);
     this.bulkActionDisabled = !this.allTransactionsSelected;
   }
 
@@ -660,8 +755,11 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         this.bulkActionCounter--;
       }
     }
-    console.log('this.bulkActionCounter = ' + this.bulkActionCounter);
-    this.bulkActionDisabled = (this.bulkActionCounter > 1) ? false : true;
+
+    // Transaction View shows bulk action when more than 1 checked
+    // Recycle Bin shows delete action when 1 or more checked.
+    const count = this.isTransactionViewActive() ? 1 : 0;
+    this.bulkActionDisabled = (this.bulkActionCounter > count) ? false : true;
   }
 
 
@@ -669,6 +767,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    * Get cached values from session.
    */
   private getCachedValues() {
+    this.applyFiltersCache();
     switch (this.tableType) {
       case this.transactionsView:
         this.applyColCache(this.transactionSortableColumnsLSK);
@@ -700,6 +799,20 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         this._tableService.getColumnByName(col.colName,
           this.sortableColumns).visible = col.visible;
       }
+    }
+  }
+
+
+  /**
+   * Apply the filters from the cache.
+   */
+  private applyFiltersCache() {
+    const filtersJson: string | null = localStorage.getItem(this.filtersLSK);
+    if (filtersJson != null) {
+      this.filters = JSON.parse(filtersJson);
+    } else {
+      // Just in case cache has an unexpected issue, use default.
+      this.filters = null;
     }
   }
 
@@ -782,11 +895,15 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    * @param pageKey current page key from the cache
    */
   private setCacheValuesforView(columnsKey: string, sortedColKey: string,
-      pageKey: string) {
+    pageKey: string) {
 
     // shared between trx and recycle tables
     localStorage.setItem(columnsKey,
       JSON.stringify(this.sortableColumns));
+
+    // shared between trx and recycle tables
+    localStorage.setItem(this.filtersLSK,
+      JSON.stringify(this.filters));
 
     const currentSortedCol = this._tableService.getColumnByName(
       this.currentSortedColumnName, this.sortableColumns);

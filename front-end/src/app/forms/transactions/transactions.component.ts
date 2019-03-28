@@ -1,8 +1,9 @@
 import { animate, style, transition, trigger } from '@angular/animations';
-import { Component, OnInit, ViewChild, ViewEncapsulation } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { TransactionsTableComponent } from './transactions-table/transactions-table.component';
 import { TransactionsMessageService } from './service/transactions-message.service';
+import { TransactionFilterModel } from './model/transaction-filter.model';
+import { Subscription } from 'rxjs/Subscription';
 
 export enum ActiveView {
   transactions = 'transactions',
@@ -29,31 +30,111 @@ export enum ActiveView {
     ])
   ]
 })
-export class TransactionsComponent implements OnInit {
+export class TransactionsComponent implements OnInit, OnDestroy {
 
   public formType = '';
-  public appliedFilterNames: Array<string> = [];
   public view: string = ActiveView.transactions;
   public transactionsView = ActiveView.transactions;
   public recycleBinView = ActiveView.recycleBin;
+  public isShowFilters = false;
+  public searchText = '';
+  public searchTextArray = [];
 
+  /**
+   * Subscription for applying filters to the transactions obtained from
+   * the server.
+   */
+  private applyFiltersSubscription: Subscription;
+
+  private filters: TransactionFilterModel = new TransactionFilterModel();
+  private readonly filtersLSK = 'transactions.filters';
 
   constructor(
     private _activatedRoute: ActivatedRoute,
     private _transactionsMessageService: TransactionsMessageService,
-  ) { }
+  ) {
+    this.applyFiltersSubscription = this._transactionsMessageService.getApplyFiltersMessage()
+      .subscribe(
+        (filters: TransactionFilterModel) => {
+          this.filters = filters;
+          this.doSearch();
+        }
+      );
+  }
 
 
   /**
    * Initialize the component.
    */
   public ngOnInit(): void {
-
     this.formType = this._activatedRoute.snapshot.paramMap.get('form_id');
-    console.log('transactions for form ' + this.formType);
 
-    // push an applied filter for test
-    this.appliedFilterNames.push('Filter ' + this.appliedFilterNames.length + 1);
+    // If the filter was open on the last visit in the user session, open it.
+    const filtersJson: string | null = localStorage.getItem(this.filtersLSK);
+    let filters: TransactionFilterModel;
+    if (filtersJson != null) {
+      filters = JSON.parse(filtersJson);
+      if (filters.keywords) {
+        if (filters.keywords.length > 0) {
+          this.searchTextArray = filters.keywords;
+          filters.show = true;
+        }
+      }
+    } else {
+      filters = new TransactionFilterModel();
+    }
+    if (filters.show === true) {
+      this.showFilters();
+    }
+  }
+
+
+  /**
+   * A method to run when component is destroyed.
+   */
+  public ngOnDestroy(): void {
+    this.applyFiltersSubscription.unsubscribe();
+  }
+
+
+  /**
+   * Search transactions.
+   */
+  public search() {
+
+    // Don't allow more than 12 filters
+    if (this.searchTextArray.length > 12) {
+      return;
+    }
+
+    // TODO emit search message to the table transactions component
+    if (this.searchText) {
+      this.searchTextArray.push(this.searchText);
+      this.searchText = '';
+    }
+    this.doSearch();
+    this.showFilters();
+  }
+
+
+  /**
+   * Clear the search filters
+   */
+  public clearSearch() {
+    this.searchTextArray = [];
+    this.searchText = '';
+    this.doSearch();
+  }
+
+
+  /**
+   * Remove the search text from the array.
+   * 
+   * @param index index in the array
+   */
+  public removeSearchText(index: number) {
+    this.searchTextArray.splice(index, 1);
+    this.doSearch();
   }
 
 
@@ -78,7 +159,7 @@ export class TransactionsComponent implements OnInit {
    */
   public showPinColumns() {
     this.showTransactions();
-    this._transactionsMessageService.sendMessage('show the Pin Col');
+    this._transactionsMessageService.sendShowPinColumnMessage('show the Pin Col');
   }
 
 
@@ -94,15 +175,15 @@ export class TransactionsComponent implements OnInit {
    * Show filter options for transactions.
    */
   public showFilters() {
-    alert('Transaction filters are not yet supported');
+    this.isShowFilters = true;
   }
 
 
   /**
-   * Navigate to the Categories component.
+   * Show the categories and hide the filters.
    */
-  public navigateToCategories() {
-    alert('Return to Categories is not yet supported');
+  public showCategories() {
+    this.isShowFilters = false;
   }
 
 
@@ -119,6 +200,15 @@ export class TransactionsComponent implements OnInit {
    */
   public isRecycleBinViewActive() {
     return this.view === this.recycleBinView ? true : false;
+  }
+
+
+  /**
+   * Send a message to the subscriber to run the search.
+   */
+  private doSearch() {
+    this.filters.keywords = this.searchTextArray;
+    this._transactionsMessageService.sendDoKeywordFilterSearchMessage(this.filters);
   }
 
 }
