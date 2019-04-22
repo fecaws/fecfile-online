@@ -9,8 +9,9 @@
       class="sidebar-form-content"
       [formGroup]="frmReportSidebar"
     >
+    <div class="sidebar-body" style="padding: 0 1.25em;">
       <ng-container *ngIf="specialReports===true">
-        <div class="form-row">
+        <div class="sidebar-item">
           <label for="State">
             State*
             <button
@@ -24,15 +25,13 @@
               </span>
             </button>
           </label>
-        </div>
-        <div class="form-row">
-            <select
-              id="state"
-              name="state"
-              class="form-control"
-              #electionStateSelect
-              (change)="selectStateChange($event)"
-            >
+          <select
+            id="state"
+            name="state"
+            class="form-control"
+            #electionStateSelect
+            (change)="selectStateChange($event)"
+          >
             <option value="0">---</option>
             <option
               *ngFor='let state of electionStates'
@@ -41,9 +40,9 @@
             >
               {{state.state_description}}
             </option>
-           </select>
+          </select>        
         </div>
-        <div class="form-row">
+        <div class="sidebar-item">
           <label for="electionDate">
             Election Date
             <button
@@ -57,78 +56,83 @@
               </span>
             </button>
           </label>
-        </div>
-         <div class="form-row">
-            <select
-              id="electionDate"
-              name="electionDate"
-              class="form-control"
-              (change)="selectElectionDateChange($event)"
+          <select
+            id="electionDate"
+            name="electionDate"
+            class="form-control"
+            (change)="selectElectionDateChange($event)"
+          >
+            <option ngvalue="0">---</option>
+            <option
+              *ngFor="let dateSelected of electionDates"
+              [attr.data-startDate]="dateSelected.cvg_start_date"
+              [attr.data-endDate]="dateSelected.cvg_end_date"
+              [attr.data-dueDate]="dateSelected.due_date"
+              [selected]="selectedElectionDate === dateSelected.election_date"
+              [value]="dateSelected.election_date"
             >
-               <option ngvalue="0">---</option>
-               <option
-                *ngFor="let dateSelected of electionDates"
-                [attr.data-startDate]="dateSelected.cvg_start_date"
-                [attr.data-endDate]="dateSelected.cvg_end_date"
-                [attr.data-dueDate]="dateSelected.due_date"
-                [selected]="selectedElectionDate === dateSelected.election_date"
-                [value]="dateSelected.election_date"
-              >
-                {{dateSelected.election_date | date: 'MM/dd/yyyy'}}
-               </option>
-           </select>
-       </div>
+              {{dateSelected.election_date | date: 'MM/dd/yyyy'}}
+            </option>
+          </select>                    
+        </div>
       </ng-container>
-        <div class="form-row">
-          <label for="dateFrom">
-            Date From*
-            <button
+      <div class="sidebar-item">
+        <label for="dateFrom">Date From*
+          <button
             type="button"
             class="btn-info"
             ngbTooltip="Language will be provided by RAD"
-            >
-              <i class="info-icon" aria-hidden="true"></i>
-              <span class="sr-only">
+          >
+            <i class="info-icon" aria-hidden="true"></i>
+            <span class="sr-only">
               Click for more information
-              </span>
-            </button>
-          </label>
-        </div>
-        <div class="form-row">
-          <i class="calendar-icon" aria-hidden="true"></i>
+            </span>
+          </button>       
+        </label>
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="dateFrom">
+                <i class="calendar-icon" aria-hidden="true"></i>
+            </span>
+          </div>
           <input
             type="date"
             name="txtFromDate"
-            class="form-control"
+            class="form-control"           
             [value]="fromDate"
-            (change)="fromDateChange($event.target.value)"
-          />
+            (change)="fromDateChange($event.target.value)"              
+          />                                 
         </div>
-        <div class="form-row">
-          <label for="dateTo">
-            Date To*
-            <button
+      </div>
+      <div class="sidebar-item">
+        <label for="dateTo">Date To*
+          <button
             type="button"
             class="btn-info"
             ngbTooltip="Language will be provided by RAD"
-            >
-              <i class="info-icon" aria-hidden="true"></i>
-              <span class="sr-only">
+          >
+            <i class="info-icon" aria-hidden="true"></i>
+            <span class="sr-only">
               Click for more information
-              </span>
-            </button>
-          </label>
-        </div>
-        <div class="form-row">
-          <i class="calendar-icon" aria-hidden="true"></i>
+            </span>
+          </button>       
+        </label>
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="dateTo">
+                <i class="calendar-icon" aria-hidden="true"></i>
+            </span>
+          </div>
           <input
             type="date"
             name="txtToDate"
             class="form-control"
             [value]="toDate"
             (change)="toDateChange($event.target.value)"
-          >
+          >                                
         </div>
+      </div>            
+    </div>
     </form>
   </section>
   <footer>

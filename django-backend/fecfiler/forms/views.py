@@ -238,6 +238,14 @@ def create_f99_info(request):
             #return Response({"FEC Error 001":"is_submitted and committeeid field changes are restricted for this api call. Please use the submit api to finalize and submit the data"}, status=status.HTTP_400_BAD_REQUEST)
         # just making sure that committeeid is not updated by mistake
         
+        print("Reason text= ", request.data.get('text'))
+        strcheck_Reason=check_F99_Reason_Text(request.data.get('text'))
+
+        print ("strcheck_Reason", strcheck_Reason)
+        if strcheck_Reason != "":
+           return Response({"FEC Error 999":"The reason text is not in proper format - HTML tag violation...!"}, status=status.HTTP_400_BAD_REQUEST)
+
+
         if 'file' in request.data:
             incoming_data['filename'] = request.data.get('file').name
 
@@ -426,6 +434,15 @@ def submit_comm_info(request):
         }
         logger.debug("Incoming parameters: submit_comm_info" + str(request.data))                
         incoming_data = data
+
+        print("Reason text= ", request.data.get('text'))
+        strcheck_Reason=check_F99_Reason_Text(request.data.get('text'))
+
+        print ("strcheck_Reason", strcheck_Reason)
+        if strcheck_Reason != "":
+           return Response({"FEC Error 999":"The reason text is not in proper format - HTML tag violation...!"}, status=status.HTTP_400_BAD_REQUEST)
+
+
         #import ipdb; ipdb.set_trace()
         # overwrite is_submitted just in case user sends it, all submit changes to go via submit_comm_info api as we save to s3 and call fec api.
 
@@ -773,7 +790,6 @@ def get_rad_analyst_info(request):
         except:
             return JsonResponse({"ERROR":"ERR_f99_03: Unexpected Error. Please contact administrator."})
 
-        
 @api_view(['GET'])
 def get_form99list(request):
     """
@@ -783,13 +799,15 @@ def get_form99list(request):
         try:
             cmte_id = request.user.username
             viewtype = request.query_params.get('view')
+            reportid = request.query_params.get('reportId')
             print ("[cmte_id]", cmte_id)
             print ("[viewtype]", viewtype)
+            print ("[reportid]", reportid)
 
             forms_obj = None
             with connection.cursor() as cursor:
-
-                query_string =  """SELECT json_agg(t) FROM 
+                if reportid in ["None", "null", " ", "","0"]:    
+                    query_string =  """SELECT json_agg(t) FROM 
                                     (SELECT report_id, form_type, amend_ind, amend_number, cmte_id, report_type, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, most_recent_flag, delete_ind, create_date, last_update_date,report_type_desc, viewtype    
                                      FROM   (SELECT report_id, form_type, amend_ind, amend_number, cmte_id, report_type, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, most_recent_flag, delete_ind, create_date, last_update_date,report_type_desc, 
                                          CASE
@@ -799,12 +817,27 @@ def get_form99list(request):
                                          FROM public.reports_view WHERE cmte_id = %s AND last_update_date is not null 
                                     ) t1
                                     WHERE  viewtype = %s ORDER BY last_update_date DESC ) t; """
+                else:
+                    query_string =  """SELECT json_agg(t) FROM 
+                                    (SELECT report_id, form_type, amend_ind, amend_number, cmte_id, report_type, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, most_recent_flag, delete_ind, create_date, last_update_date,report_type_desc, viewtype    
+                                     FROM   (SELECT report_id, form_type, amend_ind, amend_number, cmte_id, report_type, cvg_start_date, cvg_end_date, due_date, superceded_report_id, previous_report_id, status, filed_date, fec_id, fec_accepted_date, fec_status, most_recent_flag, delete_ind, create_date, last_update_date,report_type_desc, 
+                                         CASE
+                                            WHEN (date_part('year', last_update_date) < date_part('year', now())) THEN 'archieve'
+                                            WHEN (date_part('year', last_update_date) = date_part('year', now())) THEN 'current'
+                                        END AS viewtype
+                                         FROM public.reports_view WHERE cmte_id = %s AND last_update_date is not null 
+                                    ) t1
+                                    WHERE report_id = %s  AND  viewtype = %s ORDER BY last_update_date DESC ) t; """
 
-                #print("query_string = ", query_string)
+
+                print("query_string = ", query_string)
                 # Pull reports from reports_view
                 #query_string = """select form_fields from dynamic_forms_view where form_type='""" + form_type + """' and transaction_type='""" + transaction_type + """'"""
-            
-                cursor.execute(query_string, [cmte_id, viewtype])
+                if reportid in ["None", "null", " ", "","0"]:  
+                    cursor.execute(query_string, [cmte_id, viewtype])
+                else:
+                    cursor.execute(query_string, [cmte_id, reportid, viewtype])
+
                 for row in cursor.fetchall():
                     data_row = list(row)
                     forms_obj=data_row[0]
@@ -815,8 +848,8 @@ def get_form99list(request):
             return Response("The reports view api - get_form99list is throwing an error" + str(e), status=status.HTTP_400_BAD_REQUEST)
 
         return Response(forms_obj, status=status.HTTP_200_OK)
-
-
+        
+        
 #API to delete saved forms
 @api_view(['POST'])
 def delete_forms(request):
@@ -1440,3 +1473,38 @@ def print_pdf(request):
     }
 
     return JsonResponse(resp, status=status.HTTP_201_CREATED)
+
+
+def check_F99_Reason_Text(strReasonText):
+    print("In check_F99_Reason_Text...")
+    try:
+        """f = open(r'/home/mahendra/Downloads/test.html', 'r')
+        for line in f:
+            for word in line.split():
+                validate_HTMLtag(word)      
+        return "" 
+        """ 
+        for word in strReasonText.split():
+            validate_HTMLtag(word)      
+        return "" 
+    except Exception as e:
+        return Response("The check_F99_Reason_Text function is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+
+
+def validate_HTMLtag(strWord):
+    print("validate_HTMLtag...")
+    print(" strWord = ", strWord)
+    try:
+        valideTags=['div','br','span','blockquote','ul','ol','li','b','u','i']
+        if ('</' in strWord and '>' in strWord) and ('<div' not in strWord or '<span' not in strWord ): 
+            print(" word check strWord = ", strWord)
+            intstartpos=strWord.find('</'); 
+            substr=strWord[intstartpos+2]
+            intendpos=substr.find('>'); 
+            strsearch=strWord[intstartpos+2:intendpos]
+            print(strsearch)
+            if strsearch not in valideTags:
+                print(" Wrong tag =", strsearch) 
+        return ""  
+    except Exception as e:
+        return Response("The validate_HTMLtag function is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)

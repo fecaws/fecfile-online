@@ -649,17 +649,20 @@ export class FormsService {
  }
 
   
-  public getReports(formType: string, view: string, page: number, itemsPerPage: number,
-    sortColumnName: string, descending: boolean): Observable<any> {
+  public getReports(view: string, page: number, itemsPerPage: number,
+    sortColumnName: string, descending: boolean, reportId: number): Observable<any> {
   const token: string = JSON.parse(this._cookieService.get('user'));
   let httpOptions =  new HttpHeaders();
   let params = new HttpParams();
+  
   const url ='/f99/get_form99list';   
 
   httpOptions = httpOptions.append('Content-Type', 'application/json');
   httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
   
   params = params.append('view', view);
+  params = params.append('reportId', reportId.toString());
+  console.log("reportId =", reportId.toString());
 
   console.log("${environment.apiUrl}${url}", `${environment.apiUrl}${url}`);
   console.log("httpOptions",httpOptions)
@@ -674,8 +677,8 @@ export class FormsService {
       }
     );
   
-  }
-
+  
+    }
   
   /**
    * Map server fields from the response to the model.
@@ -712,7 +715,7 @@ export class FormsService {
    * @param sortColumnName
    * @param descending
    */
-  public sortTransactions(array: any, sortColumnName: string, descending: boolean) {
+  public sortReports(array: any, sortColumnName: string, descending: boolean) {
 
     console.log("sortTransactions array =", array);
     console.log("sortTransactions sortColumnName =", sortColumnName);

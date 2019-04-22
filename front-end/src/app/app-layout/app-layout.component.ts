@@ -78,8 +78,15 @@ export class AppLayoutComponent implements OnInit {
             this.toggleMenu = false;
           }
           if(val.url.indexOf('/dashboard') === 0) {
-            this.sideBarClass = 'dashboard active';
-            this.showSideBar = true;
+            // this.sideBarClass = 'dashboard active';
+            // this.showSideBar = true;
+            if(this.toggleMenu) {
+              this.showSideBar = true;
+              this.sideBarClass = 'dashboard active';
+            } else {
+              this.showSideBar = false;
+              this.sideBarClass = 'active';              
+            }             
             this._utilService.removeLocalItems('form_', 5);
           } else if(val.url.indexOf('/forms') === 0) {
             if(this.toggleMenu) {
@@ -105,29 +112,59 @@ export class AppLayoutComponent implements OnInit {
     const route: string = this._router.url;
 
     if (route === '/dashboard') {
+      /**
+       * Fix this issue with the sidenar on the dashboard.
+       * This causes the sidebar to always show, even if the hide button is clicked.
+       */
+
       this.sideBarClass = 'dashboard active';
       this.showFormDueDate = false;
     } else if (route.indexOf('/forms/form/3X') === 0) {
       if (localStorage.getItem('form_3X_report_type') !== null) {
         const formInfo: any = JSON.parse(localStorage.getItem('form_3X_report_type'));
         if (formInfo.hasOwnProperty('dueDate')) {
+          console.log('formInfo.dueDate = ' + formInfo.dueDate);
           if (typeof formInfo.dueDate === 'string') {
             if (formInfo.dueDate.length > 1) {
-              const oneDay: number = 24*60*60*1000;
+              const oneDay: number = 24 * 60 * 60 * 1000;
               const today: any = new Date();
+              today.setHours(0, 0, 0, 0);
               const dueDateArr = formInfo.dueDate.split('/');
               let dueDate: any = '';
 
-              if (formInfo.dueDate.indexOf('2018') === 0) {
-                dueDate = new Date(2019, dueDateArr[0], dueDateArr[1]);
+              const dueDateMonth = this._utilService.toInteger(dueDateArr[0]) - 1;
+              const dueDateDay = this._utilService.toInteger(dueDateArr[1]);
+              dueDate = new Date(dueDateArr[2], dueDateMonth, dueDateDay);
+
+              if (this._utilService.compareDatesAfter(today, dueDate)) {
+                this.showFormDueDate = true;
+                this.formDueDate = Math.round(Math.abs((today.getTime() - dueDate.getTime()) / (oneDay)));
+              } else if (this._utilService.compareDatesEqual(today, dueDate)) {
+                this.showFormDueDate = false;
+                console.log('Due today');
+                this.formDueDate = 0;
               } else {
-                dueDate = new Date(dueDateArr[2], dueDateArr[0], dueDateArr[1]);
+                this.showFormDueDate = false;
+                this.formDueDate = 0;
               }
 
-              this.showFormDueDate = true;
-              this.formType = formInfo.formType;
-              this.formDueDate = Math.round(Math.abs((today.getTime() - dueDate.getTime())/(oneDay)));
+              if (this.showFormDueDate) {
+                console.log(' today       = ' + today);
+                console.log(' dueDate     = ' + dueDate);
+                console.log(' due in days = ' + this.formDueDate);
+              } else {
+                console.log('dont show due date');
+                console.log(' today       = ' + today);
+                console.log(' dueDate     = ' + dueDate);
+              }
+              
+              // if (formInfo.dueDate.indexOf('2018') === 0) {
+              //   dueDate = new Date(2019, dueDateArr[0], dueDateArr[1]);
+              // } else {
+              //   dueDate = new Date(dueDateArr[2], dueDateMonth, dueDateDay);
+              // }
 
+              this.formType = formInfo.formType;
               this.formDescription = formInfo.reportTypeDescription;
               this.formStartDate = formInfo.cvgStartDate.replace('2018', 2019);
               this.formEndDate = formInfo.cvgEndDate.replace('2018', 2019);
@@ -210,4 +247,9 @@ export class AppLayoutComponent implements OnInit {
       return  `with: ${reason}`;
     }
   }
+
+  public editFrom() : void {
+    alert("Feature to be implemented.");
+  } 
+
 }

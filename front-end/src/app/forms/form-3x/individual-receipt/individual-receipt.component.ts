@@ -21,6 +21,7 @@ export class IndividualReceiptComponent implements OnInit {
   @Output() status: EventEmitter<any> = new EventEmitter<any>();
   @Input() selectedOptions: any = {};
   @Input() formOptionsVisible: boolean = false;
+  @Input() transactionTypeText = '';
 
   public formFields: any = [];
   public frmIndividualReceipt: FormGroup;
@@ -195,12 +196,5 @@ export class IndividualReceiptComponent implements OnInit {
       direction: 'previous',
       step: 'step_2'
     });
-  }
-
-  public viewTransactions() {
-    //this._router.navigate(['/forms/transactions', this._formType], { queryParams: { step: this.step } }); 
-
-    //let form_id = this._formType;
-    this._router.navigate(['/forms/transactions', this._formType]); 
   }
 }
