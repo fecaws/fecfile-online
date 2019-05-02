@@ -69,8 +69,6 @@ export class F3xComponent implements OnInit {
           if (Array.isArray(res.report_type)) {
             this.reportTypes  = res.report_type;
 
-            console.log('this.reportType: ', this.reportTypes);
-
             this.reportsLoading = false;
 
             this._setReports();
@@ -83,8 +81,6 @@ export class F3xComponent implements OnInit {
       .subscribe(res => {
         if (res) {
           this.transactionCategories = res.data.transactionCategories;
-
-          console.log('this.transactionCategories: ', this.transactionCategories);
         }
       });
 
@@ -203,7 +199,7 @@ export class F3xComponent implements OnInit {
 
           this.canContinue();
          } else if (typeof e.form === 'string') {
-           if (e.form === '3x') {
+           if (e.form === this._formType) {
             if (e.hasOwnProperty('reportTypeRadio')) {
               if (typeof e.reportTypeRadio === 'string') {
                this._setCoverageDates(e.reportTypeRadio);
@@ -240,16 +236,16 @@ export class F3xComponent implements OnInit {
         if(this.frm.valid) {
           this.step = this._step;
 
-          this._router.navigate(['/forms/form/3X'], { queryParams: { step: this.step } });
+          this._router.navigate([`/forms/form/${this._formType}`], { queryParams: { step: this.step } });
         } else if(this.frm === 'preview') {
           this.step = this._step;
 
-          this._router.navigate(['/forms/form/3X'], { queryParams: { step: this.step } });
+          this._router.navigate([`/forms/form/${this._formType}`], { queryParams: { step: this.step } });
         }
       } else if(this.direction === 'previous') {
         this.step = this._step;
 
-        this._router.navigate(['/forms/form/3X'], { queryParams: { step: this.step } });
+        this._router.navigate([`/forms/form/${this._formType}`], { queryParams: { step: this.step } });
       }
     }
   }
