@@ -921,8 +921,10 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    */
   private setSortableColumns(): void {
     // sort column names must match the domain model names
-    const defaultSortColumns = ['type', 'transactionId', 'name', 'date', 'amount'];
-    const otherSortColumns = ['street', 'city', 'state', 'zip', 'aggregate', 'purposeDescription',
+    // Mahendra FNE-914
+    // const defaultSortColumns = ['type', 'transactionId', 'name', 'date', 'amount'];
+    const defaultSortColumns = ['type', 'name', 'date', 'amount', 'aggregate'];
+    const otherSortColumns = ['transactionId', 'street', 'city', 'state', 'zip', 'purposeDescription',
       'contributorEmployer', 'contributorOccupation', 'memoCode', 'memoText'];
 
     this.sortableColumns = [];
@@ -940,7 +942,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    * Set the UI to show the default column sorted in the default direction.
    */
   private setSortDefault(): void {
-    this.currentSortedColumnName = this._tableService.setSortDirection('type',
+    this.currentSortedColumnName = this._tableService.setSortDirection('name',
       this.sortableColumns, false);
   }
 

@@ -78,20 +78,18 @@ export class AppLayoutComponent implements OnInit {
             this.toggleMenu = false;
           }
           if(val.url.indexOf('/dashboard') === 0) {
-            // this.sideBarClass = 'dashboard active';
-            // this.showSideBar = true;
             if(this.toggleMenu) {
               this.showSideBar = true;
-              this.sideBarClass = 'dashboard active';
+              this.sideBarClass = 'app-container dashboard active';
             } else {
               this.showSideBar = false;
-              this.sideBarClass = 'active';              
+              this.sideBarClass = 'app-container active';              
             }             
             this._utilService.removeLocalItems('form_', 5);
           } else if(val.url.indexOf('/forms') === 0) {
             if(this.toggleMenu) {
               this.showSideBar = true;
-              this.sideBarClass = 'active';
+              this.sideBarClass = 'app-container active';
             }
           } else if (val.url.indexOf('/forms') !== 0 || val.url.indexOf('/dashboard') !== 0) {
             this._utilService.removeLocalItems('form_', 5);
@@ -110,6 +108,9 @@ export class AppLayoutComponent implements OnInit {
 
   ngDoCheck(): void {
     const route: string = this._router.url;
+    // to refresh/clear Dash Board Filter options
+    localStorage.removeItem('reports.filters');
+    localStorage.removeItem('Reports.view');
 
     if (route === '/dashboard') {
       /**
@@ -123,7 +124,6 @@ export class AppLayoutComponent implements OnInit {
       if (localStorage.getItem('form_3X_report_type') !== null) {
         const formInfo: any = JSON.parse(localStorage.getItem('form_3X_report_type'));
         if (formInfo.hasOwnProperty('dueDate')) {
-          console.log('formInfo.dueDate = ' + formInfo.dueDate);
           if (typeof formInfo.dueDate === 'string') {
             if (formInfo.dueDate.length > 1) {
               const oneDay: number = 24 * 60 * 60 * 1000;
@@ -141,28 +141,11 @@ export class AppLayoutComponent implements OnInit {
                 this.formDueDate = Math.round(Math.abs((today.getTime() - dueDate.getTime()) / (oneDay)));
               } else if (this._utilService.compareDatesEqual(today, dueDate)) {
                 this.showFormDueDate = false;
-                console.log('Due today');
                 this.formDueDate = 0;
               } else {
                 this.showFormDueDate = false;
                 this.formDueDate = 0;
               }
-
-              if (this.showFormDueDate) {
-                console.log(' today       = ' + today);
-                console.log(' dueDate     = ' + dueDate);
-                console.log(' due in days = ' + this.formDueDate);
-              } else {
-                console.log('dont show due date');
-                console.log(' today       = ' + today);
-                console.log(' dueDate     = ' + dueDate);
-              }
-              
-              // if (formInfo.dueDate.indexOf('2018') === 0) {
-              //   dueDate = new Date(2019, dueDateArr[0], dueDateArr[1]);
-              // } else {
-              //   dueDate = new Date(dueDateArr[2], dueDateMonth, dueDateDay);
-              // }
 
               this.formType = formInfo.formType;
               this.formDescription = formInfo.reportTypeDescription;
