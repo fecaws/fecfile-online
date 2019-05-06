@@ -1,0 +1,25 @@
+update committee_master set cmte_email_1= 'rlanz@fec.gov' where cmte_id ='C00004036';
+update committee_master set cmte_email_1= 'cstroman.ctr@fec.gov' where cmte_id ='C00351056';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00000422';
+update committee_master set cmte_email_1= 'cris.daniluk@ctr.salientcrgt.com' where cmte_id ='C00689174';
+update committee_master set cmte_email_1= 'jchumley@fec.gov' where cmte_id ='C00547349';
+update committee_master set cmte_email_1= 'pjinka.ctr@fec.gov' where cmte_id ='C01234567';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00581199';
+update committee_master set cmte_email_1= 'mahendra.marathe@salientcrgt.com' where cmte_id ='C00689224';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00690222';
+update committee_master set cmte_email_1= 'cmukerjee.ctr@fec.gov' where cmte_id ='C00000729';
+update committee_master set cmte_email_1= 'jsmith@gmail.com' where cmte_id ='C01234567';
+update committee_master set cmte_email_1= 'dgardner.ctr@fec.gov' where cmte_id ='C00010603';
+update committee_master set cmte_email_1= 'rsanchez.ctr@fec.gov' where cmte_id ='C00690099';
+update committee_master set cmte_email_1= 'smartinez.ctr@fec.gov' where cmte_id ='C00689992';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00332890';
+update committee_master set cmte_email_1= 'mahendra.marathe@salientcrgt.com' where cmte_id ='C01234567';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00212423';
+update committee_master set cmte_email_1= 'rdasaradhi.ctr@fec.gov' where cmte_id ='C00689877';
+update committee_master set cmte_email_1= 'mbasupally.ctr@fec.gov' where cmte_id ='C00689844';
+update committee_master set cmte_email_1= 'klally@fec.gov' where cmte_id ='C00220269';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00296624';
+update committee_master set cmte_email_1= 'cstroman.ctr@fec.gov' where cmte_id ='C00689968';
+update committee_master set cmte_email_1= 'mkancherla.ctr@fec.gov' where cmte_id ='C00000638';
+update committee_master set cmte_email_1= 'cmukerjee.ctr@fec.gov' where cmte_id ='C00690198';
+
