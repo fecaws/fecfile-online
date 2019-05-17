@@ -26,8 +26,8 @@
           }
         }
         .dropdown-menu {
+          min-width: 0px !important;
           &.show {
-            left: -80px !important;
             .dropdown-item {
               &:focus,
               &:hover,
