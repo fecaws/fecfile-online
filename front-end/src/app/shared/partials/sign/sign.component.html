@@ -17,14 +17,7 @@
             
            >
              Print Preview
-           </button> &nbsp;
-           <button
-             type="button"
-             class="btn btn-validate"
-             (click)="validateForm()"
-           >
-               Validate
-             </button>
+           </button> 
             </div>
        </div>
      </header>
@@ -100,13 +93,11 @@
            </div>
 
            <div class="grid-row">
-             <div class="grid-row__col grid-row__col--12">
+             <div class="grid-row__col grid-row__col--12 border-bottom">
                If your name is not listed, please
                <a class="form1-link" href="https://test-webforms.fec.gov/webforms/form1/index.htm" target="_blank">click here</a> to amend Form 1.
              </div>
            </div>
-           <hr />
-
            <div class="grid-row">
               <div class="grid-row__col grid-row__col--4">
                   <h4>Email(s) on File</h4>
@@ -141,6 +132,7 @@
                       (change)="changeAdditionalEmail($event)"
                       (blur)="updateAdditionalEmail($event)"
                       formControlName="additional_email_1"
+                      autocomplete="off"
                     ></ng-container> &nbsp;&nbsp;
                     <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
                         <div class="text-error" *ngIf="frmSignee.controls.additional_email_1.errors?.email">
@@ -161,6 +153,7 @@
                         (change)="changeAdditionalEmail($event)"
                         (blur)="updateAdditionalEmail($event)"
                         formControlName="confirm_email_1"
+                        autocomplete="off"
                       >
                     </ng-container>    
                       <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
@@ -199,6 +192,7 @@
                         (change)="changeAdditionalEmail($event)"
                         (blur)="updateAdditionalEmail($event)"
                         formControlName="additional_email_2"
+                        autocomplete="off"
                       >
                       </ng-container> 
                       <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
@@ -219,6 +213,7 @@
                        (change)="changeAdditionalEmail($event)"
                        (blur)="updateAdditionalEmail($event)"
                        formControlName="confirm_email_2"
+                       autocomplete="off"
                      >  </ng-container>
                      <div *ngIf="(frmSignee.invalid && (frmSignee.dirty || frmSignee.touched))">
                         <div class="text-error" *ngIf="frmSignee.controls.confirm_email_2.errors?.email">
@@ -249,7 +244,7 @@
      </section>
      <footer>
        <div class="grid-row">
-         <div class="grid-row__col grid-row__col--12">
+         <div class="grid-row__col grid-row__col--12 border-bottom">
             <br />
             <br />
            <button
@@ -263,7 +258,6 @@
        </div>
        <div class="grid-row">
          <div class="grid-row__col grid-row__col--12">
-           <hr />
            <div class="forms__agreement-text">
              <input
                type="checkbox"
@@ -281,12 +275,7 @@
            </div>
          </div>
        </div>
-       <div class="grid-row">
-         <div class="grid-row__col grid-row__col--12">
-           <hr />
-         </div>
-       </div>
-       <div class="grid-row">
+       <div class="grid-row border-top space-bottom">
          <div class="grid-row__col grid-row__col--6">
            <button
              type="button"
@@ -306,9 +295,7 @@
          </div>
        </div>
        <div  class="grid-row">
-          <div class="grid-row__col grid-row__col--12">
-          <h4>* = Required</h4>
-          </div>
+          <h4 class="grid-row__col grid-row__col--12 space-bottom">* = Required</h4>
       </div>         
     </footer>
    </form>

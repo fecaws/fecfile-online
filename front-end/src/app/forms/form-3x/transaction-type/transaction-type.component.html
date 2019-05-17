@@ -11,7 +11,8 @@
             <h1>Transaction Type</h1>
           </ng-container>
         </div>
-        <div class="float-right" ngbDropdown>
+        <!--<div class="float-right" ngbDropdown>-->
+        <div class="float-right"   ngbDropdown role="group" aria-label="Action dropdown">
           <button
             type="button"
             class="btn btn-link btn-options"
@@ -22,11 +23,12 @@
             <span class="sr-only">Click for more options</span>
           </button>
           <div ngbDropdownMenu aria-labelledby="actionsMenu">
-            <button class="dropdown-item">View</button>
-            <button class="dropdown-item">Print</button>
-            <button class="dropdown-item">Import</button>
+            <button class="dropdown-item"><i class="view-icon"></i> View</button>
+            <button class="dropdown-item"><i class="print-icon"></i> Print</button>
+            <button class="dropdown-item"><i class="far fa-file-import"></i> Import</button>            
           </div>
         </div>
+        
       </div>
       <ng-container *ngIf="transactionCategorySelected">
         <hr />
