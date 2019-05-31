@@ -119,33 +119,45 @@ export class AppLayoutComponent implements OnInit {
 
       this.sideBarClass = 'dashboard active';
       this.showFormDueDate = false;
-    } else if (route.indexOf('/forms/form/3X') === 0) {
+    } else if (route.indexOf('/forms/form/3X') === 0 || route.indexOf('/forms/transactions/3X') === 0) {
       if (localStorage.getItem('form_3X_report_type') !== null) {
         const formInfo: any = JSON.parse(localStorage.getItem('form_3X_report_type'));
 
         if (typeof formInfo === 'object') {
           if (formInfo.hasOwnProperty('formType')) {
             this.formType = formInfo.formType;
+          } else if (formInfo.hasOwnProperty('formtype')) {
+            this.formType = formInfo.formtype;
           }
 
           if (formInfo.hasOwnProperty('reportTypeDescription')) {
             this.formDescription = formInfo.reportTypeDescription;
+          } else if (formInfo.hasOwnProperty('reporttypedescription')) {
+            this.formDescription = formInfo.reporttypedescription;
           }
 
           if (formInfo.hasOwnProperty('cvgStartDate')) {
             this.formStartDate = formInfo.cvgStartDate;
+          } else if (formInfo.hasOwnProperty('cvgstartdate')) {
+            this.formStartDate = formInfo.cvgstartdate;
           }
 
           if (formInfo.hasOwnProperty('cvgEndDate')) {
             this.formEndDate = formInfo.cvgEndDate;
+          } else if (formInfo.hasOwnProperty('cvgenddate')) {
+            this.formEndDate = formInfo.cvgenddate;
           }
 
           if (formInfo.hasOwnProperty('daysUntilDue')) {
             this.formDaysUntilDue = formInfo.daysUntilDue;
+          } else if (formInfo.hasOwnProperty('daysuntildue')) {
+            this.formDaysUntilDue = formInfo.daysuntildue;
           }
 
           if (formInfo.hasOwnProperty('dueDate')) {
             this.dueDate = formInfo.dueDate;
+          } else if (formInfo.hasOwnProperty('duedate')) {
+            this.dueDate = formInfo.duedate;
           }
 
           if (this._step !== 'step_1') {
