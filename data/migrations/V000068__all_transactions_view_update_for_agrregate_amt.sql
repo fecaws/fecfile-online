@@ -39,5 +39,5 @@ CREATE OR REPLACE VIEW public.all_transactions_view AS
      LEFT JOIN ref_transaction_type rt ON rt.transaction_type::text = sa.transaction_type::text;
 
 ALTER TABLE public.all_transactions_view
-  OWNER TO postgresqluser1;
+  OWNER TO postgres;
 
