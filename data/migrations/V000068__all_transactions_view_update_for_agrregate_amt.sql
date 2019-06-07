@@ -38,7 +38,7 @@ CREATE OR REPLACE VIEW public.all_transactions_view AS
      JOIN entity e ON e.entity_id::text = sa.entity_id::text
      LEFT JOIN ref_transaction_type rt ON rt.transaction_type::text = sa.transaction_type::text;
 
-ALTER TABLE public.all_transactions_view
-OWNER TO postgres;
+ALTER TABLE public.all_transactions_view;
+
 
 
