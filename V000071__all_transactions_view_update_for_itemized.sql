@@ -25,7 +25,7 @@ CREATE OR REPLACE VIEW public.all_transactions_view AS
     e.employer,
     sa.contribution_date AS transaction_date,
     sa.contribution_amount AS transaction_amount,
-    sa.aggregate_amt AS aggregate_amt,
+    sa.aggregate_amt,
     sa.purpose_description,
     sa.memo_code,
     sa.memo_text,
@@ -33,7 +33,12 @@ CREATE OR REPLACE VIEW public.all_transactions_view AS
     sa.election_other_description,
     sa.delete_ind,
     sa.create_date,
-    sa.last_update_date
+    sa.last_update_date,
+        CASE
+            WHEN sa.aggregate_amt < 200::numeric THEN 'U'::text
+            WHEN sa.aggregate_amt >= 200::numeric THEN 'I'::text
+            ELSE ''::text
+        END AS itemized
    FROM sched_a sa
      JOIN entity e ON e.entity_id::text = sa.entity_id::text
      LEFT JOIN ref_transaction_type rt ON rt.transaction_type::text = sa.transaction_type::text;
