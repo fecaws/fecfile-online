@@ -3,6 +3,7 @@ export class TransactionModel {
     transactionId: string;
     name: string;
     street: string;
+    street2: string;
     city: string;
     state: string;
     zip: string;
@@ -16,12 +17,14 @@ export class TransactionModel {
     memoCode: string;
     memoText: string;
     selected: boolean;
+    itemized: string;
 
     constructor(transaction: any) {
         this.type = transaction.type ? transaction.type : '';
         this.transactionId = transaction.transactionId ? transaction.transactionId : '';
         this.name = transaction.name ? transaction.name : '';
         this.street = transaction.street ? transaction.street : '';
+        this.street2 = transaction.street2 ? transaction.street2 : '';
         this.city = transaction.city ? transaction.city : '';
         this.state = transaction.state ? transaction.state : '';
         this.zip = transaction.zip ? transaction.zip : '';
@@ -35,5 +38,6 @@ export class TransactionModel {
         this.memoCode = transaction.memoCode ? transaction.memoCode : '';
         this.memoText = transaction.memoText ? transaction.memoText : '';
         this.selected = transaction.selected;
+        this.itemized = transaction.itemized;
     }
 }
