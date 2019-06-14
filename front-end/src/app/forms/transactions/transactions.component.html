@@ -17,11 +17,14 @@
     <header>
       <div class="header-content">
         <div class="float-left">
-          <h1>Transactions / Form {{formType}}
+          <h1 *ngIf="!isEditViewActive(); else editHeading">Transactions / Form {{formType}}
             <span [@fadeInOut] *ngIf="isRecycleBinViewActive()"> / Recycling Bin
               <span class="trash-icon"></span>
             </span>
           </h1>
+          <ng-template #editHeading>
+            <h1 [@fadeInOut] *ngIf="isEditViewActive()">Form {{formType}} / {{transactionToEdit.type}} / Edit</h1>
+          </ng-template>
         </div>
         <div class="float-right">
           <button [@fadeInOut] *ngIf="isShowFilters" class="btn btn-primary btn-right" type="submit"
@@ -33,6 +36,7 @@
       <hr />
     </header>
     <div>
+      <div *ngIf="!isEditViewActive()">
         <div class="grid-row">
           <div class="grid-row__col grid-row__col--12">
             <div class="transactions__btn-container">
@@ -98,22 +102,31 @@
                 </button>
                 <span class="transactions__btn-search-filter-join" 
                   *ngIf="i < (searchTextArray.length -1 )">
-                    and
+                    or
                 </span>
               </div>
             </div>          
           </div>
         </div>
-        <app-transactions-table 
-          *ngIf="isTransactionViewActive()"
-          formType="{{formType}}" 
-          tableType="{{transactionsView}}">
-        </app-transactions-table>
-        <app-transactions-table
-          *ngIf="isRecycleBinViewActive()"
-          formType="{{formType}}" 
-          tableType="{{recycleBinView}}">
-        </app-transactions-table>                
       </div>
+      <app-transactions-table 
+        *ngIf="isTransactionViewActive()"
+        formType="{{formType}}" 
+        reportId="{{reportId}}"
+        tableType="{{transactionsView}}">
+      </app-transactions-table>
+      <app-transactions-table
+        *ngIf="isRecycleBinViewActive()"
+        formType="{{formType}}"
+        reportId="{{reportId}}" 
+        tableType="{{recycleBinView}}">
+      </app-transactions-table>
+      <app-transactions-edit
+        *ngIf="isEditViewActive()"
+        [transactionToEdit]="transactionToEdit"
+        formType="{{formType}}"
+        reportId="{{reportId}}">
+      </app-transactions-edit>
+    </div>
   </div>
 </div>

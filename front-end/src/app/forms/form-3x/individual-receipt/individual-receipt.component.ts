@@ -15,10 +15,12 @@ import { NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { FormsService } from '../../../shared/services/FormsService/forms.service';
 import { UtilService } from '../../../shared/utils/util.service';
+import { MessageService } from '../../../shared/services/MessageService/message.service';
 import { IndividualReceiptService } from './individual-receipt.service';
 import { f3xTransactionTypes } from '../../../shared/interfaces/FormsService/FormsService';
 import { alphaNumeric } from '../../../shared/utils/forms/validation/alpha-numeric.validator';
 import { floatingPoint } from '../../../shared/utils/forms/validation/floating-point.validator';
+import { contributionDate } from '../../../shared/utils/forms/validation/contribution-date.validator';
 
 @Component({
   selector: 'f3x-individual-receipt',
@@ -32,7 +34,6 @@ export class IndividualReceiptComponent implements OnInit {
   @Input() selectedOptions: any = {};
   @Input() formOptionsVisible: boolean = false;
   @Input() transactionTypeText = '';
-  @ViewChild('hiddenFields') hiddenFieldValues: ElementRef;
 
   public formFields: any = [];
   public frmIndividualReceipt: FormGroup;
@@ -42,18 +43,21 @@ export class IndividualReceiptComponent implements OnInit {
   public states: any = [];
 
   private _formType: string = '';
+  private _reportType: any = {};
   private _types: any = [];
   private _transaction: any = {};
+  private _transactionType: string = null;
 
   constructor(
     private _http: HttpClient,
     private _fb: FormBuilder,
     private _formService: FormsService,
-    private _individualReceiptService: IndividualReceiptService,
+    private _receiptService: IndividualReceiptService,
     private _activatedRoute: ActivatedRoute,
     private _config: NgbTooltipConfig,
     private _router: Router,
-    private _utilService: UtilService
+    private _utilService: UtilService,
+    private _messageService: MessageService
   ) {
     this._config.placement = 'right';
     this._config.triggers = 'click';
@@ -62,16 +66,21 @@ export class IndividualReceiptComponent implements OnInit {
   ngOnInit(): void {
     this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
 
+    this._messageService.clearMessage();
+
+    this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
+
     this.frmIndividualReceipt = this._fb.group({});
 
-    this._individualReceiptService.getDynamicFormFields(this._formType, 'Individual Receipt').subscribe(res => {
+    this._receiptService.getDynamicFormFields(this._formType, 'Individual Receipt').subscribe(res => {
       if (res) {
         this.formFields = res.data.formFields;
         this.hiddenFields = res.data.hiddenFields;
-
-        this._setForm(this.formFields);
-
         this.states = res.data.states;
+
+        if (this.formFields.length >= 1) {
+          this._setForm(this.formFields);
+        }
       }
     });
   }
@@ -82,6 +91,14 @@ export class IndividualReceiptComponent implements OnInit {
         this.formVisible = true;
       }
     }
+
+    this._validateContributionDate();
+
+    this._getTransactionType();
+  }
+
+  ngOnDestroy(): void {
+    this._messageService.clearMessage();
   }
 
   /**
@@ -95,7 +112,7 @@ export class IndividualReceiptComponent implements OnInit {
     fields.forEach(el => {
       if (el.hasOwnProperty('cols')) {
         el.cols.forEach(e => {
-          formGroup[e.name] = new FormControl(e.value || null, this._mapValidators(e.validation));
+          formGroup[e.name] = new FormControl(e.value || null, this._mapValidators(e.validation, e.name));
         });
       }
     });
@@ -106,11 +123,19 @@ export class IndividualReceiptComponent implements OnInit {
   /**
    * Sets the form field valition requirements.
    *
-   * @param      {Object}  validators  The validators
+   * @param      {Object} validators  The validators.
+   * @param      {String} fieldName The name of the field.
    * @return     {Array}  The validations in an Array.
    */
-  private _mapValidators(validators): Array<any> {
+  private _mapValidators(validators: any, fieldName: string): Array<any> {
     const formValidators = [];
+
+    /**
+     * Adds alphanumeric validation for the zip code field.
+     */
+    if (fieldName === 'ContributorZip') {
+      formValidators.push(alphaNumeric());
+    }
 
     if (validators) {
       for (const validation of Object.keys(validators)) {
@@ -126,8 +151,6 @@ export class IndividualReceiptComponent implements OnInit {
           if (validators[validation] !== null) {
             formValidators.push(Validators.maxLength(validators[validation]));
           }
-        } else if (validation === 'alphaNumeric') {
-          formValidators.push(alphaNumeric());
         } else if (validation === 'dollarAmount') {
           if (validators[validation] !== null) {
             formValidators.push(floatingPoint());
@@ -135,7 +158,58 @@ export class IndividualReceiptComponent implements OnInit {
         }
       }
     }
+
     return formValidators;
+  }
+
+  /**
+   * Validates the contribution date selected.
+   */
+  private _validateContributionDate(): void {
+    this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
+
+    if (this._reportType !== null) {
+      const cvgStartDate: string = this._reportType.cvgStartDate;
+      const cvgEndDate: string = this._reportType.cvgEndDate;
+
+      if (this.frmIndividualReceipt.controls['ContributionDate']) {
+        this.frmIndividualReceipt.controls['ContributionDate'].setValidators([
+          contributionDate(cvgStartDate, cvgEndDate),
+          Validators.required
+        ]);
+
+        this.frmIndividualReceipt.controls['ContributionDate'].updateValueAndValidity();
+      }
+    }
+
+    if (this.frmIndividualReceipt) {
+      if (this.frmIndividualReceipt.controls['ContributionAmount']) {
+        this.frmIndividualReceipt.controls['ContributionAmount'].setValidators([floatingPoint(), Validators.required]);
+
+        this.frmIndividualReceipt.controls['ContributionAmount'].updateValueAndValidity();
+      }
+
+      if (this.frmIndividualReceipt.controls['ContributionAggregate']) {
+        this.frmIndividualReceipt.controls['ContributionAggregate'].setValidators([floatingPoint()]);
+
+        this.frmIndividualReceipt.controls['ContributionAggregate'].updateValueAndValidity();
+      }
+    }
+  }
+
+  /**
+   * Gets the transaction type.
+   */
+  private _getTransactionType(): void {
+    const transactionType: any = JSON.parse(localStorage.getItem(`form_${this._formType}_transaction_type`));
+
+    if (typeof transactionType === 'object') {
+      if (transactionType !== null) {
+        if (transactionType.hasOwnProperty('mainTransactionTypeValue')) {
+          this._transactionType = transactionType.mainTransactionTypeValue;
+        }
+      }
+    }
   }
 
   /**
@@ -143,7 +217,7 @@ export class IndividualReceiptComponent implements OnInit {
    */
   public doValidateReceipt() {
     if (this.frmIndividualReceipt.valid) {
-      let receiptObj: any = {};
+      const receiptObj: any = {};
 
       for (const field in this.frmIndividualReceipt.controls) {
         if (field === 'ContributionDate') {
@@ -159,8 +233,17 @@ export class IndividualReceiptComponent implements OnInit {
 
       localStorage.setItem(`form_${this._formType}_receipt`, JSON.stringify(receiptObj));
 
-      this._individualReceiptService.saveScheduleA(this._formType).subscribe(res => {
+      this._receiptService.saveSchedule(this._formType, this._transactionType).subscribe(res => {
         if (res) {
+          this._receiptService.getSchedule(this._formType, res).subscribe(resp => {
+            const message: any = {
+              formType: this._formType,
+              totals: resp
+            };
+
+            this._messageService.sendMessage(message);
+          });
+
           this.frmIndividualReceipt.reset();
 
           localStorage.removeItem(`form_${this._formType}_receipt`);
@@ -190,18 +273,24 @@ export class IndividualReceiptComponent implements OnInit {
    * Navigate to the Transactions.
    */
   public viewTransactions(): void {
-
     let reportId = '0';
     const form3XReportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
+    console.log('viewTransactions form3XReportType', form3XReportType);
 
     if (typeof form3XReportType === 'object' && form3XReportType !== null) {
       if (form3XReportType.hasOwnProperty('reportId')) {
         reportId = form3XReportType.reportId;
+      } else if (form3XReportType.hasOwnProperty('reportid')) {
+        reportId = form3XReportType.reportid;
       }
     }
 
+    console.log('reportId', reportId);
+
     if (!reportId) {
       reportId = '0';
+      // reportId = '431';
+      // reportId = '1206963';
     }
     console.log(`View Transactions for form ${this._formType} where reportId = ${reportId}`);
 
