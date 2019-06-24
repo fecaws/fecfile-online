@@ -1,4 +1,4 @@
-alter table public.dynamic_form_fields add column    field_db_name1 character varying(50);
+alter table public.dynamic_form_fields add column    field_db_name character varying(50);
 alter table public.dynamic_form_fields add column    transaction_type_identifier character varying(12);
 
 INSERT INTO public.dynamic_form_fields (df_id, form_type, transaction_type, field_label, field_value, field_size, field_type, field_html_type, field_is_required, field_is_hidden, field_is_readonly, field_validation, field_infoicon, field_info, field_order, field_section, field_section_order, create_date, last_update_date) VALUES (25, 'F3X', 'Individual Receipt', 'Transaction Type Identifier', 'INDV_REC', 12, 'hidden', 'hidden', true, true, false, 'alphaNumeric', false, NULL, 25, 'Official Use Only 1', 9, '2019-01-27', '2019-01-27');
