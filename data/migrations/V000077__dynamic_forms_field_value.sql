@@ -1,1 +1,0 @@
-update public.dynamic_form_fields set field_value = '0.00' where field_db_name='contribution_aggregate';
