@@ -5,7 +5,9 @@ update public.dynamic_form_fields set field_order = 1, seperator = 'true' where 
 update public.dynamic_form_fields set field_order = 2, seperator = 'true' where field_db_name = 'first_name';	
 update public.dynamic_form_fields set field_order = 3 where field_db_name = 'middle_name';	
 update public.dynamic_form_fields set field_order = 4 where field_db_name = 'preffix';	
-update public.dynamic_form_fields set field_order = 5 where field_db_name = 'suffix';	
+update public.dynamic_form_fields set field_order = 5 where field_db_name = 'suffix';
+
+update 	public.dynamic_form_fields set field_db_name = 'prefix' where field_db_name = 'preffix';
 
 update public.dynamic_form_fields set field_section_order = 5 where field_db_name = 'employer';
 update public.dynamic_form_fields set field_section_order = 5 where field_db_name = 'occupation';
