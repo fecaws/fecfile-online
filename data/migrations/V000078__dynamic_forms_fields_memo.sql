@@ -1,0 +1,2 @@
+update public.dynamic_form_fields set field_type = 'text', width = '380px', height = '40px', field_section = 'Memo Section', class_name = 'col col-md-5' where field_db_name = 'purpose_description';
+update public.dynamic_form_fields set field_type = 'text', width = '380px', height = '40px', field_section = 'Memo Section', class_name = 'col col-md-5' where field_db_name = 'memo_text';
