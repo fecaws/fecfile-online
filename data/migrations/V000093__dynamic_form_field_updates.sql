@@ -1,0 +1,2 @@
+update dynamic_form_fields set field_input_group = 'true', field_input_icon = 'calendar-icon' where field_db_name = 'contribution_date' and form_type = 'F3X';
+update dynamic_form_fields set field_input_group = 'true', field_input_icon = 'dollar-sign-icon' where field_db_name = 'contribution_amount' and form_type = 'F3X';
