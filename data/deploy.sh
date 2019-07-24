@@ -36,17 +36,17 @@ spec:
       restartPolicy: Never
 EOF
 
-POD=$(kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile --namespace=$3 get pods --selector=job-name=fecfile-flyway-db-job --output=jsonpath={.items..metadata.name})
+POD=$(kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 get pods --selector=job-name=fecfile-flyway-db-job --output=jsonpath={.items..metadata.name})
 
 # If there is an old job delete it. 
 if [ ! -z "$POD" ]; then
-  kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile --namespace=$3 delete job fecfile-flyway-db-job
+  kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 delete job fecfile-flyway-db-job
 fi
 
 # create the job
-kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile --namespace=$3 create -f flywaydb.yml
+kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 create -f flywaydb.yml
 
 sleep 20
-NEWPOD=$(kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile --namespace=$3 get pods --selector=job-name=fecfile-flyway-db-job --output=jsonpath={.items..metadata.name} | awk '{ print $1 }')
-kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile --namespace=$3 logs $NEWPOD
+NEWPOD=$(kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 get pods --selector=job-name=fecfile-flyway-db-job --output=jsonpath={.items..metadata.name} | awk '{ print $1 }')
+kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 logs $NEWPOD
 
