@@ -23,4 +23,3 @@ WITH (
 );
 ALTER TABLE public.sched_d
   OWNER TO fecdbuser;
-
