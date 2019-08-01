@@ -34,3 +34,4 @@ CREATE OR REPLACE VIEW public.dynamic_forms_view AS
    FROM dy_forms_by_section dfbs
   GROUP BY dfbs.form_type, dfbs.transaction_type;
 
+
