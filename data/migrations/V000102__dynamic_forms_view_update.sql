@@ -9,6 +9,7 @@ ALTER TABLE public.dynamic_form_fields
 update dynamic_form_fields set transaction_type ='INDV_REC',transaction_type_desc='Individual Receipt';
 
 
+
 CREATE OR REPLACE VIEW public.dynamic_forms_view AS
  WITH dy_forms_by_section AS (
          SELECT dynamic_form_fields.form_type,            
@@ -32,7 +33,4 @@ CREATE OR REPLACE VIEW public.dynamic_forms_view AS
           WHERE dft.form_type::text = dfbs.form_type::text AND dft.tran_type_identifier::text = dfbs.transaction_type::text))) AS form_fields
    FROM dy_forms_by_section dfbs
   GROUP BY dfbs.form_type, dfbs.transaction_type;
-
-
-
 

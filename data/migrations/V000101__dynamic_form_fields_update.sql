@@ -5,3 +5,4 @@ update public.dynamic_form_fields set field_section_order = 9 where field_sectio
 update public.dynamic_form_fields set field_order = 15 where field_db_name = 'memo_code';
 update public.dynamic_form_fields set field_order = 13 where field_db_name = 'contribution_amount';
 update public.dynamic_form_fields set field_order = 14 where field_db_name = 'contribution_aggregate';
+
