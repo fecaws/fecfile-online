@@ -21,5 +21,3 @@ CREATE TABLE public.sched_d
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.sched_d
-  OWNER TO fecdbuser;
