@@ -23,3 +23,5 @@ INSERT INTO public.df_tran_type_identifier(form_type, tran_type_identifier, tran
   
 update dynamic_form_fields set field_db_name ='entity_name' where field_label='Organization Name';
 update dynamic_form_fields set field_size =200 where field_label='Organization Name';
+
+
