@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, ViewEncapsulation, ViewChild, OnDestroy } from '@angular/core';
 import { style, animate, transition, trigger } from '@angular/animations';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { PaginationInstance } from 'ngx-pagination';
 import { ModalDirective } from 'ngx-bootstrap/modal';
 import { TransactionModel } from '../model/transaction.model';
@@ -45,6 +46,9 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
   public reportId: string;
 
   @Input()
+  public routeData: any;
+
+  @Input()
   public tableType: string;
 
   public transactionsModel: Array<TransactionModel>;
@@ -53,6 +57,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
   public recycleBinView = ActiveView.recycleBin;
   public bulkActionDisabled = true;
   public bulkActionCounter = 0;
+  public pageReceived: boolean = false;
 
   // ngx-pagination config
   public maxItemsPerPage = 10;
@@ -114,7 +119,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     private _tableService: TableService,
     private _utilService: UtilService,
     private _dialogService: DialogService,
-    private _reportTypeService: ReportTypeService
+    private _reportTypeService: ReportTypeService,
+    private _activatedRoute: ActivatedRoute
   ) {
     this.showPinColumnsSubscription = this._transactionsMessageService.getShowPinColumnMessage().subscribe(message => {
       this.showPinColumns();
@@ -162,7 +168,35 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         this.columnOptionCount++;
       }
     }
-    this.getPage(this.config.currentPage);
+    // When coming from transaction route the reportId is not received
+    // from the input perhaps due to the ngDoCheck in transactions-component.
+    // TODO look at replacing ngDoCheck and reportId as Input()
+    // with a message subscription service.
+    if (this.routeData) {
+      if (this.routeData.accessedByRoute) {
+        if (this.routeData.reportId) {
+          console.log('reportId for transaction accessed directly by route is ' + this.routeData.reportId);
+          this.reportId = this.routeData.reportId;
+          this.getPage(this.config.currentPage);
+        }
+      }
+    }
+  }
+
+  public ngDoCheck(): void {
+    const step: string = this._activatedRoute.snapshot.queryParams.step;
+
+    if (this.reportId !== undefined && !this.pageReceived) {
+      this.getPage(this.config.currentPage);
+
+      if (!this.pageReceived) {
+        this.pageReceived = true;
+      }
+    }
+    // Prevent looping
+    if (step !== 'transactions' && !this.routeData.reportId) {
+      this.pageReceived = false;
+    }
   }
 
   /**

@@ -1,11 +1,14 @@
 import { animate, style, transition, trigger } from '@angular/animations';
-import { Component, OnInit, ViewEncapsulation, OnDestroy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TransactionsMessageService } from './service/transactions-message.service';
 import { TransactionFilterModel } from './model/transaction-filter.model';
 import { Subscription } from 'rxjs/Subscription';
 import { TransactionModel } from './model/transaction.model';
 import { TransactionTypeService } from '../../forms/form-3x/transaction-type/transaction-type.service';
+import { ReportTypeService } from '../../forms/form-3x/report-type/report-type.service';
+import { FormBuilder } from '@angular/forms';
+import { ScheduleActions } from '../form-3x/individual-receipt/individual-receipt.component';
 
 export enum ActiveView {
   transactions = 'transactions',
@@ -35,20 +38,18 @@ export enum FilterTypes {
   encapsulation: ViewEncapsulation.None,
   animations: [
     trigger('fadeInOut', [
-      transition(':enter', [
-        style({ opacity: 0 }),
-        animate(500, style({ opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate(10, style({ opacity: 0 }))
-      ])
+      transition(':enter', [style({ opacity: 0 }), animate(500, style({ opacity: 1 }))]),
+      transition(':leave', [animate(10, style({ opacity: 0 }))])
     ])
   ]
 })
 export class TransactionsComponent implements OnInit, OnDestroy {
+  @Output() sidebarSwitch: EventEmitter<any> = new EventEmitter<any>();
+  @Output() showTransaction: EventEmitter<any> = new EventEmitter<any>();
 
   public formType = '';
   public reportId = '0';
+  public routeData: any;
   public view: ActiveView = ActiveView.transactions;
   public transactionsView = ActiveView.transactions;
   public recycleBinView = ActiveView.recycleBin;
@@ -105,46 +106,49 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   constructor(
     private _activatedRoute: ActivatedRoute,
     private _transactionsMessageService: TransactionsMessageService,
-    private _transactionTypeService: TransactionTypeService
+    private _transactionTypeService: TransactionTypeService,
+    private _reportTypeService: ReportTypeService,
+    private _router: Router,
+    private _fb: FormBuilder
   ) {
-    this.applyFiltersSubscription = this._transactionsMessageService.getApplyFiltersMessage()
-      .subscribe(
+    this.applyFiltersSubscription = this._transactionsMessageService
+      .getApplyFiltersMessage()
+      .subscribe((message: any) => {
+        this.determineTags(message);
 
-        (message: any) => {
-          this.determineTags(message);
-
-          if (message.isClearKeyword) {
-            this.clearSearch();
-          } else {
-            this.doSearch();
-          }
+        if (message.isClearKeyword) {
+          this.clearSearch();
+        } else {
+          this.doSearch();
         }
-      );
+      });
 
-      this.editTransactionSubscription = this._transactionsMessageService.getEditTransactionMessage()
-      .subscribe(
-        (trx: TransactionModel) => {
-          this.transactionToEdit = trx;
-          this.showEdit();
-        }
-      );
+    this.editTransactionSubscription = this._transactionsMessageService
+      .getEditTransactionMessage()
+      .subscribe((trx: TransactionModel) => {
+        this.transactionToEdit = trx;
+        this.showEdit();
+      });
 
-      this.showTransactionsSubscription = this._transactionsMessageService.getShowTransactionsMessage()
-      .subscribe(
-        message => {
-          this.showTransactions();
-        }
-      );
+    this.showTransactionsSubscription = this._transactionsMessageService
+      .getShowTransactionsMessage()
+      .subscribe(message => {
+        this.showTransactions();
+      });
   }
-
 
   /**
    * Initialize the component.
    */
   public ngOnInit(): void {
-
     this.formType = this._activatedRoute.snapshot.paramMap.get('form_id');
     this.reportId = this._activatedRoute.snapshot.paramMap.get('report_id');
+    const reportIdRoute = this._activatedRoute.snapshot.paramMap.get('report_id');
+    this._step = this._activatedRoute.snapshot.paramMap.get('step');
+    
+    console.log("TransactionsComponent this._step", this._step);
+    this.routeData = { accessedByRoute: true, formType: this.formType, reportId: reportIdRoute };
+
     localStorage.removeItem(`form_${this.formType}_view_transaction_screen`);
 
     this._transactionTypeService.getTransactionCategories(this.formType).subscribe(res => {
@@ -180,6 +184,9 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     }
   }
 
+  public ngDoCheck(): void {
+    this.reportId = this._activatedRoute.snapshot.queryParams.reportId;
+  }
 
   /**
    * A method to run when component is destroyed.
@@ -189,15 +196,20 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     localStorage.removeItem(`form_${this.formType}_view_transaction_screen`);
     this.applyFiltersSubscription.unsubscribe();
     this.editTransactionSubscription.unsubscribe();
+    this.showTransactionsSubscription.unsubscribe();
   }
 
+  public goToPreviousStep(): void {
+    this._router.navigate([`/forms/form/${this.formType}`], {
+      queryParams: { step: 'step_3' }
+    });
+  }
 
   /**
    * Based on the filter settings and search string, determine the "tags" to show.
    */
   private determineTags(message: any) {
-
-    const filters = this.filters = message.filters;
+    const filters = (this.filters = message.filters);
 
     // new and changed added filters should go at the end.
     // unchanged should appear in the beginning.
@@ -221,21 +233,19 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         for (const cat of filters.filterCategories) {
           categoryGroup.push(cat);
         }
-        this.tagArray.push({type: FilterTypes.category, prefix: 'Type', group: categoryGroup});
+        this.tagArray.push({ type: FilterTypes.category, prefix: 'Type', group: categoryGroup });
       }
     } else {
       this.removeTagArrayItem(FilterTypes.category);
     }
 
-
     // Date
     if (filters.filterDateFrom && filters.filterDateTo) {
       const dateGroup = [];
-      dateGroup.push(
-        {
-          filterDateFrom: filters.filterDateFrom,
-          filterDateTo: filters.filterDateTo
-        });
+      dateGroup.push({
+        filterDateFrom: filters.filterDateFrom,
+        filterDateTo: filters.filterDateTo
+      });
       // is tag showing? Then modify it is the curr position
       let dateTag = false;
       for (const tag of this.tagArray) {
@@ -245,19 +255,17 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         }
       }
       if (!dateTag) {
-        this.tagArray.push({type: FilterTypes.date, prefix: 'Date', group: dateGroup});
+        this.tagArray.push({ type: FilterTypes.date, prefix: 'Date', group: dateGroup });
       }
     }
-
 
     // Amount
     if (filters.filterAmountMin && filters.filterAmountMax) {
       const amountGroup = [];
-      amountGroup.push(
-        {
-          filterAmountMin: filters.filterAmountMin,
-          filterAmountMax: filters.filterAmountMax
-        });
+      amountGroup.push({
+        filterAmountMin: filters.filterAmountMin,
+        filterAmountMax: filters.filterAmountMax
+      });
       let amtTag = false;
       for (const tag of this.tagArray) {
         if (tag.type === FilterTypes.amount) {
@@ -266,20 +274,17 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         }
       }
       if (!amtTag) {
-        this.tagArray.push({type: FilterTypes.amount,
-          prefix: 'Amount', group: amountGroup});
+        this.tagArray.push({ type: FilterTypes.amount, prefix: 'Amount', group: amountGroup });
       }
     }
-
 
     // Aggregate Amount
     if (filters.filterAggregateAmountMin && filters.filterAggregateAmountMax) {
       const amountGroup = [];
-      amountGroup.push(
-        {
-          filterAggregateAmountMin: filters.filterAggregateAmountMin,
-          filterAggregateAmountMax: filters.filterAggregateAmountMax
-        });
+      amountGroup.push({
+        filterAggregateAmountMin: filters.filterAggregateAmountMin,
+        filterAggregateAmountMax: filters.filterAggregateAmountMax
+      });
       let amtTag = false;
       for (const tag of this.tagArray) {
         if (tag.type === FilterTypes.aggregateAmount) {
@@ -288,8 +293,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         }
       }
       if (!amtTag) {
-        this.tagArray.push({type: FilterTypes.aggregateAmount,
-          prefix: 'Aggregate Amount', group: amountGroup});
+        this.tagArray.push({ type: FilterTypes.aggregateAmount, prefix: 'Aggregate Amount', group: amountGroup });
       }
     }
 
@@ -316,7 +320,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         for (const cat of filters.filterStates) {
           stateGroup.push(cat);
         }
-        this.tagArray.push({type: FilterTypes.state, prefix: null, group: stateGroup});
+        this.tagArray.push({ type: FilterTypes.state, prefix: null, group: stateGroup });
       }
     } else {
       this.removeTagArrayItem(FilterTypes.state);
@@ -333,7 +337,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         }
       }
       if (!memoTag) {
-        this.tagArray.push({type: FilterTypes.memoCode, prefix: null, group: ['Memo Code']});
+        this.tagArray.push({ type: FilterTypes.memoCode, prefix: null, group: ['Memo Code'] });
       }
     }
 
@@ -361,25 +365,22 @@ export class TransactionsComponent implements OnInit, OnDestroy {
           for (const item of filters.filterItemizations) {
             itemizedGroup.push(item);
           }
-          this.tagArray.push({type: FilterTypes.itemizations, prefix: 'Itemized', group: itemizedGroup});
+          this.tagArray.push({ type: FilterTypes.itemizations, prefix: 'Itemized', group: itemizedGroup });
         }
       } else {
         this.removeTagArrayItem(FilterTypes.itemizations);
       }
     }
 
-
     console.log('tagArray: ' + JSON.stringify(this.tagArray));
 
     this.filters = filters;
   }
 
-
   /**
    * Search transactions.
    */
   public search() {
-
     // Don't allow more than 12 filters
     if (this.searchTextArray.length > 12) {
       return;
@@ -388,13 +389,12 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     // TODO emit search message to the table transactions component
     if (this.searchText) {
       this.searchTextArray.push(this.searchText);
-      this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: [this.searchText]});
+      this.tagArray.push({ type: FilterTypes.keyword, prefix: null, group: [this.searchText] });
       this.searchText = '';
     }
     this.doSearch();
     this.showFilters();
   }
-
 
   /**
    * Clear the keyword search items
@@ -406,14 +406,12 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.doSearch();
   }
 
-
-    /**
+  /**
    * Clear the keyword search items
    */
   public clearSearchAndFilters() {
-
     // send a message to remove the filters from UI.
-    this._transactionsMessageService.sendRemoveFilterMessage({removeAll: true});
+    this._transactionsMessageService.sendRemoveFilterMessage({ removeAll: true });
 
     // And reset the filter model for the search.
     this.filters = new TransactionFilterModel();
@@ -421,7 +419,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     // then clear the keywords and run the search without filters or search keywords.
     this.clearSearch();
   }
-
 
   /**
    * Remove the search text from the array.
@@ -436,7 +433,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     }
   }
 
-
   /**
    * Remove the state filter tag and inform the filter component to clear it.
    */
@@ -445,7 +441,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.removeFilter(FilterTypes.state, state);
   }
 
-
   /**
    * Remove the State filter tag and inform the filter component to clear it.
    */
@@ -453,7 +448,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.filters.filterCategories.splice(index, 1);
     this.removeFilter(FilterTypes.category, category);
   }
-
 
   /**
    * Remove the Date filter tag and inform the filter component to clear it.
@@ -464,7 +458,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.removeFilter('date', null);
   }
 
-
   /**
    * Remove the Amount filter tag and inform the filter component to clear it.
    */
@@ -473,7 +466,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.filters.filterAmountMax = null;
     this.removeFilter(FilterTypes.amount, null);
   }
-
 
   /**
    * Remove the Aggregate Amount filter tag and inform the filter component to clear it.
@@ -484,12 +476,10 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.removeFilter(FilterTypes.aggregateAmount, null);
   }
 
-
   public removeMemoFilter() {
     this.filters.filterMemoCode = false;
     this.removeFilter(FilterTypes.memoCode, null);
   }
-
 
   /**
    * Remove the Itemized filter tag and inform the filter component to clear it.
@@ -499,7 +489,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.removeFilter(FilterTypes.itemizations, item);
   }
 
-
   /**
    * Inform the Filter Component to clear the filter settings for the given key/value.
    *
@@ -507,10 +496,9 @@ export class TransactionsComponent implements OnInit, OnDestroy {
    * @param value
    */
   private removeFilter(key: string, value: string) {
-    this._transactionsMessageService.sendRemoveFilterMessage({key: key, value: value});
+    this._transactionsMessageService.sendRemoveFilterMessage({ key: key, value: value });
     this.doSearch();
   }
-
 
   /**
    * When a user clicks the close filter tag, delete the tag from the
@@ -578,7 +566,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     }
   }
 
-
   /**
    * Remove the entire object form the tagArray.
    */
@@ -596,7 +583,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       this.tagArray.splice(i, 1);
     }
   }
-
 
   /**
    * An item in the tagsArray may have a group as an array where 1 item in the group array
@@ -625,17 +611,15 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     }
   }
 
-
   /**
    * Show the table of transactions in the recycle bin for the user.
    */
   public showRecycleBin() {
     this.view = ActiveView.recycleBin;
 
-      // Inform the filter component of the view change
-      this._transactionsMessageService.sendSwitchFilterViewMessage(ActiveView.recycleBin);
+    // Inform the filter component of the view change
+    this._transactionsMessageService.sendSwitchFilterViewMessage(ActiveView.recycleBin);
   }
-
 
   /**
    * Show the table of form transactions.
@@ -647,14 +631,30 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this._transactionsMessageService.sendSwitchFilterViewMessage(ActiveView.transactions);
   }
 
-
   /**
    * Show edit for a single transaction.
    */
   public showEdit() {
-    this.view = ActiveView.edit;
-  }
+    // this.view = ActiveView.edit;
+    // this.showTransaction.emit({
+    //   showTransactionType: 'edit',
+    //   direction: 'next',
+    //   step: 'transactions',
+    // });
 
+    const emptyValidForm = this._fb.group({});
+
+    this.showTransaction.emit({
+      form: emptyValidForm,
+      direction: 'next',
+      step: 'step_3',
+      previousStep: 'transactions',
+      editOrView: { action: ScheduleActions.edit, transactionModel: this.transactionToEdit }
+
+      // transactionTypeText: this.transactionToEdit.type,
+      // transactionType: this.transactionToEdit.type
+    });
+  }
 
   /**
    * Show the option to select/deselect columns in the table.
@@ -664,7 +664,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this._transactionsMessageService.sendShowPinColumnMessage('show the Pin Col');
   }
 
-
   /**
    * Import transactions from an external file.
    */
@@ -672,22 +671,21 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     alert('Import transactions is not yet supported');
   }
 
-
   /**
    * Show filter options for transactions.
    */
   public showFilters() {
     this.isShowFilters = true;
+    this.sidebarSwitch.emit(this.isShowFilters);
   }
-
 
   /**
    * Show the categories and hide the filters.
    */
   public showCategories() {
     this.isShowFilters = false;
+    this.sidebarSwitch.emit(false);
   }
-
 
   /**
    * Check if the view to show is Transactions.
@@ -696,7 +694,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     return this.view === this.transactionsView ? true : false;
   }
 
-
   /**
    * Check if the view to show is Recycle Bin.
    */
@@ -704,14 +701,12 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     return this.view === this.recycleBinView ? true : false;
   }
 
-
   /**
    * Check if the view to show is Edit.
    */
   public isEditViewActive() {
     return this.view === this.editView ? true : false;
   }
-
 
   /**
    * Send a message to the subscriber to run the search.
@@ -721,7 +716,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this._transactionsMessageService.sendDoKeywordFilterSearchMessage(this.filters);
   }
 
-/*  public onNotify(e): void {
+  /*  public onNotify(e): void {
     if (typeof e === 'object') {
       if (e.hasOwnProperty('form')) {
         if (typeof e.form === 'object') {
@@ -765,5 +760,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       }
     }
   }*/
-
+  public printPreview(): void {
+    this._reportTypeService.printPreview(this._formType);
+  }
 }
