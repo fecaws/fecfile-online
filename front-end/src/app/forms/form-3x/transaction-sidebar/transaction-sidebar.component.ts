@@ -20,7 +20,7 @@ export class TransactionSidebarComponent implements OnInit {
   @Input() transactionCategories: any = [];
   @Input() step: string = '';
 
-  public itemSelected: string = null;
+  public itemSelected: string = '';
   public receiptsTotal: number = 0.0;
 
   private _formType: string = '';
@@ -40,6 +40,7 @@ export class TransactionSidebarComponent implements OnInit {
 
   ngOnInit(): void {
     this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
+  
   }
 
   ngDoCheck(): void {
@@ -75,6 +76,11 @@ export class TransactionSidebarComponent implements OnInit {
           this.receiptsTotal = totals.receipts;
         }
       }
+    }
+
+    if (this.itemSelected === '')
+    {
+      this.itemSelected = 'receipts';
     }
   }
 
@@ -112,9 +118,15 @@ export class TransactionSidebarComponent implements OnInit {
   }
 
   public viewSummary(): void {
+    console.log(" Form3x viewSummary clicked ...!")    
     localStorage.setItem('Summary_Screen', 'Yes');
     localStorage.setItem(`form_${this._formType}_summary_screen`, 'Yes');
     this._router.navigate([`/forms/form/${this._formType}`], { queryParams: { step: 'financial_summary' } });
+  }
+
+  public signandSubmit(): void {
+    console.log(" Form3x signandSubmit clicked ...!")
+    this._router.navigate([`/signandSubmit/${this._formType}`]);
   }
 
   /**

@@ -71,10 +71,9 @@
                       </div>
                     </ng-container>
                     <!-- [attr.readonly]="isReadOnly(col?.name, col.type)" -->
-                    <!-- Now coming from the backend -->
-                    <!-- (blur)="col?.name === 'contribution_amount' ? contributionAmountChange($event) : null" -->
                     <input
-                      *ngIf="col?.name !== 'first_name' && col?.name !== 'last_name'"
+                      *ngIf="col?.name !== 'first_name' 
+                          && col?.name !== 'last_name'"
                       class="form-control"
                       [style.width]="col?.width"
                       [style.height]="col?.height"
@@ -82,7 +81,7 @@
                       [attr.name]="col?.name"                      
                       [attr.readonly]="col?.name === 'contribution_aggregate' && col.type === 'text' ? true : null"
                       [attr.value]="col?.value"
-                      [maxlength]="col?.validation?.max"
+                      [maxlength]="col?.name === 'contribution_amount' ? col?.validation?.max + 5: col?.validation?.max"
                       [formControlName]="col?.name"
                       (blur)="col?.name === 'contribution_amount' ? contributionAmountChange($event) : null"
                       [ngClass]="
@@ -91,7 +90,7 @@
                           ? 'input-field-error'
                           : ''
                       "
-                      (change)="col?.name === 'memo_code' ? memoCodeChange($event) : null"
+                      (keyup)="handleFormFieldKeyup($event, col)"
                     />
                     <input
                       *ngIf="col?.name === 'last_name'"
@@ -219,6 +218,7 @@
                 </ng-container>
                 <ng-container *ngIf="col?.type === 'select' && col?.name === 'state'">
                   <ng-select
+                    (change)="handleStateChange($event, col)"
                     class="state-select"
                     [formControlName]="col?.name"
                     [ngClass]="
@@ -228,7 +228,7 @@
                         : ''
                     "
                   >
-                    <ng-option *ngFor="let item of states" [value]="item.code">
+                    <ng-option *ngFor="let item of states" [ngValue]="item">
                       {{ item.code }} - {{ item.name }}
                     </ng-option>
                   </ng-select>
