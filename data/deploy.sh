@@ -7,6 +7,8 @@ cat <<EOF >> flywaydb.yml
 apiVersion: batch/v1
 kind: Job
 metadata:
+  annotations:
+    prometheus.io/scrape: "true"
   name: fecfile-flyway-db-job
 spec:
   template:
