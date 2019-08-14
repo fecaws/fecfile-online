@@ -269,6 +269,51 @@ LEFT JOIN public.entity t2 ON t2.entity_id = t1.entity_id
 WHERE t1.transaction_type_identifier = ''JF_TRAN_NP_HQ_IND_MEMO'' AND t1.report_id = %s AND t1.cmte_id = %s AND (t1.back_ref_transaction_id = %s OR
 (t1.back_ref_transaction_id IS NULL AND %s IS NULL)) AND t1.delete_ind is distinct from ''Y''');
 INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
+VALUES ('F3X', 'SA', 'EAR_REC_RECNT_ACC', 'SELECT t1.line_number AS "lineNumber", t1.transaction_type AS "transactionTypeCode", t1.transaction_type_identifier AS "transactionTypeIdentifier", 
+t1.transaction_id AS "transactionId",
+COALESCE(t1.back_ref_transaction_id, '''') AS "backReferenceTransactionIdNumber", COALESCE(t1.back_ref_sched_name, '''') AS "backReferenceScheduleName",
+to_char(t1.contribution_date,''MM/DD/YYYY'') AS "contributionDate", t1.contribution_amount AS "contributionAmount", COALESCE(t1.aggregate_amt, 0.0) AS "contributionAggregate",
+COALESCE(t1.purpose_description, '''') AS "contributionPurposeDescription", COALESCE(t1.memo_code, '''') AS "memoCode", COALESCE(t1.memo_text, '''') AS "memoDescription",
+COALESCE(t2.entity_type, '''') AS "entityType", COALESCE(t2.last_name, '''') AS "contributorLastName", COALESCE(t2.first_name, '''') AS "contributorFirstName",
+COALESCE(t2.middle_name, '''') AS "contributorMiddleName", COALESCE(t2.preffix, '''') AS "contributorPrefix", COALESCE(t2.suffix, '''') AS "contributorSuffix",
+COALESCE(t2.street_1, '''') AS "contributorStreet1", COALESCE(t2.street_2, '''') AS "contributorStreet2", COALESCE(t2.city, '''') AS "contributorCity",
+COALESCE(t2.state, '''') AS "contributorState", COALESCE(t2.zip_code, '''') AS "contributorZip", COALESCE(t2.employer, '''') AS "contributorEmployer",
+COALESCE(t2.occupation, '''') AS "contributorOccupation"
+FROM public.sched_a t1
+LEFT JOIN public.entity t2 ON t2.entity_id = t1.entity_id
+WHERE t1.transaction_type_identifier = ''EAR_REC_RECNT_ACC'' AND t1.report_id = %s AND t1.cmte_id = %s AND (t1.back_ref_transaction_id = %s OR
+(t1.back_ref_transaction_id IS NULL AND %s IS NULL)) AND t1.delete_ind is distinct from ''Y''');
+INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
+VALUES ('F3X', 'SA', 'EAR_REC_CONVEN_ACC', 'SELECT t1.line_number AS "lineNumber", t1.transaction_type AS "transactionTypeCode", t1.transaction_type_identifier AS "transactionTypeIdentifier", 
+t1.transaction_id AS "transactionId",
+COALESCE(t1.back_ref_transaction_id, '''') AS "backReferenceTransactionIdNumber", COALESCE(t1.back_ref_sched_name, '''') AS "backReferenceScheduleName",
+to_char(t1.contribution_date,''MM/DD/YYYY'') AS "contributionDate", t1.contribution_amount AS "contributionAmount", COALESCE(t1.aggregate_amt, 0.0) AS "contributionAggregate",
+COALESCE(t1.purpose_description, '''') AS "contributionPurposeDescription", COALESCE(t1.memo_code, '''') AS "memoCode", COALESCE(t1.memo_text, '''') AS "memoDescription",
+COALESCE(t2.entity_type, '''') AS "entityType", COALESCE(t2.last_name, '''') AS "contributorLastName", COALESCE(t2.first_name, '''') AS "contributorFirstName",
+COALESCE(t2.middle_name, '''') AS "contributorMiddleName", COALESCE(t2.preffix, '''') AS "contributorPrefix", COALESCE(t2.suffix, '''') AS "contributorSuffix",
+COALESCE(t2.street_1, '''') AS "contributorStreet1", COALESCE(t2.street_2, '''') AS "contributorStreet2", COALESCE(t2.city, '''') AS "contributorCity",
+COALESCE(t2.state, '''') AS "contributorState", COALESCE(t2.zip_code, '''') AS "contributorZip", COALESCE(t2.employer, '''') AS "contributorEmployer",
+COALESCE(t2.occupation, '''') AS "contributorOccupation"
+FROM public.sched_a t1
+LEFT JOIN public.entity t2 ON t2.entity_id = t1.entity_id
+WHERE t1.transaction_type_identifier = ''EAR_REC_CONVEN_ACC'' AND t1.report_id = %s AND t1.cmte_id = %s AND (t1.back_ref_transaction_id = %s OR
+(t1.back_ref_transaction_id IS NULL AND %s IS NULL)) AND t1.delete_ind is distinct from ''Y''');
+INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
+VALUES ('F3X', 'SA', 'EAR_REC_HQ_ACC', 'SELECT t1.line_number AS "lineNumber", t1.transaction_type AS "transactionTypeCode", t1.transaction_type_identifier AS "transactionTypeIdentifier", 
+t1.transaction_id AS "transactionId",
+COALESCE(t1.back_ref_transaction_id, '''') AS "backReferenceTransactionIdNumber", COALESCE(t1.back_ref_sched_name, '''') AS "backReferenceScheduleName",
+to_char(t1.contribution_date,''MM/DD/YYYY'') AS "contributionDate", t1.contribution_amount AS "contributionAmount", COALESCE(t1.aggregate_amt, 0.0) AS "contributionAggregate",
+COALESCE(t1.purpose_description, '''') AS "contributionPurposeDescription", COALESCE(t1.memo_code, '''') AS "memoCode", COALESCE(t1.memo_text, '''') AS "memoDescription",
+COALESCE(t2.entity_type, '''') AS "entityType", COALESCE(t2.last_name, '''') AS "contributorLastName", COALESCE(t2.first_name, '''') AS "contributorFirstName",
+COALESCE(t2.middle_name, '''') AS "contributorMiddleName", COALESCE(t2.preffix, '''') AS "contributorPrefix", COALESCE(t2.suffix, '''') AS "contributorSuffix",
+COALESCE(t2.street_1, '''') AS "contributorStreet1", COALESCE(t2.street_2, '''') AS "contributorStreet2", COALESCE(t2.city, '''') AS "contributorCity",
+COALESCE(t2.state, '''') AS "contributorState", COALESCE(t2.zip_code, '''') AS "contributorZip", COALESCE(t2.employer, '''') AS "contributorEmployer",
+COALESCE(t2.occupation, '''') AS "contributorOccupation"
+FROM public.sched_a t1
+LEFT JOIN public.entity t2 ON t2.entity_id = t1.entity_id
+WHERE t1.transaction_type_identifier = ''EAR_REC_HQ_ACC'' AND t1.report_id = %s AND t1.cmte_id = %s AND (t1.back_ref_transaction_id = %s OR
+(t1.back_ref_transaction_id IS NULL AND %s IS NULL)) AND t1.delete_ind is distinct from ''Y''');
+INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
 VALUES ('F3X', 'SB', 'IK_OUT', 'SELECT t1.line_number AS "lineNumber", t1.transaction_type AS "transactionTypeCode", t1.transaction_type_identifier AS "transactionTypeIdentifier", 
 t1.transaction_id AS "transactionId",
 COALESCE(t1.back_ref_transaction_id, '''') AS "backReferenceTransactionIdNumber", COALESCE(t1.back_ref_sched_name, '''') AS "backReferenceScheduleName",
