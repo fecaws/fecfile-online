@@ -908,7 +908,7 @@ Insert into ref_transaction_types
     tran_identifier, tran_desc, parent_tran_id)
  Values
    (10006, 'F3X', 'sched_b', '23', '24T', 
-    'CON_EAR_DEP_MEMO', 'Earmark Out', 8);
+    'CON_EAR_OUT_DEP', 'Earmark Out', 8);
 Insert into ref_transaction_types
    (ref_tran_id, form_type, sched_type, line_num, tran_code, 
     tran_identifier, tran_desc, parent_tran_id)
