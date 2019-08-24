@@ -90,7 +90,7 @@ export class ContactsService {
       filters: ContactFilterModel): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
     let httpOptions =  new HttpHeaders();
-    const url = '/core/create_contacts_view';
+    const url = '/core/contactsTable';
 
     httpOptions = httpOptions.append('Content-Type', 'application/json');
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
@@ -251,9 +251,18 @@ export class ContactsService {
       model.type = row.type;
       model.id = row.id;
       model.name = row.name;
+      model.street = row.street1;
+      model.street2 = row.street_2;
+      model.city = row.city;
+      model.state = row.state;
+      model.zip = row.zip;
       model.employer = row.employer;
       model.occupation = row.occupation;
-      
+      model.phoneNumber = row.phoneNumber;
+      model.officeSought = row.officeSought;
+      model.officeState = row.officeState;
+      model.district = row.district;
+      model.entity_name = row.entity_name;
       modelArray.push(model);
     }
     return modelArray;
@@ -288,18 +297,46 @@ export class ContactsService {
       case 'id':
         name = 'id';
         break;
+      case 'street1':
+        name = 'street1';
+        break; 
+      case 'street2':
+        name = 'street2';
+        break;         
+      case 'city':
+        name = 'city';
+        break;         
+      case 'state':
+        name = 'state';
+        break;                                
+      case 'zip':
+        name = 'zip';
+        break;                        
       case 'employer':
         name = 'employer';
         break;
       case 'occupation':
         name = 'occupation';
         break;
+      case 'phoneNumber':
+        name = 'phoneNumber';
+        break;  
+      case 'officeSought':
+        name = 'officeSought';
+        break;
+      case 'officeState':
+        name = 'officeState';
+        break;
+      case 'district':
+        name = 'district';
+        break;
+      case 'entity_name':
+        name= 'entity_name';
+        break;
       default:
     }
     return name ? name : '';
   }
-
-
   /**
    * Map front-end model fields to server fields.
    *
@@ -315,10 +352,19 @@ export class ContactsService {
     serverObject.name =  model.name;
     serverObject.type = model.type;
     serverObject.id = model.id;
+    serverObject.street1 = model.street;
+    serverObject.street2 = model.street2;
+    serverObject.city = model.city;
+    serverObject.state = model.state;
+    serverObject.zip = model.zip;
     serverObject.employer = model.employer;
     serverObject.occupation = model.occupation;
+    serverObject.phoneNumber = model.phoneNumber;
+    serverObject.officeSought = model.officeSought;
+    serverObject.officeState = model.officeState;
+    serverObject.district = model.district;
+    serverObject.district = model.entity_name;
     
-
     return serverObject;
   }
 
@@ -360,6 +406,8 @@ export class ContactsService {
    * by a backend API.
    */
   public mockApplyFilters(response: any, filters: ContactFilterModel) {
+    console.log("mockApplyFilters response =", response);
+    console.log("mockApplyFilters filters =", filters);
 
     if (!response.contacts) {
       return;
@@ -371,7 +419,7 @@ export class ContactsService {
 
     let isFilter = false;
 
-    if (filters.keywords) {
+    /*if (filters.keywords) {
       if (response.contacts.length > 0 && filters.keywords.length > 0) {
         isFilter = true;
 
@@ -389,8 +437,37 @@ export class ContactsService {
           response.contacts = filtered;
         }
       }
+    }   */
+
+    if (filters.filterStates) {
+      console.log("filters.filterStates", filters.filterStates);
+      if (filters.filterStates.length > 0) {
+        isFilter = true;
+        const fields = ['state'];
+        let filteredStateArray = [];
+        for (const state of filters.filterStates) {
+          const filtered = this._filterPipe.transform(response.contacts, fields, state);
+          filteredStateArray = filteredStateArray.concat(filtered);
+        }
+        response.contacts = filteredStateArray;
+      }
     }
-   
+
+    if (filters.filterTypes) {
+      console.log("filters.filterTypes", filters.filterTypes);
+      if (filters.filterTypes.length > 0) {
+        isFilter = true;
+        const fields = ['type'];
+        let filteredTypeArray = [];
+        for (const type of filters.filterTypes) {
+          const filtered = this._filterPipe.transform(response.contacts, fields, type);
+          filteredTypeArray = filteredTypeArray.concat(filtered);
+        }
+        response.contacts = filteredTypeArray;
+      }
+    }
+
+    console.log("response.contacts", response.contacts);
   }
 
 
@@ -457,6 +534,32 @@ export class ContactsService {
        );
   }
 
+  public getStates(): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    const url = '/core/state';
+    let httpOptions = new HttpHeaders();
+    let params = new HttpParams();
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    return this._http.get(`${environment.apiUrl}${url}`, {
+      headers: httpOptions
+    });
+  }
+  
+  public getTypes(): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    const url = '/core/get_entityTypes';
+    let httpOptions = new HttpHeaders();
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    return this._http.get(`${environment.apiUrl}${url}`, {
+      headers: httpOptions
+    });
+  }
 
   private createMockTrx() {
     const t1: any = {};
@@ -483,24 +586,7 @@ export class ContactsService {
     return t1;
   }
 
-  public getItemizations(): Observable<any> {
-    const token: string = JSON.parse(this._cookieService.get('user'));
-    const url = '/core/get_ItemizationIndicators';
-    let httpOptions =  new HttpHeaders();
-
-    httpOptions = httpOptions.append('Content-Type', 'application/json');
-    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-
-    return this._http
-        .get(
-          `${environment.apiUrl}${url}`,
-          {
-            headers: httpOptions
-          }
-        );
-   }
-
-   /**
+     /**
     * Trash or restore tranactions to/from the Recycling Bin.
     * 
     * @param action the action to be applied to the contacts (e.g. trash, restore)
@@ -544,50 +630,57 @@ export class ContactsService {
 
    }
 
+    /**
+   * Gets the schedule after submitted.
+   *
+   * @param      {string}  formType  The form type
+   * @param      {any}     receipt   The receipt
+   */
+  public getSchedule(formType: string, receipt: any): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    const url: string = `${environment.apiUrl}/core/thirdNavTransactionTypes`;
+    const data: any = JSON.stringify(receipt);
+    let httpOptions = new HttpHeaders();
+
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    return this._http.get(url, {
+      headers: httpOptions,
+      params: {
+        report_id: receipt.report_id
+      }
+    });
+  }
+
    /**
    * Saves a schedule.
    *
    * @param      {string}           formType  The form type
    * @param      {ContactActions}  scheduleAction  The type of action to save (add, edit)
    */
-  public saveSchedule(formType: string, scheduleAction: ContactActions): Observable<any> {
+  public saveContact(scheduleAction: ContactActions): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
-    const url: string = '/sa/schedA';
-    const committeeDetails: any = JSON.parse(localStorage.getItem('committee_details'));
+    const url: string = '/core/contacts';
+    /*const committeeDetails: any = JSON.parse(localStorage.getItem('committee_details'));
     let reportType: any = JSON.parse(localStorage.getItem(`form_${formType}_report_type`));
 
     if (reportType === null || typeof reportType === 'undefined') {
       reportType = JSON.parse(localStorage.getItem(`form_${formType}_report_type_backup`));
-    }
+    }*/
 
-    const transactionType: any = JSON.parse(localStorage.getItem(`form_${formType}_transaction_type`));
-    const receipt: any = JSON.parse(localStorage.getItem(`form_${formType}_receipt`));
+    //const transactionType: any = JSON.parse(localStorage.getItem(`form_${formType}_transaction_type`));
+    const contact: any = JSON.parse(localStorage.getItem(`contactObj`));
     const formData: FormData = new FormData();
-
+    console.log(" saveContact called ...!");
     let httpOptions = new HttpHeaders();
 
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-
-    /**
-     * This has to be removed.
-     * I'm not hard coding anything any more.
-     * Or this has to be changed to just lower case.  This is not a
-     * good practice at all.  Please do better then this.
-     */
-    formData.append('cmte_id', committeeDetails.committeeid);
-    // With Edit Report Functionality
-    if (reportType.hasOwnProperty('reportId')) {
-      formData.append('report_id', reportType.reportId);
-    } else if (reportType.hasOwnProperty('reportid')) {
-      formData.append('report_id', reportType.reportid);
-    }
-
-    console.log();
-
-    for (const [key, value] of Object.entries(receipt)) {
+    console.log(" saveContact contact object ...!", contact);
+    for (const [key, value] of Object.entries(contact)) {
       if (value !== null) {
         if (typeof value === 'string') {
           formData.append(key, value);
+          console.log(" saveContact contact formdata object ...!", key, " ", value );
         }
       }
     }
@@ -600,6 +693,7 @@ export class ContactsService {
         .pipe(
           map(res => {
             if (res) {
+              console.log(" saveContact called res...!", res);
               return res;
             }
             return false;
@@ -623,11 +717,26 @@ export class ContactsService {
     }
   }
 
+  public getContactsDynamicFormFields(): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    const url: string = `${environment.apiUrl}/core/get_contacts_dynamic_forms_fields`;
+    let httpOptions = new HttpHeaders();
+    let params = new HttpParams();
+    let formData: FormData = new FormData();
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    return this._http.get(url, {
+      headers: httpOptions
+    });
+  }
+  
   /**
    * Saves a schedule a using POST.  The POST API supports saving an existing
    * transaction.  Therefore, transaction_id is required in this API call.
    *
-   * TODO consider modifying saveScheduleA() to support both POST and PUT.
+   * TODO consider modifying saveContactA() to support both POST and PUT.
    *
    * @param      {string}  formType  The form type
    */
@@ -730,40 +839,5 @@ export class ContactsService {
       );
   }
 
-  /**
-   * Gets the schedule after submitted.
-   *
-   * @param      {string}  formType  The form type
-   * @param      {any}     receipt   The receipt
-   */
-  public getSchedule(formType: string, receipt: any): Observable<any> {
-    const token: string = JSON.parse(this._cookieService.get('user'));
-    const url: string = `${environment.apiUrl}/core/thirdNavTransactionTypes`;
-    const data: any = JSON.stringify(receipt);
-    let httpOptions = new HttpHeaders();
-
-    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-
-    return this._http.get(url, {
-      headers: httpOptions,
-      params: {
-        report_id: receipt.report_id
-      }
-    });
-  }
- 
-  public getContactsDynamicFormFields(): Observable<any> {
-    const token: string = JSON.parse(this._cookieService.get('user'));
-    const url: string = `${environment.apiUrl}/core/get_contacts_dynamic_forms_fields`;
-    let httpOptions = new HttpHeaders();
-    let params = new HttpParams();
-    let formData: FormData = new FormData();
-
-    httpOptions = httpOptions.append('Content-Type', 'application/json');
-    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-
-    return this._http.get(url, {
-      headers: httpOptions
-    });
-  }
 }
+

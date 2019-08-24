@@ -1418,62 +1418,6 @@ def filter_get_all_trans(request, param_string):
 #         raise Exception('The aggregate_amount function is throwing an error: ' + str(e))
 
 
-@api_view(['PUT'])
-def trash_restore_transactions(request):
-    """api for trash and resore transactions. 
-       we are doing soft-delete only, mark delete_ind to 'Y'
-       
-       request payload in this format:
-{
-    "actions": [
-        {
-            "action": "restore",
-            "reportid": "123",
-            "transactionId": "SA20190610000000087"
-        },
-        {
-            "action": "trash",
-            "reportid": "456",
-            "transactionId": "SA20190610000000087"
-        }
-    ]
-}
- 
-    """
-    for _action in request.data.get('actions', []):
-        report_id = _action.get('report_id', '')
-        transaction_id = _action.get('transaction_id', '')
-
-        action = _action.get('action', '')
-        _delete = 'Y' if action == 'trash' else ''
-        try:
-            trash_restore_sql_transaction( 
-                report_id,
-                transaction_id, 
-                _delete)
-        except Exception as e:
-            return Response("The trash_restore_transactions API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
-
-    return Response({"result":"success"}, status=status.HTTP_200_OK)
-
-
-def trash_restore_sql_transaction(report_id, transaction_id, _delete='Y'):
-    """trash or restore sched_a transaction by updating delete_ind"""
-    try:
-        with connection.cursor() as cursor:
-            # UPDATE delete_ind flag to Y in DB
-            _sql = """
-            UPDATE public.sched_a 
-            SET delete_ind = '{}'
-            WHERE report_id = '{}'
-            AND transaction_id = '{}'""".format(_delete, report_id, transaction_id)
-            cursor.execute(_sql)
-            if (cursor.rowcount == 0):
-                raise Exception(
-                    'The transaction ID: {} is either already deleted or does not exist in Entity table'.format(entity_id))
-    except Exception:
-        raise
-
 @api_view(['GET', 'POST'])
 def get_all_transactions(request):
     try:
@@ -1558,7 +1502,7 @@ def get_all_transactions(request):
         if str(memo_code_d).lower() == 'true':
             param_string = param_string + " AND memo_code IS NOT NULL AND memo_code != ''"
         
-        trans_query_string = """SELECT transaction_type, transaction_type_desc, transaction_id, name, street_1, street_2, city, state, zip_code, transaction_date, transaction_amount, aggregate_amt, purpose_description, occupation, employer, memo_code, memo_text, itemized from all_transactions_view
+        trans_query_string = """SELECT transaction_type, transaction_type_desc, transaction_id, name, street_1, street_2, city, state, zip_code, transaction_date, transaction_amount, aggregate_amt, purpose_description, occupation, employer, memo_code, memo_text, itemized, transaction_type_identifier, entity_id from all_transactions_view
                                     where cmte_id='""" + cmte_id + """' AND report_id=""" + str(report_id)+""" """ + param_string + """ AND delete_ind is distinct from 'Y'"""
                                     # + """ ORDER BY """ + order_string
         # print("trans_query_string: ",trans_query_string)
@@ -1699,7 +1643,7 @@ def get_all_trashed_transactions(request):
         if str(memo_code_d).lower() == 'true':
             param_string = param_string + " AND memo_code IS NOT NULL"
 
-        trans_query_string = """SELECT transaction_type as "transactionTypeId", transaction_type_desc as "type", transaction_id as "transactionId", name, street_1 as "street", street_2 as "street2", city, state, zip_code as "zip", transaction_date as "date", date(last_update_date) as "deletedDate", COALESCE(transaction_amount,0) as "amount", COALESCE(aggregate_amt,0) as "aggregate", purpose_description as "purposeDescription", occupation as "contributorOccupation", employer as "contributorEmployer", memo_code as "memoCode", memo_text as "memoText", itemized from all_transactions_view
+        trans_query_string = """SELECT transaction_type as "transactionTypeId", transaction_type_desc as "type", transaction_id as "transactionId", name, street_1 as "street", street_2 as "street2", city, state, zip_code as "zip", transaction_date as "date", date(last_update_date) as "deletedDate", COALESCE(transaction_amount,0) as "amount", COALESCE(aggregate_amt,0) as "aggregate", purpose_description as "purposeDescription", occupation as "contributorOccupation", employer as "contributorEmployer", memo_code as "memoCode", memo_text as "memoText", itemized, transaction_type_identifier, entity_id from all_transactions_view
                                     where cmte_id='""" + cmte_id + """' AND report_id=""" + str(report_id)+""" """ + param_string + """ AND delete_ind = 'Y'"""
 
         if sortcolumn and sortcolumn != 'default':
@@ -2615,89 +2559,93 @@ Create Contacts API - CORE APP - SPRINT 16 - FNE 1248 - BY  Yeswanth Kumar Tella
 """
 
 @api_view(['GET', 'POST'])
-def create_contacts_view(request):
-    try:
-        # print("request.data: ", request.data)
-        cmte_id = request.user.username
-        param_string = ""
-        page_num = int(request.data.get('page', 1))
-        descending = request.data.get('descending', 'false')
-        sortcolumn = request.data.get('sortColumnName')
-        itemsperpage = request.data.get('itemsPerPage', 5)
-        search_string = request.data.get('search')
-        #import ipdb;ipdb.set_trace()
-        params = request.data.get('filters', {})
-        keywords = params.get('keywords')
-        if str(descending).lower() == 'true':
-            descending = 'DESC'
-        else:
-            descending = 'ASC'
+def contactsTable(request):
 
-        keys = ['id', 'type', 'name', 'occupation', 'employer' ]
-        search_keys = ['id', 'type', 'name', 'occupation', 'employer']
-        if search_string:
-            for key in search_keys:
-                if not param_string:
-                    param_string = param_string + " AND (CAST(" + key + " as CHAR(100)) ILIKE '%" + str(search_string) +"%'"
-                else:
-                    param_string = param_string + " OR CAST(" + key + " as CHAR(100)) ILIKE '%" + str(search_string) +"%'"
-            param_string = param_string + " )"
-        keywords_string = ''
-        if keywords:
-            for key in keys:
-                for word in keywords:
-                    if '"' in word:
-                        continue
-                    elif "'" in word:
-                        if not keywords_string:
-                            keywords_string = keywords_string + " AND ( CAST(" + key + " as CHAR(100)) = " + str(word)
-                        else:
-                            keywords_string = keywords_string + " OR CAST(" + key + " as CHAR(100)) = " + str(word)
+    try:
+        
+        if request.method == 'POST':
+            # print("request.data: ", request.data)
+            cmte_id = request.user.username
+            param_string = ""
+            page_num = int(request.data.get('page', 1))
+            descending = request.data.get('descending', 'false')
+            sortcolumn = request.data.get('sortColumnName')
+            itemsperpage = request.data.get('itemsPerPage', 5)
+            search_string = request.data.get('search')
+            #import ipdb;ipdb.set_trace()
+            params = request.data.get('filters', {})
+            keywords = params.get('keywords')
+            if str(descending).lower() == 'true':
+                descending = 'DESC'
+            else:
+                descending = 'ASC'
+
+            keys = ['id', 'type', 'name', 'street1', 'street2', 'city', 'state', 'zip', 'occupation', 'employer' ]
+            search_keys = ['id', 'type', 'name', 'street1', 'street2', 'city', 'state', 'zip', 'occupation', 'employer']
+            if search_string:
+                for key in search_keys:
+                    if not param_string:
+                        param_string = param_string + " AND (CAST(" + key + " as CHAR(100)) ILIKE '%" + str(search_string) +"%'"
                     else:
-                        if not keywords_string:
-                            keywords_string = keywords_string + " AND ( CAST(" + key + " as CHAR(100)) ILIKE '%" + str(word) +"%'"
+                        param_string = param_string + " OR CAST(" + key + " as CHAR(100)) ILIKE '%" + str(search_string) +"%'"
+                param_string = param_string + " )"
+            keywords_string = ''
+            if keywords:
+                for key in keys:
+                    for word in keywords:
+                        if '"' in word:
+                            continue
+                        elif "'" in word:
+                            if not keywords_string:
+                                keywords_string = keywords_string + " AND ( CAST(" + key + " as CHAR(100)) = " + str(word)
+                            else:
+                                keywords_string = keywords_string + " OR CAST(" + key + " as CHAR(100)) = " + str(word)
                         else:
-                            keywords_string = keywords_string + " OR CAST(" + key + " as CHAR(100)) ILIKE '%" + str(word) +"%'"
-            keywords_string = keywords_string + " )"
-        param_string = param_string + keywords_string
-        
-        
-        trans_query_string = """SELECT id, type, name, occupation, employer from all_contacts_view
-                                    where cmte_id='""" + cmte_id + """' """ + param_string 
-        # print("trans_query_string: ",trans_query_string)
-        # import ipdb;ipdb.set_trace()
-        if sortcolumn and sortcolumn != 'default':
-            trans_query_string = trans_query_string + """ ORDER BY """+ sortcolumn + """ """ + descending
-        elif sortcolumn == 'default':
-            trans_query_string = trans_query_string + """ ORDER BY name ASC"""
-        with connection.cursor() as cursor:
-            cursor.execute("""SELECT json_agg(t) FROM (""" + trans_query_string + """) t""")
-            for row in cursor.fetchall():
-                data_row = list(row)
-                forms_obj=data_row[0]
-                forms_obj = data_row[0]
-                if forms_obj is None:
-                    forms_obj =[]
-                    status_value = status.HTTP_200_OK
-                else:
-                    for d in forms_obj:
-                        for i in d:
-                            if not d[i]:
-                                d[i] = ''
-                      
-                    status_value = status.HTTP_200_OK
-        
-        #import ipdb; ipdb.set_trace()
-        total_count = len(forms_obj)
-        paginator = Paginator(forms_obj, itemsperpage)
-        if paginator.num_pages < page_num:
-            page_num = paginator.num_pages
-        forms_obj = paginator.page(page_num)
-        json_result = {'contacts': list(forms_obj), 'totalcontactsCount': total_count,
-                    'itemsPerPage': itemsperpage, 'pageNumber': page_num,'totalPages':paginator.num_pages}
+                            if not keywords_string:
+                                keywords_string = keywords_string + " AND ( CAST(" + key + " as CHAR(100)) ILIKE '%" + str(word) +"%'"
+                            else:
+                                keywords_string = keywords_string + " OR CAST(" + key + " as CHAR(100)) ILIKE '%" + str(word) +"%'"
+                keywords_string = keywords_string + " )"
+            param_string = param_string + keywords_string
+            
+            
+            trans_query_string = """SELECT id, type, name, street1, street2, city, state, zip, occupation, employer from all_contacts_view
+                                        where cmte_id='""" + cmte_id + """' """ + param_string 
+            # print("trans_query_string: ",trans_query_string)
+            # import ipdb;ipdb.set_trace()
+            if sortcolumn and sortcolumn != 'default':
+                trans_query_string = trans_query_string + """ ORDER BY """+ sortcolumn + """ """ + descending
+            elif sortcolumn == 'default':
+                trans_query_string = trans_query_string + """ ORDER BY name ASC"""
+            with connection.cursor() as cursor:
+                cursor.execute("""SELECT json_agg(t) FROM (""" + trans_query_string + """) t""")
+                for row in cursor.fetchall():
+                    data_row = list(row)
+                    forms_obj=data_row[0]
+                    forms_obj = data_row[0]
+                    if forms_obj is None:
+                        forms_obj =[]
+                        status_value = status.HTTP_200_OK
+                    else:
+                        for d in forms_obj:
+                            for i in d:
+                                if not d[i]:
+                                    d[i] = ''
+                        
+                        status_value = status.HTTP_200_OK
+            
+            #import ipdb; ipdb.set_trace()
+            total_count = len(forms_obj)
+            paginator = Paginator(forms_obj, itemsperpage)
+            if paginator.num_pages < page_num:
+                page_num = paginator.num_pages
+            forms_obj = paginator.page(page_num)
+            json_result = {'contacts': list(forms_obj), 'totalcontactsCount': total_count,
+                        'itemsPerPage': itemsperpage, 'pageNumber': page_num,'totalPages':paginator.num_pages}
         return Response(json_result, status=status_value)
+    
     except Exception as e:
-        return Response("The contact_views API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+        return Response("The contactsTable API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -2743,7 +2691,7 @@ def get_loan_debt_summary(request):
             cursor.execute(_sql, {'cmte_id':cmte_id, 'report_id': report_id, 'line_num': '10'})
             by_committee_sum = list(cursor.fetchone())[0]
             json_result = {"to_committee_sum": to_committee_sum, "by_committee_sum": by_committee_sum}
-        return Response(json_result, status.HTTP_200_OK)
+            return Response(json_result, status.HTTP_200_OK)
 
     except Exception as e:
         return Response("The get_loan_debt_summary api is throwing an error: " + str(e), 
@@ -3074,4 +3022,265 @@ def get_contacts_dynamic_forms_fields(request):
     except Exception as e:
         return Response("The get_contacts_dynamic_forms_fields API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
 
+# """
+
+
+# ****************************************************************************************************************************************************************
+# TRANSACTION CATOGIRES SCREEN SEARCH BY TYPE FIELD API- CORE APP - SPRINT 18 - FNE 1276 - BY YESWANTH KUMAR TELLA
+# *****************************************************************************************************************************************************************
+# """
+# @api_view(['GET', 'POST'])
+# def get_filler_transaction_type(request):
+#     try:
+#         # print("request.data: ", request.data)
+#         #cmte_id = request.user.username
+#         param_string = ""
+        
+#         search_string = request.data.get('search')
+#         # import ipdb;ipdb.set_trace()
+#         report_id = request.data.get('reportid')
+#         search_keys = ['form_type','sched_type', 'line_num', 'tran_code', 
+#             'tran_identifier', 'tran_desc']
+#         if search_string:
+#             for key in search_keys:
+#                 if not param_string:
+#                     param_string = param_string + " AND (CAST(" + key + " as CHAR(100)) ILIKE '%" + str(search_string) +"%'"
+#                 else:
+#                     param_string = param_string + " OR CAST(" + key + " as CHAR(100)) ILIKE '%" + str(search_string) +"%'"
+#             param_string = param_string + " )"
+#         query_string = """SELECT * FROM public.ref_transaction_types where cmte_id = %s """ + param_string + """ AND delete_ind is distinct from 'Y'"""
+#                            # + """ ORDER BY """ + order_string
+#         # print(query_string)
+#         forms_obj = None
+#         with connection.cursor() as cursor:
+#             cursor.execute(query_string)
+#             for row in cursor.fetchall():
+#                 data_row = list(row)
+#                 forms_obj=data_row[0]
+#                 if forms_obj is None:
+#                     forms_obj =[]
+#                     status_value = status.HTTP_200_OK
+        
+        
+#         #import ipdb; ipdb.set_trace()
+#         json_result = {'transaction_type': list(forms_obj)}
+#         # json_result = { 'transactions': forms_obj, 'totalAmount': sum_trans, 'totalTransactionCount': count}
+#         return Response(json_result, status=status_value)
+#     except Exception as e:
+#         return Response("The get_filer_transaction_type API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST) 
+
+@api_view(['GET'])
+def get_entityTypes(request):
+    try:
+        cmte_id = request.user.username
+      
+        data = """{
+                    "data":  [
+                        {
+                            "type_code": "CAN",
+                            "type_desc": "Candidate"
+                        },
+                        {
+                            "type_code": "COM",
+                            "type_desc": "Committee"
+                        },
+                      
+                        {
+                            "type_code": "IND",
+                            "type_desc": "Individual"
+                        },
+                        {
+                            "type_code": "ORG",
+                            "type_desc": "Organization"
+                        }]
+                  }
+                """
+        forms_obj = json.loads(data)
+        return Response(forms_obj, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response("The get_entityTypes API is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+ 
+def post_sql_contact(data):
+    """persist one contact item."""
+    try:
+        entity_id = get_next_entity_id(data['entity_type'])  
+        data['entity_id'] = entity_id
+        with connection.cursor() as cursor:
+            # Insert data into entity table
+            cursor.execute("""INSERT INTO public.entity (cmte_id, entity_id, entity_type, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, cand_office, cand_office_state, cand_office_district, ref_cand_cmte_id)
+                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", 
+                                [ data['cmte_id'], data['entity_id'], data['entity_type'], data['entity_name'], data['first_name'], data['last_name'], data['middle_name'], data['preffix'], data['suffix'], data['street_1'], data['street_2'], data['city'], data['state'], data['zip_code'], data['occupation'], data['employer'], data['cand_office'], data['cand_office_state'], data['cand_office_district'], data['ref_cand_cmte_id'] ])
+
+    except Exception:
+        raise
+
+def post_contact(datum):
+    """save contact."""
+    #post_sql_contact(datum.get('cmte_id'), datum.get('entity_type'), datum.get('entity_name'), datum.get('first_name'), datum.get('last_name'), datum.get('middle_name'), datum.get('preffix'), datum.get('suffix'), datum.get('street_1'), datum.get('street_2'), datum.get('city'), datum.get('state'), datum.get('zip_code'), datum.get('occupation'), datum.get('employer'), datum.get('officeSought'), datum.get('officeState'), datum.get('district'), datum.get('ref_cand_cmte_id'))
+    post_sql_contact(datum)
+
+def contact_sql_dict(data):
+    """
+    filter data, validate fields and build entity item dic
+    """
+    try:
+        datum = {
+         # 'cmte_id' : data.get('cmte_id'), 
+          'entity_type'  : is_null(data.get('entity_type')), 
+          'entity_name'  : is_null(data.get('entity_name')), 
+          'first_name'  : is_null(data.get('first_name')), 
+          'last_name'  : is_null(data.get('last_name')), 
+          'middle_name' : is_null(data.get('middle_name')), 
+          'preffix'  : is_null(data.get('preffix')), 
+          'suffix' : is_null(data.get('suffix')), 
+          'street_1'  : is_null(data.get('street_1')), 
+          'street_2'  : is_null(data.get('street_2')), 
+          'city'  : is_null(data.get('city')),  
+          'state' : is_null(data.get('state')), 
+          'zip_code' : is_null(data.get('zip_code')), 
+          'occupation'  : is_null(data.get('occupation')), 
+          'employer' : is_null(data.get('employer')), 
+          'cand_office'  : is_null(data.get('officeSought')), 
+          'cand_office_state'  : is_null(data.get('officeState')), 
+          'cand_office_district'  : is_null(data.get('district')), 
+          'ref_cand_cmte_id'  : is_null(data.get('ref_cand_cmte_id')), 
+        }
+
+        return datum
+    except:
+        raise
+
+@api_view(['POST', 'GET', 'DELETE', 'PUT'])
+def contacts(request):
+    """
+    contacts api supporting POST, GET, DELETE, PUT
+    """
+
+    if request.method == 'POST':
+        try:
+            #cmte_id = request.user.username
+            datum = contact_sql_dict(request.data)
+            datum['cmte_id'] = request.user.username
+            #datum['cmte_id'] = cmte_id
+            post_contact(datum)
+            print ("datum", datum)
+            output = get_contact(datum)
+            return JsonResponse(output[0], status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response("The contacts API - POST is throwing an exception: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+
+    """
+    *********************************************** contact - GET API CALL STARTS HERE **********************************************************
+    """
+    # Get records from entity table
+    if request.method == 'GET':
+        datum=[]
+        return JsonResponse(datum, status=status.HTTP_200_OK, safe=False)
+
+    """
+    ************************************************* contact - PUT API CALL STARTS HERE **********************************************************
+    """
+    if request.method == 'PUT':
+        output=[]
+        return JsonResponse(output[0], status=status.HTTP_201_CREATED)
+
+    """
+    ************************************************ contact - DELETE API CALL STARTS HERE **********************************************************
+    """
+    if request.method == 'DELETE':
+
+        try:
+            data = {
+                'cmte_id': request.user.username
+            }
+            if 'id' in request.query_params and check_null_value(request.query_params.get('id')):
+                data['id'] = request.query_params.get('id')
+            else:
+                raise Exception('Missing Input: entity_id is mandatory')
+            delete_contact(data)
+
+            return Response("entity ID: {} has been successfully deleted".format(data.get('id')), status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response("The contacts API - DELETE is throwing an error: " + str(e), status=status.HTTP_400_BAD_REQUEST)
+
+def delete_contact(data):
+    """delete contact
+    """
+    try:
+        cmte_id = data.get('cmte_id')
+        entity_id = data.get('id')
+        delete_sql_contact(cmte_id, entity_id)
+    except:
+        raise
+
+def delete_sql_contact(cmte_id, entity_id):
+    """delete a contact
+    """
+    try:
+        with connection.cursor() as cursor:
+
+            cursor.execute("""UPDATE public.entity SET delete_ind = 'Y' WHERE cmte_id = %s AND entiy_id = %s AND delete_ind is distinct from 'Y'""", [
+                           cmte_id, entity_id ])
+            if (cursor.rowcount == 0):
+                raise Exception(
+                    'The entity ID: {} is either already deleted or does not exist in entity table'.format(entity_id))
+    except Exception:
+        raise
+
+def get_contact(data):
+    """load contacts"""
+    try:
+        cmte_id = data['cmte_id']
+        entity_id = data['entity_id']
+        if 'entity_id' in data:
+            forms_obj = get_list_contact(cmte_id, entity_id)
+        return forms_obj
+    except:
+        raise
+
+def get_list_contact(cmte_id, entity_id = None):
+
+    try:
+        with connection.cursor() as cursor:
+            # GET single row from entity table
+            if entity_id:
+                query_string = """SELECT cmte_id, entity_type, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, cand_office, cand_office_state, cand_office_district, ref_cand_cmte_id
+                                FROM public.entity WHERE cmte_id = %s AND entity_id = %s AND delete_ind is distinct from 'Y'"""
+
+                cursor.execute("""SELECT json_agg(t) FROM (""" + query_string +
+                            """) t""", [cmte_id, entity_id])
+            else:
+                query_string = """SELECT cmte_id, entity_type, entity_name, first_name, last_name, middle_name, preffix, suffix, street_1, street_2, city, state, zip_code, occupation, employer, cand_office, cand_office_state, cand_office_district, ref_cand_cmte_id
+                                FROM public.entity WHERE cmte_id = %s AND delete_ind is distinct from 'Y' ORDER BY entity_id DESC"""
+
+                cursor.execute("""SELECT json_agg(t) FROM (""" +
+                           query_string + """) t""", [cmte_id])           
+ 
+            contact_list = cursor.fetchone()[0]
+            print("contact_list", contact_list)
+            if not contact_list:
+                raise NoOPError(
+                    'No entity found for cmte_id {} '.format(cmte_id))
+            merged_list = []
+            for dictA in contact_list:
+                entity_id = dictA.get('entity_id')
+                data = {
+                    'entity_id': entity_id,
+                    'cmte_id': cmte_id
+                }
+                entity_list = get_entities(data)
+                dictEntity = entity_list[0]
+                merged_dict = {**dictA, **dictEntity}
+                merged_list.append(merged_dict)
+        return merged_list
+    except Exception:
+        raise
+
+def is_null(check_value):
+    if check_value == None or check_value in ["null", " ", "", "none","Null"]:
+        return ""
+    else:
+        return check_value
+
     
+
