@@ -1,11 +1,11 @@
+DROP VIEW public.all_transactions_view;
+
 ALTER TABLE public.sched_d
     RENAME creditor_entity_id TO entity_id;
 
 ALTER TABLE public.sched_d
     ALTER COLUMN entity_id TYPE character varying (20) COLLATE pg_catalog."default";
 
-
-DROP VIEW public.all_transactions_view;
 
 CREATE OR REPLACE VIEW public.all_transactions_view AS
  SELECT sa.cmte_id,
@@ -128,9 +128,4 @@ UNION ALL
    FROM sched_d sd
      JOIN entity e ON e.entity_id::text = sd.entity_id::text
      LEFT JOIN ref_transaction_types rt ON rt.tran_identifier::text = sd.transaction_type_identifier::text;
-	 
-
- 
-
-
-  
+	   
