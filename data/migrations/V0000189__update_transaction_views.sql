@@ -1,5 +1,5 @@
 
-drop view public.all_loans_debts_transactions_view;
+/* drop view public.all_loans_debts_transactions_view; */
 
 drop view public.all_loans_transactions_view;
 
