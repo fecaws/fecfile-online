@@ -12,5 +12,5 @@ CREATE TABLE public.fec_transaction_log
   app_error text,
   host_name character varying(90),
   create_date timestamp without time zone DEFAULT now(),
-  CONSTRAINT parser_logs_pk PRIMARY KEY (upload_log_id)
+  CONSTRAINT parser_logs_pk1 PRIMARY KEY (upload_log_id)
 );
