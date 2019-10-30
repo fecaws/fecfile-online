@@ -50,9 +50,6 @@ CREATE OR REPLACE VIEW public.all_receipts_transactions_view AS
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text
     WHERE sa.transaction_type_identifier NOT in ('LEVIN_PARTN_MEMO', 'LEVIN_TRIB_REC', 'LEVIN_PARTN_REC', 'LEVIN_ORG_REC', 'LEVIN_INDV_REC', 'LEVIN_NON_FED_REC', 'LEVIN_OTH_REC', 'LEVIN_PAC_REC');
 
-ALTER TABLE public.all_receipts_transactions_view
-  OWNER TO postgres;
-
 
 DROP VIEW public.all_disbursements_transactions_view;
 
