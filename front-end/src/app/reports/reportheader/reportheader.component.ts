@@ -86,8 +86,9 @@ private readonly filtersLSK = 'reports.filters';
        });
     this.existingReportId = localStorage.getItem('Existing_Report_id');
     if (this.existingReportId !== "") {
-          console.log(" ReportheaderComponent this.existingReportId =", this.existingReportId);  
           localStorage.removeItem('Existing_Report_id');
+          localStorage.removeItem('orm_99_details.org_fileurl');
+          localStorage.removeItem('form99PrintPreviewResponse');
           localStorage.setItem(`form_3X_saved`, JSON.stringify(false));
         }
       
@@ -115,7 +116,7 @@ private readonly filtersLSK = 'reports.filters';
     }
 
   }
-
+ 
   private showFilter() : void {
 
     if (this.showSideBar){
@@ -126,8 +127,12 @@ private readonly filtersLSK = 'reports.filters';
     }
   }
 
-    private recycleReports() : void {
-    alert("Recycle report is not yet supported");
+  private recycleReports() : void {
+    this.view = ActiveView.recycleBin;
+  }
+
+  public showReports() {
+    this.view = ActiveView.reports;
   }
 
   /**

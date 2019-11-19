@@ -1,5 +1,5 @@
 import { animate, style, transition, trigger } from '@angular/animations';
-import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter, Input } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContactsMessageService } from './service/contacts-message.service';
 import { ContactFilterModel } from './model/contacts-filter.model';
@@ -51,6 +51,7 @@ export enum FilterTypes {
 export class ContactsComponent implements OnInit, OnDestroy {
   @Output() sidebarSwitch: EventEmitter<any> = new EventEmitter<any>();
   @Output() showContact: EventEmitter<any> = new EventEmitter<any>();
+  @Input() status: any;
 
   public formType = '';
   public reportId = '0';
@@ -94,7 +95,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
       .subscribe(
         (message: any) => {
 
-          console.log(" getApplyFiltersMessage message =", message);   
           this.determineTags(message);
           
           if (message.isClearKeyword) {
@@ -163,7 +163,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Based on the filter settings and search string, determine the "tags" to show.
    */
   private determineTags(message: any) {
-    console.log(" determineTags message = ",message)
     const filters = this.filters = message.filters;
 
     // new and changed added filters should go at the end.
@@ -262,9 +261,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.removeTagArrayItem(FilterTypes.keyword);
   } */
    
-  console.log('tagArray: ' + JSON.stringify(this.tagArray));
-
-
     this.filters = filters;
   }
 
@@ -273,7 +269,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Search contacts.
    */
   public search() {
-    console.log( "this.searchTextArray",this.searchTextArray);
 
     // Don't allow more than 12 filters
     if (this.searchTextArray.length > 12) {
@@ -288,7 +283,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
       //this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: 'Contact_Search'});
       
       this._messageService.getMessage().subscribe(res => {
-        console.log(" contact check filter clear message", res);
         if (res==='Filter deleted'){
           if (this.keywordGroup.length > 0) {
             /*while (this.keywordGroup.length > 0) {
@@ -301,7 +295,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
       });
 
       this._messageService.getMessage().subscribe(res => {
-        console.log(" contact check filter clear message", res);
         if (res.hasOwnProperty('filterstatus')){
           if (res.filterstatus==='deleted'){
             if (this.keywordGroup.length > 0) {
@@ -314,10 +307,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
           }
         }
       });
-
-      console.log("contact check this.keywordGroup =", this.keywordGroup);
-      console.log("contact check this.searchText =", this.searchText);
-      console.log("contact check this.tagArray =", this.tagArray);
       
       // const contactFilter =localStorage.getItem(this.filtersLSK);
       //onsole.log("contactFilter =", contactFilter);
@@ -390,6 +379,15 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.filters.filterStates.splice(index, 1);
     this.removeFilter(FilterTypes.state, state);
   }
+
+  /**
+   * Remove the Deleted Date filter tag and inform the filter component to clear it.
+   */
+  public removeDateDeletedFilter(index: number, deletedDate: string) {
+    //this.filters..splice(index, 1);
+    this.removeFilter(FilterTypes.deletedDate, deletedDate);
+  }
+
 
   public removeTypeFilter(index: number, type: string) {
     this.filters.filterTypes.splice(index, 1);
@@ -479,10 +477,12 @@ export class ContactsComponent implements OnInit, OnDestroy {
         this.removeSearchTagArrayItem(tagText);
         this.keywordGroup.pop(tagText);
         break;
-  
+      case FilterTypes.deletedDate:
+        this.removeStateFilter(index, tagText);
+        this.removeTagArrayGroupItem(type, index);
+        break;
       default:
-        console.log('unexpected type received for remove tag');
-    }
+      }
   }
 
   /**
@@ -556,12 +556,12 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Show the table of contacts in the recycle bin for the user.
    */
   public showRecycleBin() {
-    /*this.view = ActiveView.recycleBin;
+    this.view = ActiveView.recycleBin
 
       // Inform the filter component of the view change
-      this._contactsMessageService.sendSwitchFilterViewMessage(ActiveView.recycleBin);*/
+    this._contactsMessageService.sendSwitchFilterViewMessage(ActiveView.recycleBin);
 
-      alert('Recycle Bin functionality is not yet supported');
+    //  alert('Recycle Bin functionality is not yet supported');
   }
 
 
@@ -639,7 +639,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Check if the view to show is Contacts.
    */
   public isContactViewActive() {
-    console.log(" this.view = ",this.view);
     return this.view === this.contactsView ? true : false;
   }
 
@@ -666,6 +665,12 @@ export class ContactsComponent implements OnInit, OnDestroy {
   private doSearch() {
     this.filters.keywords = this.searchTextArray;
     this._contactsMessageService.sendDoKeywordFilterSearchMessage(this.filters);
+  }
+
+  public onNotify(e): void {    
+    if(!e.editView){
+      this.view = ActiveView.contacts
+    }
   }
 
 }

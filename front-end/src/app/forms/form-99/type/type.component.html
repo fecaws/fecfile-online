@@ -34,6 +34,7 @@
               <ul class="type-list">
                 <li class="type-item"
                   [ngClass]="{'selected': typeSelected === 'mst'}"
+                  (click)="optionsListClick('mst-radio')"
                 >
                   <div class="type-item__box">
                     <div class="type-item__box--top">
@@ -41,8 +42,9 @@
                         type="radio"
                         id="mst-radio"
                         value="MST"
-                        (change)="updateTypeSelected($event)"
+                        (click)="updateTypeSelected($event)"
                         formControlName="reasonTypeRadio"
+                        name="reasonTypeRadio"
                       />
                       <label
                         for="mst-radio"
@@ -75,6 +77,7 @@
                 </li>
                 <li class="type-item"
                   [ngClass]="{'selected': typeSelected === 'msm'}"
+                  (click)="optionsListClick('msm-radio')"
                 >
                   <div class="type-item__box">
                     <div class="type-item__box--top">
@@ -82,8 +85,9 @@
                         type="radio"
                         id="msm-radio"
                         value="MSM"
-                        (change)="updateTypeSelected($event)"
+                        (click)="updateTypeSelected($event)"
                         formControlName="reasonTypeRadio"
+                        name="reasonTypeRadio"
                       />
                       <label
                         for="msm-radio"
@@ -116,6 +120,7 @@
                 </li>
                 <li class="type-item"
                   [ngClass]="typeSelected === 'msi'? 'selected' : ''"
+                  (click)="optionsListClick('msi-radio')"
                 >
                   <div class="type-item__box">
                     <div class="type-item__box--top">
@@ -123,8 +128,9 @@
                         type="radio"
                         id="msi-radio"
                         value="MSI"
-                        (change)="updateTypeSelected($event)"
+                        (click)="updateTypeSelected($event)"
                         formControlName="reasonTypeRadio"
+                        name="reasonTypeRadio"
                       />
                       <label
                         for="msi-radio"
@@ -158,6 +164,7 @@
                 </li>
                 <li class="type-item"
                   [ngClass]="typeSelected === 'msw'? 'selected' : ''"
+                  (click)="optionsListClick('msw-radio')"
                 >
                   <div class="type-item__box">
                     <div class="type-item__box--top">
@@ -165,8 +172,9 @@
                         type="radio"
                         id="msw-radio"
                         value="MSW"
-                        (change)="updateTypeSelected($event)"
+                        (click)="updateTypeSelected($event)"
                         formControlName="reasonTypeRadio"
+                        name="reasonTypeRadio"
                       />
                       <label
                         for="msw-radio"

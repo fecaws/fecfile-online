@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, FormBuilder, FormGroup, FormControl, NgForm, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Observable } from 'rxjs';
 import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { environment } from '../../../../environments/environment';
@@ -19,7 +20,8 @@ import { FormsService } from '../../../shared/services/FormsService/forms.servic
 import { MessageService } from '../../../shared/services/MessageService/message.service';
 import { DialogService } from '../../../shared/services/DialogService/dialog.service';
 import { htmlLength } from '../../../shared/utils/forms/validation/html-length.validator';
-import { ConfirmModalComponent } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
+import { ConfirmModalComponent, ModalHeaderClassEnum } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
+import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 
 @Component({
   selector: 'f99-reason',
@@ -32,6 +34,8 @@ export class ReasonComponent implements OnInit {
   @ViewChild('htmlEditor') htmlEditor: ElementRef;
   @ViewChild('fileInput') fileInput: ElementRef;
 
+  public editMode: boolean;
+  public reportId: number;
   public frmReason: FormGroup;
   public reasonType: string = null;
   public reasonFailed: boolean = false;
@@ -53,7 +57,12 @@ export class ReasonComponent implements OnInit {
   public PdfUploaded: boolean = false;
   public PdfDeleted: boolean = false;
   public editorMax: number = 20000;
+  public textAreaTextContent: any = '';
+  public editingTextArea: boolean = false;
+  public fileNameToDisplay: string = null;
+  public showFileNameLengthError: boolean = false;
 
+  private committee_details: any = {};
   private _printPriviewPdfFileLink: string = '';
   private _form99Details: any = {};
   private _formType: string = '';
@@ -62,6 +71,7 @@ export class ReasonComponent implements OnInit {
   private _reasonInnerText: string = ''; // The text, plus any HTML tags
   private _reasonInnerHTML: string = ''; // Shows the value and applys the HTML
   private _reasonTextContent: string = ''; // The plain text, no HTML from editor
+  private _setRefresh: boolean = false;
 
   constructor(
     private _fb: FormBuilder,
@@ -71,55 +81,82 @@ export class ReasonComponent implements OnInit {
     private _renderer: Renderer2,
     private _messageService: MessageService,
     private _dialogService: DialogService,
-    private _modalService: NgbModal
+    private _modalService: NgbModal,
+    private _dormSanitizer: DomSanitizer
   ) {
     this._messageService.clearMessage();
+    _activatedRoute.queryParams.subscribe(p => {
+      if (p.refresh === true || p.refresh === 'true') {
+        this._setRefresh = true;
+        this.ngOnInit();
+      }
+      if (p.reportId) {
+        this.reportId = p.reportId;
+      }
+    });
   }
 
   ngOnInit(): void {
     this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
-
+    this.editMode = this._activatedRoute.snapshot.queryParams.edit === 'false' ? false : true;
     this._form99Details = JSON.parse(localStorage.getItem(`form_${this._formType}_details`));
-    
+    this.committee_details = JSON.parse(localStorage.getItem('committee_details'));
+
     if (this._form99Details) {
+      if (!this._form99Details.id) {
+        this.file = null;
+      }
       if (this._form99Details.text) {
         if (this._form99Details.reason) {
           this.typeSelected = this._form99Details.reason;
+          this.editingTextArea = true;
         }
         this.frmReason = this._fb.group({
           reasonText: [this._form99Details.text, [Validators.required, htmlLength(this.editorMax)]],
           file: ['']
         });
-        this.frmReason.controls['reasonText'].setValue(this._form99Details.text);
-       } else {
+        const unescapedText = this._form99Details.text;
+        this.frmReason.controls['reasonText'].setValue(unescapedText);
+        this._reasonTextContent = unescapedText;
+        this._reasonInnerText = unescapedText;
+        this._reasonInnerHTML = unescape(unescapedText);
+        this.textAreaTextContent = this._dormSanitizer.bypassSecurityTrustHtml(unescapedText);
+        if (this._form99Details.filename) {
+          this.fileNameToDisplay = this._form99Details.filename;
+        } else if (localStorage.getItem('orm_99_details.org_filename')) {
+          this.fileNameToDisplay = localStorage.getItem('orm_99_details.org_filename');
+        }
+      } else {
+        this.editingTextArea = false;
         this.frmReason = this._fb.group({
           reasonText: ['', [Validators.required, htmlLength(this.editorMax)]],
           file: ['']
         });
+        this.fileNameToDisplay = null;
       }
     } else {
       this.frmReason = this._fb.group({
         reasonText: ['', [Validators.required, htmlLength(this.editorMax)]],
         file: ['']
       });
+      this.fileNameToDisplay = null;
     }
   }
 
   ngDoCheck(): void {
     let form_99_details: any = {};
-    
+
     if (localStorage.getItem('form_99_details') !== null) {
       form_99_details = JSON.parse(localStorage.getItem('form_99_details'));
     }
 
     if (form_99_details) {
       this.typeSelected = form_99_details.reason;
-      
     }
 
     if (this.frmReason.get('reasonText').value.length >= 1) {
       let text: string = this.frmReason.get('reasonText').value;
-       this.characterCount = this._countCharacters(text);
+      this.characterCount = this._countCharacters(text);
     } else if (this.frmReason.get('reasonText').value.length === 0) {
       let text: string = this.frmReason.get('reasonText').value;
       this.characterCount = this._countCharacters(text);
@@ -139,67 +176,122 @@ export class ReasonComponent implements OnInit {
    * @param      {Object}  e       The event object.
    */
   public editorChange(e): void {
-    this._reasonTextContent = e.target.textContent;
+    if (this.editMode) {
+      this._reasonTextContent = e.target.textContent;
 
-    if (this._reasonTextContent.length >= 1) {
-      this._reasonInnerText = e.target.innerText;
+      if (this._reasonTextContent.length >= 1) {
+        this._reasonInnerText = e.target.innerText;
 
-      if (this._checkUnsupportedHTML(this._reasonInnerText)) {
-        this.reasonHasInvalidHTML = true;
+        if (this._checkUnsupportedHTML(this._reasonInnerText)) {
+          this.reasonHasInvalidHTML = true;
 
-        this.frmReason.controls['reasonText'].setValue('');
-        this.frmReason.controls['reasonText'].markAsTouched();
-        this.frmReason.controls['reasonText'].markAsDirty();
-      } else {
-        this.reasonHasInvalidHTML = false;
-
-        if (!this._validateForSpaces(this._reasonInnerText)) {
-          this._reasonInnerHTML = e.target.innerHTML;
-
-          this.frmReason.controls['reasonText'].setValue(this._reasonInnerHTML);
-
+          this.frmReason.controls['reasonText'].setValue('');
           this.frmReason.controls['reasonText'].markAsTouched();
           this.frmReason.controls['reasonText'].markAsDirty();
-
-          this.showValidateBar = false;
-          this.reasonFailed = false;
-
-          this.hideText = true;
-          this.formSaved = false;
-
-          this._messageService.sendMessage({
-            validateMessage: {
-              validate: {},
-              showValidateBar: false
-            }
-          });
         } else {
-          this.frmReason.controls['reasonText'].setValue('');
-          this.frmReason.controls['reasonText'].markAsPristine();
-          this.frmReason.controls['reasonText'].markAsUntouched();
+          this.reasonHasInvalidHTML = false;
 
-          this._reasonInnerHTML = '';
-          this._reasonInnerText = '';
-          this._reasonTextContent = '';
+          if (!this._validateForSpaces(this._reasonInnerText)) {
+            this._reasonInnerHTML = e.target.innerHTML;
 
-          this.reasonFailed = true;
+            this.frmReason.controls['reasonText'].setValue(this._reasonInnerHTML);
+
+            this.frmReason.controls['reasonText'].markAsTouched();
+            this.frmReason.controls['reasonText'].markAsDirty();
+
+            this.showValidateBar = false;
+            this.reasonFailed = false;
+
+            this.hideText = true;
+            this.formSaved = false;
+
+            this._messageService.sendMessage({
+              validateMessage: {
+                validate: {},
+                showValidateBar: false
+              }
+            });
+          } else {
+            this.frmReason.controls['reasonText'].setValue('');
+            this.frmReason.controls['reasonText'].markAsPristine();
+            this.frmReason.controls['reasonText'].markAsUntouched();
+
+            this._reasonInnerHTML = '';
+            this._reasonInnerText = '';
+            this._reasonTextContent = '';
+
+            this.reasonFailed = true;
+          }
         }
+      } else {
+        this.frmReason.controls['reasonText'].setValue('');
+        this.frmReason.controls['reasonText'].markAsPristine();
+        this.frmReason.controls['reasonText'].markAsUntouched();
+
+        this.reasonHasInvalidHTML = false;
+
+        this.reasonFailed = true;
+
+        this._messageService.sendMessage({
+          validateMessage: {
+            validate: {},
+            showValidateBar: false
+          }
+        });
       }
-    } else {
-      this.frmReason.controls['reasonText'].setValue('');
-      this.frmReason.controls['reasonText'].markAsPristine();
-      this.frmReason.controls['reasonText'].markAsUntouched();
+    }
+  }
 
-      this.reasonHasInvalidHTML = false;
+  private _setF99Details(): void {
+    if (this.committee_details) {
+      if (this.committee_details.committeeid) {
+        this._form99Details = this.committee_details;
 
-      this.reasonFailed = true;
+        this._form99Details.reason = '';
+        this._form99Details.text = '';
+        this._form99Details.signee = `${this.committee_details.treasurerfirstname} ${this.committee_details.treasurerlastname}`;
+        this._form99Details.additional_email_1 = '-';
+        this._form99Details.additional_email_2 = '-';
+        this._form99Details.created_at = '';
+        this._form99Details.is_submitted = false;
+        this._form99Details.id = '';
 
-      this._messageService.sendMessage({
-        validateMessage: {
-          validate: {},
-          showValidateBar: false
-        }
-      });
+        let formSavedObj: any = {
+          saved: false
+        };
+        localStorage.setItem(`form_99_details`, JSON.stringify(this._form99Details));
+        localStorage.setItem(`form_99_saved`, JSON.stringify(formSavedObj));
+      }
+    }
+  }
+
+  public checkIfEditMode() {
+    if (!this.editMode) {
+      this._dialogService
+        .newReport(
+          'This report has been filed with the FEC. If you want to change, you must file a new report.',
+          ConfirmModalComponent,
+          'Warning',
+          true,
+          false,
+          true
+        )
+        .then(res => {
+          if (res === 'cancel' || res === ModalDismissReasons.BACKDROP_CLICK || res === ModalDismissReasons.ESC) {
+            // this.ngOnInit();
+            this._dialogService.checkIfModalOpen();
+          } else if (res === 'NewReport') {
+            this.editMode = true;
+            localStorage.removeItem('form_99_details');
+            localStorage.removeItem('form_99_saved');
+            this._setF99Details();
+            setTimeout(() => {
+              this._router.navigate(['/forms/form/99'], {
+                queryParams: { step: 'step_1', edit: this.editMode, refresh: true }
+              });
+            }, 500);
+          }
+        });
     }
   }
 
@@ -329,12 +421,15 @@ export class ReasonComponent implements OnInit {
     this.status.emit({
       form: {},
       direction: 'previous',
-      step: 'step_1'
+      step: 'step_1',
+      edit: this.editMode
     });
   }
 
   public setFile(e): void {
-    if (e.target.files.length === 1) {
+    if (!this.editMode) {
+      this.checkIfEditMode();
+    } else if (e.target.files.length === 1 && this.editMode && e.target.files[0].name.length <= 100) {
       this.file = e.target.files[0];
       if (this.file.name.includes('.pdf')) {
         let fileNameObj: any = {
@@ -346,8 +441,8 @@ export class ReasonComponent implements OnInit {
         } else {
           this.notCorrectPdfSize = false;
         }
-
         localStorage.setItem(`form_${this._formType}_file`, JSON.stringify(fileNameObj));
+        this.showFileNameLengthError = false;
         this.notValidPdf = false;
         this.validFile = true;
         this.showFileDeleteButton = true;
@@ -361,6 +456,20 @@ export class ReasonComponent implements OnInit {
         this.notCorrectPdfSize = false;
         this.PdfUploaded = false;
       }
+    } else if (e.target.files[0].name.length > 100) {
+      this.showFileNameLengthError = true;
+      let fileNameObj: any = {
+        fileName: ''
+      };
+      localStorage.setItem(`form_${this._formType}_file`, JSON.stringify(fileNameObj));
+      this.validFile = false;
+      this.file = null;
+      this.showFileDeleteButton = false;
+      this.fileInput.nativeElement.value = '';
+      this._form99Details.filename = '';
+      this.PdfUploaded = false;
+      localStorage.setItem(`form_${this._formType}_details`, JSON.stringify(this._form99Details));
+      window.scrollTo(0, 0);
     } else {
       let fileNameObj: any = {
         fileName: ''
@@ -382,93 +491,107 @@ export class ReasonComponent implements OnInit {
    *
    */
   public doValidateReason() {
-    if (this.frmReason.valid) {
-      if (this._reasonTextContent.length >= 1) {
-        if (!this._checkUnsupportedHTML(this._reasonInnerText)) {
-          if (!this._validateForSpaces(this._reasonInnerText)) {
-            let formSaved: any = {
-              form_saved: this.formSaved
-            };
-            this.reasonFailed = false;
-            this.isValidReason = true;
+    if (this.editMode) {
+      if (this.frmReason.valid) {
+        if (this._reasonTextContent.length >= 1) {
+          if (!this._checkUnsupportedHTML(this._reasonInnerText)) {
+            if (!this._validateForSpaces(this._reasonInnerText)) {
+              let formSaved: any = {
+                form_saved: this.formSaved
+              };
+              this.reasonFailed = false;
+              this.isValidReason = true;
 
-            this._form99Details = JSON.parse(localStorage.getItem(`form_${this._formType}_details`));
-            this._form99Details.text = this._reasonInnerHTML;
+              this._form99Details = JSON.parse(localStorage.getItem(`form_${this._formType}_details`));
+              this._form99Details.text = this._reasonInnerHTML;
 
-            window.localStorage.setItem(`form_${this._formType}_details`, JSON.stringify(this._form99Details));
+              window.localStorage.setItem(`form_${this._formType}_details`, JSON.stringify(this._form99Details));
 
-            window.localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify(formSaved));
+              window.localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify(formSaved));
 
-            this.saveForm();
+              this.saveForm();
 
-            this.hideText = true;
+              this.hideText = true;
 
-            this.showValidateBar = false;
+              this.showValidateBar = false;
 
-            this.hideText = true;
-            this.formSaved = false;
+              this.hideText = true;
+              this.formSaved = false;
 
-            this._messageService.sendMessage({
-              validateMessage: {
-                validate: '',
-                showValidateBar: false
-              }
-            });
+              this._messageService.sendMessage({
+                validateMessage: {
+                  validate: '',
+                  showValidateBar: false
+                }
+              });
 
-            this.status.emit({
-              form: this.frmReason,
-              direction: 'next',
-              step: 'step_3',
-              previousStep: 'step_2'
-            });
+              this.status.emit({
+                form: this.frmReason,
+                direction: 'next',
+                step: 'step_3',
+                previousStep: 'step_2',
+                edit: this.editMode,
+                refresh: this._setRefresh
+              });
 
-            this._messageService.sendMessage({
-              data: this._form99Details,
-              previousStep: 'step_3'
-            });
+              this._messageService.sendMessage({
+                data: this._form99Details,
+                previousStep: 'step_3'
+              });
+            } else {
+              this.reasonFailed = true;
+
+              window.scrollTo(0, 0);
+            } // !this._validateForSpaces
           } else {
-            this.reasonFailed = true;
+            this.reasonHasInvalidHTML = true;
+
+            this.frmReason.controls['reasonText'].setValue('');
 
             window.scrollTo(0, 0);
-          } // !this._validateForSpaces
+          } // !this._checkUnsupportedHTML
         } else {
-          this.reasonHasInvalidHTML = true;
+          this.reasonFailed = true;
+          this.isValidReason = false;
 
           this.frmReason.controls['reasonText'].setValue('');
+          this.frmReason.controls['reasonText'].markAsPristine();
+          this.frmReason.controls['reasonText'].markAsUntouched();
+          this.frmReason.setErrors({ incorrect: true });
+
+          this.status.emit({
+            form: this.frmReason,
+            direction: 'next',
+            step: 'step_2',
+            edit: this.editMode,
+            previousStep: ''
+          });
 
           window.scrollTo(0, 0);
-        } // !this._checkUnsupportedHTML
+          return;
+        } // this.reasonTextArea.length
       } else {
         this.reasonFailed = true;
         this.isValidReason = false;
-
-        this.frmReason.controls['reasonText'].setValue('');
-        this.frmReason.controls['reasonText'].markAsPristine();
-        this.frmReason.controls['reasonText'].markAsUntouched();
         this.frmReason.setErrors({ incorrect: true });
 
-        this.status.emit({
-          form: this.frmReason,
-          direction: 'next',
-          step: 'step_2',
-          previousStep: ''
-        });
+        this.frmReason.controls['reasonText'].setValue('');
+        this.frmReason.controls['reasonText'].markAsTouched();
+        this.frmReason.controls['reasonText'].markAsDirty();
 
         window.scrollTo(0, 0);
         return;
-      } // this.reasonTextArea.length
+      } // this.frmReason.valid
     } else {
-      this.reasonFailed = true;
-      this.isValidReason = false;
-      this.frmReason.setErrors({ incorrect: true });
-
-      this.frmReason.controls['reasonText'].setValue('');
-      this.frmReason.controls['reasonText'].markAsTouched();
-      this.frmReason.controls['reasonText'].markAsDirty();
-
-      window.scrollTo(0, 0);
-      return;
-    } // this.frmReason.valid
+      this.status.emit({
+        form: this.frmReason,
+        direction: 'next',
+        step: 'step_3',
+        previousStep: 'step_2',
+        edit: this.editMode,
+        refresh: this._setRefresh
+      });
+    }
   }
 
   /**
@@ -476,7 +599,7 @@ export class ReasonComponent implements OnInit {
    *
    */
   public saveForm() {
-    if (this.frmReason.valid) {
+    if (this.frmReason.valid && this.editMode) {
       if (this.frmReason.get('reasonText').value.length >= 1) {
         console.log('inside here: ');
         let formSaved: boolean = JSON.parse(localStorage.getItem('form_99_saved'));
@@ -490,19 +613,29 @@ export class ReasonComponent implements OnInit {
           this._form99Details.file = this.file;
           this._form99Details.filename = this.file.name;
         }
+
+        if (!this._form99Details.id) {
+          this._form99Details.id = this.reportId;
+        }
         localStorage.setItem('form_99_details', JSON.stringify(this._form99Details));
 
         this.hideText = true;
 
         this.showValidateBar = false;
 
-        if (this.file !== null) {
-          this._form99Details.file = this.file;
+        if ((this.PdfUploaded && typeof this.file === 'object') ||
+        this.PdfDeleted ||
+        (!this._form99Details.id || this._form99Details.id === '')) {
           this._formsService.saveForm({}, this.file, this._formType).subscribe(
             res => {
               if (res) {
                 this._form99Details.id = res.id;
-                this._form99Details.org_fileurl = res.file;
+
+                if (!res.file) {
+                  localStorage.removeItem('orm_99_details.org_fileurl');
+                } else if (res.file && (Object.entries(res.file).length || res.file !== '')) {
+                  this.file = res.file;
+                }
 
                 localStorage.setItem('form_99_details', JSON.stringify(this._form99Details));
 
@@ -520,13 +653,13 @@ export class ReasonComponent implements OnInit {
             }
           );
         } else {
-          console.log('if file === null');
-          this._formsService.saveForm({}, {}, this._formType).subscribe(
+          this._formsService.Signee_SaveForm({}, this._formType).subscribe(
             res => {
               if (res) {
                 this._form99Details.id = res.id;
 
                 localStorage.setItem('form_99_details', JSON.stringify(this._form99Details));
+                localStorage.setItem('orm_99_details.org_fileurl', res.file);
 
                 // success
                 this.formSaved = true;
@@ -583,9 +716,7 @@ export class ReasonComponent implements OnInit {
   }
 
   public printPreview() {
-
     if (this.frmReason.valid) {
-
       if (this.frmReason.get('reasonText').value.length >= 1) {
         let formSaved: boolean = JSON.parse(localStorage.getItem('form_99_saved'));
         this._form99Details = JSON.parse(localStorage.getItem('form_99_details'));
@@ -606,11 +737,9 @@ export class ReasonComponent implements OnInit {
         this.showValidateBar = false;
 
         if (this.file !== null) {
-
           this._formsService.PreviewForm_ReasonScreen({}, this.file, this._formType).subscribe(
             res => {
               if (res) {
-
                 this._form99Details.id = res.id;
                 localStorage.setItem('form_99_details', JSON.stringify(this._form99Details));
                 // success
@@ -627,8 +756,7 @@ export class ReasonComponent implements OnInit {
             }
           );
         } else {
-
-          this._formsService.PreviewForm_ReasonScreen({}, {}, this._formType).subscribe(
+          this._formsService.PreviewForm_Preview_sign_Screen({}, '99').subscribe(
             res => {
               if (res) {
                 this._form99Details.id = res.id;
@@ -656,6 +784,8 @@ export class ReasonComponent implements OnInit {
       this.notValidPdf = false;
 
       this._form99Details.filename = '';
+      this.fileNameToDisplay = null;
+      localStorage.removeItem('orm_99_details.org_filename');
       localStorage.setItem(`form_${this._formType}_details`, JSON.stringify(this._form99Details));
     }
     //this._modalService.close(modalId);
@@ -689,7 +819,7 @@ export class ReasonComponent implements OnInit {
     }
   }
 
-  private deletePDFFile() {
+  public deletePDFFile() {
     this._dialogService
       .confirm('Do you want to delete uploaded pdf file?', ConfirmModalComponent, 'Delete PDF File', true)
       //.reportExist(alertStr, ConfirmModalComponent,'Report already exists' ,true,false,true)
@@ -711,6 +841,8 @@ export class ReasonComponent implements OnInit {
           this.notValidPdf = false;
           this.PdfUploaded = false;
           this._form99Details.filename = '';
+          this.fileNameToDisplay = null;
+          localStorage.removeItem('orm_99_details.org_filename');
           localStorage.setItem(`form_${this._formType}_details`, JSON.stringify(this._form99Details));
         }
       });

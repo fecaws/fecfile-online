@@ -2,7 +2,7 @@
 
 .app-container {
   background-color: $mercury;
-  color: $black;
+  color: $mineShaft;
   font-family: $mainFontFamily;
   min-height: 100vh;
   overflow-y: hidden;
@@ -27,6 +27,7 @@
       .app__content-wrapper {
         padding-left: 10px;
         .app__content {
+          clear: left;
           margin-left: 50px;
           width: 95%;
         }
@@ -69,6 +70,7 @@
     footer {
       .app__footer {
         font-family: $mainFontFamily;
+        font-size: 1.1rem;
         @include media(mediumDesktop) {
           padding-left: 75px;
         }
@@ -96,6 +98,10 @@
     .navbar {
       background-color: $dustyGray;
       height: $topNavHeight;
+      font-family: 'Lato', 'sans-serif';
+    font-size: 1rem;
+    font-weight: 400;
+    color: #212121;
       margin: 0 !important;
       padding: 0 !important;
       .navbar-toggler {
@@ -185,7 +191,7 @@
       z-index: 0;
       .app__committee-info {
         background-color: $mercury;
-        height: 120px;
+        height: 150px;
         padding-left: 60px;
         padding-right: 60px;
         padding-top: 35px;
@@ -209,13 +215,13 @@
           position: relative;
         }
         .committee-id {
-          font-size: 1.5em;
-          font-family: $committeeInfoFontFamily;
+          
+          font-family: $mainFontFamily;
           margin-right: 25px;
         }
         .committee-name {
-          font-size: 1em;
-          font-family: $committeeInfoFontFamily;
+          
+          font-family: $mainFontFamily;
         }
         .btn-edit {
           color: $black;
@@ -260,6 +266,7 @@
       float:left;
       width: $footerContactInfoWidth;
       .contact-info__item {
+        font-size: 1.21269rem;
         display: block;
         @include media(tablet) {
           display: block;

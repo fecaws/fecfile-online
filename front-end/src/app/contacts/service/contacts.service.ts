@@ -125,9 +125,6 @@ export class ContactsService {
       request.filters = emptyFilters;
     }
 
-    console.log(' Contact Table request = ', request);
-    console.log(' Contact Table httpOptions = ', httpOptions);
-
     return this._http
       .post(
         `${environment.apiUrl}${url}`,
@@ -160,8 +157,6 @@ export class ContactsService {
    * @return     {Observable}
    */
   public getUserDeletedContacts(
-    formType: string,
-    reportId: string,
     page: number,
     itemsPerPage: number,
     sortColumnName: string,
@@ -214,9 +209,6 @@ export class ContactsService {
     // };
     // return Observable.of(mockResponse);
 
-    console.log(' Contact Recycle Bin Table request = ', request);
-    console.log(' Contact Recycle Bin Table httpOptions = ', httpOptions);
-
     return this._http
       .post(
         `${environment.apiUrl}${url}`,
@@ -248,21 +240,24 @@ export class ContactsService {
     const modelArray = [];
     for (const row of serverData) {
       const model = new ContactModel({});
-      model.type = row.type;
+      model.entity_type = row.entity_type;
       model.id = row.id;
       model.name = row.name;
-      model.street = row.street1;
-      model.street2 = row.street_2;
+      model.street1 = row.street1;
+      model.street2 = row.street2;
       model.city = row.city;
       model.state = row.state;
       model.zip = row.zip;
       model.employer = row.employer;
       model.occupation = row.occupation;
-      model.phoneNumber = row.phoneNumber;
-      model.officeSought = row.officeSought;
-      model.officeState = row.officeState;
-      model.district = row.district;
+      model.phoneNumber = row.phone_number;
       model.entity_name = row.entity_name;
+      model.candOffice = row.candOffice;
+      model.candOfficeState = row.candOfficeState
+      model.candOfficeDistrict = row.candOfficeDistrict;
+      model.activeTransactionsCnt = row.active_transactions_cnt;
+      model.candCmteId = row.candCmteId;
+      model.deletedDate = row.deleteddate;
       modelArray.push(model);
     }
     return modelArray;
@@ -291,8 +286,11 @@ export class ContactsService {
       case 'name':
         name = 'name';
         break;
-      case 'type':
-        name = 'type';
+      case 'entity_name':
+        name = 'entity_name';
+        break;  
+      case 'entityType':
+        name = 'entityType';
         break;
       case 'id':
         name = 'id';
@@ -321,18 +319,30 @@ export class ContactsService {
       case 'phoneNumber':
         name = 'phoneNumber';
         break;  
+      case 'entityName':
+        name= 'entityName';
+        break;
       case 'officeSought':
-        name = 'officeSought';
+        name= 'officeSought';
+        break;  
+      case 'candOffice':
+        name= 'candOffice';
         break;
-      case 'officeState':
-        name = 'officeState';
+      case 'candOfficeState':
+        name= 'candOfficeState';
         break;
-      case 'district':
-        name = 'district';
-        break;
-      case 'entity_name':
-        name= 'entity_name';
-        break;
+      case 'candOfficeDistrict':
+        name= 'candOfficeDistrict';
+        break;       
+      case 'candCmteId':
+        name= 'candCmteId';
+        break;     
+      case 'deletedDate':
+        name= 'deletedDate';
+        break;   
+      case 'activeTransactionsCnt':
+        name= 'activeTransactionsCnt';
+        break;           
       default:
     }
     return name ? name : '';
@@ -350,9 +360,9 @@ export class ContactsService {
     }
 
     serverObject.name =  model.name;
-    serverObject.type = model.type;
+    serverObject.entity_type = model.entity_type;
     serverObject.id = model.id;
-    serverObject.street1 = model.street;
+    serverObject.street1 = model.street1;
     serverObject.street2 = model.street2;
     serverObject.city = model.city;
     serverObject.state = model.state;
@@ -360,10 +370,13 @@ export class ContactsService {
     serverObject.employer = model.employer;
     serverObject.occupation = model.occupation;
     serverObject.phoneNumber = model.phoneNumber;
-    serverObject.officeSought = model.officeSought;
-    serverObject.officeState = model.officeState;
-    serverObject.district = model.district;
-    serverObject.district = model.entity_name;
+    serverObject.entityName = model.entity_name;
+    serverObject.candOffice = model.candOffice;
+    serverObject.candOfficeState = model.candOfficeState;
+    serverObject.candOfficeDistrict = model.candOfficeDistrict;
+    serverObject.candCmteId = model.candCmteId;
+    serverObject.activeTransactionsCnt = model.activeTransactionsCnt;
+    serverObject.deletedDate = model.deletedDate;
     
     return serverObject;
   }
@@ -393,10 +406,7 @@ export class ContactsService {
       return;
     }
     for (const cnt of response.contacts) {
-      cnt.transaction_amount_ui = `$${cnt.transaction_amount}`;
-      cnt.transaction_date_ui = this._datePipe.transform(cnt.transaction_date, 'MM/dd/yyyy');
-      cnt.deleted_date_ui = this._datePipe.transform(cnt.deleted_date, 'MM/dd/yyyy');
-      cnt.zip_code_ui = this._zipCodePipe.transform(cnt.zip_code);
+      cnt.deleted_date_ui = this._datePipe.transform(cnt.deleteddate, 'MM/dd/yyyy');
     }
   }
 
@@ -406,8 +416,6 @@ export class ContactsService {
    * by a backend API.
    */
   public mockApplyFilters(response: any, filters: ContactFilterModel) {
-    console.log("mockApplyFilters response =", response);
-    console.log("mockApplyFilters filters =", filters);
 
     if (!response.contacts) {
       return;
@@ -440,7 +448,6 @@ export class ContactsService {
     }   */
 
     if (filters.filterStates) {
-      console.log("filters.filterStates", filters.filterStates);
       if (filters.filterStates.length > 0) {
         isFilter = true;
         const fields = ['state'];
@@ -454,7 +461,6 @@ export class ContactsService {
     }
 
     if (filters.filterTypes) {
-      console.log("filters.filterTypes", filters.filterTypes);
       if (filters.filterTypes.length > 0) {
         isFilter = true;
         const fields = ['type'];
@@ -467,9 +473,35 @@ export class ContactsService {
       }
     }
 
-    console.log("response.contacts", response.contacts);
+    if (filters.filterDeletedDateFrom && filters.filterDeletedDateTo) {
+      const deletedFromDate = new Date(filters.filterDeletedDateFrom);
+      const deletedToDate = new Date(filters.filterDeletedDateTo);
+      const filteredDeletedDateArray = [];
+      for (const ctn of response.contacts) {
+        if (ctn.deleteddate) {
+          let d = new Date(ctn.deleteddate);
+          d.setUTCHours(0, 0, 0, 0);
+          const ctnDate = this.getDateMMDDYYYYformat(d);
+          if (ctnDate >= deletedFromDate && ctnDate <= deletedToDate) {
+            isFilter = true;
+          } else {
+            isFilter = false;
+          }
+        }
+
+        if (isFilter) {
+          filteredDeletedDateArray.push(ctn);
+        }
+      }
+      response.contacts = filteredDeletedDateArray;
+    }
   }
 
+  private getDateMMDDYYYYformat(dateValue: Date): Date {
+    var utc = new Date(dateValue.getUTCFullYear(), dateValue.getUTCMonth() + 1, dateValue.getUTCDate());
+    utc.setUTCHours(0,0,0,0);
+    return utc
+  }
 
   /**
    *
@@ -481,28 +513,6 @@ export class ContactsService {
     const direction = descending ? -1 : 1;
     this._orderByPipe.transform(array, {property: sortColumnName, direction: direction});
     return array;
-  }
-
-  /**
-   * Delete contacts from the Recyling Bin.
-   *
-   * @param contacts the contacts to delete
-   */
-  public deleteRecycleBinContact(contacts: Array<ContactModel>): Observable<any> {
-
-
-    // mocking the server API until it is ready.
-
-    for (const cnt of contacts) {
-      const index = this.mockRestoreTrxArray.findIndex(
-        item => item.transaction_id === cnt.id);
-
-      if (index !== -1) {
-        this.mockRestoreTrxArray.splice(index, 1);
-      }
-    }
-
-    return Observable.of('');
   }
 
 
@@ -593,11 +603,11 @@ export class ContactsService {
     * @param reportId the unique identifier for the Report
     * @param contacts the contacts to trash or restore
     */
-   public trashOrRestoreContacts(action: string, reportId: string, contacts: Array<ContactModel>) {
+   public trashOrRestoreContacts(action: string, contacts: Array<ContactModel>) {
 
     const token: string = JSON.parse(this._cookieService.get('user'));
     let httpOptions =  new HttpHeaders();
-    const url = '/core/trash_restore_contacts';
+    const url = '/core/trash_restore_contact';
 
     httpOptions = httpOptions.append('Content-Type', 'application/json');
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
@@ -607,7 +617,7 @@ export class ContactsService {
     for (const cnt of contacts) {
       actions.push({
         action: action,
-        transaction_id: cnt.id
+        id: cnt.id
       });
     }
     request.actions = actions;
@@ -671,16 +681,14 @@ export class ContactsService {
     //const transactionType: any = JSON.parse(localStorage.getItem(`form_${formType}_transaction_type`));
     const contact: any = JSON.parse(localStorage.getItem(`contactObj`));
     const formData: FormData = new FormData();
-    console.log(" saveContact called ...!");
     let httpOptions = new HttpHeaders();
 
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
-    console.log(" saveContact contact object ...!", contact);
     for (const [key, value] of Object.entries(contact)) {
       if (value !== null) {
         if (typeof value === 'string') {
           formData.append(key, value);
-          console.log(" saveContact contact formdata object ...!", key, " ", value );
+
         }
       }
     }
@@ -700,6 +708,7 @@ export class ContactsService {
           })
         );
     } else if (scheduleAction === ContactActions.edit) {
+      console.log(" editContact formData...!", formData);
       return this._http
         .put(`${environment.apiUrl}${url}`, formData, {
           headers: httpOptions
@@ -707,13 +716,13 @@ export class ContactsService {
         .pipe(
           map(res => {
             if (res) {
+              console.log(" editContact called res...!", res);
               return res;
             }
             return false;
           })
         );
     } else {
-      console.log('unexpected ContactActions received - ' + scheduleAction);
     }
   }
 
@@ -732,111 +741,31 @@ export class ContactsService {
     });
   }
   
-  /**
-   * Saves a schedule a using POST.  The POST API supports saving an existing
-   * transaction.  Therefore, transaction_id is required in this API call.
-   *
-   * TODO consider modifying saveContactA() to support both POST and PUT.
-   *
-   * @param      {string}  formType  The form type
-   */
-  public putScheduleA(formType: string): Observable<any> {
+  
+  public deleteRecycleBinContact(contacts: Array<ContactModel>): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
-    const url: string = '/sa/schedA';
-    const committeeDetails: any = JSON.parse(localStorage.getItem('committee_details'));
-    let reportType: any = JSON.parse(localStorage.getItem(`form_${formType}_report_type`));
-
-    if (reportType === null || typeof reportType === 'undefined') {
-      reportType = JSON.parse(localStorage.getItem(`form_${formType}_report_type_backup`));
-    }
-
-    const transactionType: any = JSON.parse(localStorage.getItem(`form_${formType}_transaction_type`));
-    const receipt: any = JSON.parse(localStorage.getItem(`form_${formType}_receipt`));
-
     let httpOptions = new HttpHeaders();
-    const formData: FormData = new FormData();
+    const url = '/core/delete_trashed_contacts';
 
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
 
-    // Needed for update but not for add
-    formData.append('transaction_id', receipt.transactionId);
-
-    formData.append('cmte_id', committeeDetails.committeeid);
-    // With Edit Report Functionality
-    if (reportType.hasOwnProperty('reportId')) {
-      formData.append('report_id', reportType.reportId);
-    } else if (reportType.hasOwnProperty('reportid')) {
-      formData.append('report_id', reportType.reportid);
+    const request: any = {};
+    const actions = [];
+    for (const con of contacts) {
+      actions.push({
+        id: con.id
+      });
     }
-
-    // formData.append('report_id', reportType.reportId);
-    formData.append('transaction_type', '15');
-    formData.append('line_number', '11AI');
-    formData.append('first_name', receipt.ContributorFirstName);
-    formData.append('last_name', receipt.ContributorLastName);
-    formData.append('state', receipt.ContributorState);
-    formData.append('city', receipt.ContributorCity);
-    formData.append('zip_code', receipt.ContributorZip);
-    formData.append('occupation', receipt.ContributorOccupation);
-    formData.append('employer', receipt.ContributorEmployer);
-    formData.append('contribution_amount', receipt.ContributionAmount);
-    formData.append('contribution_date', receipt.ContributionDate);
-    // formData.append('contribution_aggregate', receipt.ContributionAggregate);
-    formData.append('entity_type', receipt.EntityType);
-    if (receipt.ContributorMiddleName !== null) {
-      if (typeof receipt.ContributorMiddleName === 'string') {
-        formData.append('middle_name', receipt.ContributorMiddleName);
-      }
-    }
-    if (receipt.ContributorPrefix !== null) {
-      if (typeof receipt.ContributorPrefix === 'string') {
-        formData.append('prefix', receipt.ContributorPrefix);
-      }
-    }
-    if (receipt.ContributorSuffix !== null) {
-      if (typeof receipt.ContributorSuffix === 'string') {
-        formData.append('suffix', receipt.ContributorSuffix);
-      }
-    }
-    formData.append('street_1', receipt.ContributorStreet1);
-    if (receipt.ContributorStreet2 !== null) {
-      if (typeof receipt.ContributorStreet2 === 'string') {
-        formData.append('street_2', receipt.ContributorStreet2);
-      }
-    }
-    if (receipt.MemoText !== null) {
-      if (typeof receipt.MemoText === 'string') {
-        formData.append('memo_text', receipt.MemoText);
-      }
-    }
-    if (receipt.MemoCode !== null) {
-      if (typeof receipt.MemoCode === 'string') {
-        formData.append('memo_code', receipt.MemoCode);
-      }
-    }
-    if (receipt.ContributionPurposeDescription !== null) {
-      if (typeof receipt.ContributionPurposeDescription === 'string') {
-        formData.append('purpose_description', receipt.ContributionPurposeDescription);
-      }
-    }
-    // if (receipt.ContributionAggregate !== null) {
-    //   if (typeof receipt.ContributionAggregate === 'string') {
-    //     formData.append('contribution_aggregate', receipt.ContributionAggregate);
-    //   }
-    // }
+    request.actions = actions;
 
     return this._http
-      .put(`${environment.apiUrl}${url}`, formData, {
+      .post(`${environment.apiUrl}${url}`, request, {
         headers: httpOptions
       })
-      .pipe(
-        map(res => {
-          if (res) {
-            return res;
-          }
+     .map(res => {
           return false;
-        })
-      );
+        });
   }
 
 }

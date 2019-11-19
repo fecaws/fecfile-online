@@ -1,13 +1,22 @@
 @import '../shared/scss/global';
 
 .account-container {
+	margin-left: 10px;
+		margin-right: 10px;
 	.grid-row {
 		margin-left: 0;
 		margin-right: 0;
+		
 		.grid-row__col {
 			padding-left: 0;
 			padding-right: 0;			
 		}
+	}
+	.grid-row-btn {
+		margin-left: 0;
+		margin-right: 0;
+		position: relative;
+		
 	}
 	header {    
 	    .header-container {
@@ -32,11 +41,17 @@
 				}
 			}
 
+			.grid-col-1 {
+				position: absolute;
+				right: 0;
+
+			}
+
 			.grid-col {
 				float: none;
 				display: block;
 				max-width: 100%;
-				/*padding-left: 20px;*/
+				padding-left: 20px;
 				width: 100%;				
 				@include media(tablet) {
 					display: block;
@@ -59,7 +74,7 @@
 				    padding-left: 0;
 					position: relative;
 					width: 100%;				    				
-				} 				
+				} 								
 			}	
 			.validate__form {
 			&.show-alerts {
@@ -96,6 +111,12 @@
 		}
 	}
 
+	.md-button-right .button-group {
+		position: absolute;
+		right: 0px;
+		margin: 0;
+	  }
+
 	footer {
 		.footer {
 			bottom: 0;
@@ -110,6 +131,28 @@
 		}
 	}
 }
+
+
+#levin_accounts_list {
+margin-left: 20%;
+margin-top: 20px;
+}
+
+.input-group {
+	width: 80%;
+}
+
+.input-group-button {
+margin-left:15px;
+margin-top:10px;
+}
+
+#levin_acct_name {
+	margin-top: 5px;
+
+
+}
+
 @include form-btns();
 
   

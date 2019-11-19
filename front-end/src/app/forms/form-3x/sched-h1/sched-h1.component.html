@@ -1,0 +1,223 @@
+<div class="individual-receipt-container" *ngIf="!isPac()">
+  <form #f="ngForm">
+      <header>
+          <div class="header-content">
+              <div class="float-left sub-title">
+                <h2>
+                    State and Local Party Committees
+                </h2>
+              </div>
+          </div>
+      </header>
+
+        <div>
+          <table class="table table-striped summary_table_text">
+              <thead>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="summary_text">
+                    <input ngModel type="radio" name="h1_election_year_options" value="1" id="opt1">
+                    <label for="opt1">Presidential-Only Election Year (28% Federal)</label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary_text">
+                    <input ngModel type="radio" name="h1_election_year_options" value="2" id="opt2">
+                    <label for="opt2"> Presidential and Senate Election Year (36% Federal)</label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary_text">
+                    <input ngModel type="radio" name="h1_election_year_options" value="3" id="opt3">
+                    <label for="opt3">Senate-Only Election Year (21% Federal)</label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary_text">
+                    <input ngModel type="radio" name="h1_election_year_options" value="4" id="opt4">
+                    <label for="opt4">None-Presidential and None-Senate Election Year (15% Federal)</label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+          </table>
+        </div>
+
+        <footer>
+            <div class="grid-row">
+              <div class="grid-row__col grid-row__col--12">
+                <div class="forms__btn-container">
+                  <button type="submit" class="btn btn-primary btn-right" [disabled]="!f.valid" (click)="saveH1(f)">
+                      Save
+                    </button>
+                </div>
+              </div>
+            </div>
+          </footer>
+  </form>
+</div>
+
+
+
+<!-- front end for non-connected committee -->
+<!-- TODO: need to figure out when this thing is enabled. -->
+<div class="individual-receipt-container"  *ngIf="isPac()">
+  <form #f="ngForm">
+    <header>
+      <div class="header-content">
+          <div class="float-left sub-title">
+            <h2>
+            Seperarate Segregated Funds and Non Connected Committees
+            </h2>
+          </div>
+      </div>
+    </header>
+
+    <div>
+        <ng-container>
+          <table class="table table-striped summary_table_text">
+              <thead>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="summary_text">
+                    <div class="row">
+                      <div class="col col-md-3 form-group">
+                        <label for="federal_share"><h1>Federal:</h1></label>
+                        <div class="row input-group">
+                          <input class="form-control"
+                            ngModel
+                            type="number"
+                            name="federal_share"
+                            (keyup)="handleFedShareFieldKeyup($event, f)"
+                          >
+
+                          <div class="input-group-prepend">
+                              <span class="input-group-text" id="filter-max-amount">
+                                  <i class="fa fa-percent" aria-hidden="true"></i>
+                              </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="col col-md-3 form-group">
+                          <label for="federal_share"><h1>Nonfederal:</h1></label>
+                          <div class="row input-group">
+                            <input class="form-control"
+                              ngModel
+                              required
+                              max="100"
+                              value="0"
+                              type="number"
+                              name="nonfederal_share"
+                              (keyup)="handleNonFedShareFieldKeyup($event, f)"
+                              ngClass="f.get('nonfederal_share')?.invalid &&
+                              (f.touched || f.dirty)
+                                ? 'input-field-error' : ''"
+                            >
+
+                            <div class="input-group-prepend">
+                                <span class="input-group-text" id="filter-max-amount">
+                                    <i class="fa fa-percent" aria-hidden="true"></i>
+                                </span>
+                            </div>
+                          </div>
+                      </div>
+
+                      <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                      </button>
+                    </div>
+
+                    This ratio apply to (check all that apply):
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary_text">
+                      <input ngModel type="checkbox" name="applied_activity1" id="ad" value="administrative">
+                      <label for="ad">
+                        Administrative
+                      </label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary_text">
+                    <input ngModel type="checkbox" name="applied_activity2" id="gvd" value="generic_voter_drive">
+                    <label for="gvd">
+                      Generic Voter Drive
+                    </label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary_text">
+                    <input ngModel type="checkbox" name="applied_activity3" id="pc" value="public_communication">
+                    <label for="pc">
+                      Public Communications Referenceing Party Only
+                    </label>
+
+                    <button type="button" class="btn btn-info" ngbTooltip="{{ col?.infoText }}"
+                        tooltipClass="form-tooltip">
+                        <i class="info-icon" aria-hidden="true"></i>
+                        <span class="sr-only">Click here for more information</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+          </table>
+        </ng-container>
+    </div>
+
+      <footer>
+          <div class="grid-row">
+            <div class="grid-row__col grid-row__col--12">
+              <div class="forms__btn-container">
+                <button type="submit" class="btn btn-primary btn-right" [disabled]="!f.valid" (click)="saveH1(f)">
+                    Save
+                  </button>
+              </div>
+            </div>
+          </div>
+        </footer>
+
+    <!-- text fields for fed and nonfed ratio -->
+
+  </form>
+</div>

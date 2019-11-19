@@ -76,7 +76,6 @@ export class AppLayoutComponent implements OnInit {
           this.toggleMenu = false;
         }
         if (val.url.indexOf('/signandSubmit') === 0) {
-          console.log("Sign and submit call...");
           if (this.toggleMenu) {
             this.showSideBar = true;
             this.sideBarClass = 'app-container dashboard active';
@@ -84,7 +83,6 @@ export class AppLayoutComponent implements OnInit {
             this.showSideBar = false;
             this.sideBarClass = 'app-container active';
           }
-          //this._utilService.removeLocalItems('form_', 5);
         } else if (val.url.indexOf('/dashboard') === 0) {
           if (this.toggleMenu) {
             this.showSideBar = true;
@@ -121,7 +119,7 @@ export class AppLayoutComponent implements OnInit {
     localStorage.removeItem('Reports.view');
 
     this._step = this._activatedRoute.snapshot.queryParams.step;
-
+    let formInfo: any = '';
     if (route === '/dashboard') {
       /**
        * Fix this issue with the sidenar on the dashboard.
@@ -130,60 +128,74 @@ export class AppLayoutComponent implements OnInit {
 
       this.sideBarClass = 'dashboard active';
       this.showFormDueDate = false;
-    } else if (route.indexOf('/forms/form/3X') === 0 || route.indexOf('/forms/transactions/3X') === 0 || route.indexOf('/signandSubmit') === 0 ) {
+    } else if (
+      route.indexOf('/forms/form/3X') === 0 ||
+      route.indexOf('/forms/transactions/3X') === 0 ||
+      route.indexOf('/signandSubmit') === 0
+    ) {
       if (localStorage.getItem('form_3X_report_type') !== null) {
-        const formInfo: any = JSON.parse(localStorage.getItem('form_3X_report_type'));
-
-        if (typeof formInfo === 'object') {
-          if (formInfo.hasOwnProperty('formType')) {
-            this.formType = formInfo.formType;
-          } else if (formInfo.hasOwnProperty('formtype')) {
-            this.formType = formInfo.formtype;
-          }
-
-          if (formInfo.hasOwnProperty('report_type_desciption')) {
-            this.formDescription = formInfo.report_type_desciption;
-          } else if (formInfo.hasOwnProperty('reporttypedescription')) {
-            this.formDescription = formInfo.reporttypedescription;
-          }
-
-          if (formInfo.hasOwnProperty('cvgStartDate')) {
-            this.formStartDate = formInfo.cvgStartDate;
-          } else if (formInfo.hasOwnProperty('cvgstartdate')) {
-            this.formStartDate = formInfo.cvgstartdate;
-          }
-
-          if (formInfo.hasOwnProperty('cvgEndDate')) {
-            this.formEndDate = formInfo.cvgEndDate;
-          } else if (formInfo.hasOwnProperty('cvgenddate')) {
-            this.formEndDate = formInfo.cvgenddate;
-          }
-
-          if (formInfo.hasOwnProperty('daysUntilDue')) {
-            this.formDaysUntilDue = formInfo.daysUntilDue;
-          } else if (formInfo.hasOwnProperty('daysuntildue')) {
-            this.formDaysUntilDue = formInfo.daysuntildue;
-          }
-
-          if (formInfo.hasOwnProperty('dueDate')) {
-            this.dueDate = formInfo.dueDate;
-          } else if (formInfo.hasOwnProperty('duedate')) {
-            this.dueDate = formInfo.duedate;
-          }
-
-          if (formInfo.hasOwnProperty('overDue')) {
-            this.reportOverDue = formInfo.overDue;
-          }
-
-          if (this._step !== 'step_1') {
-            this.showFormDueDate = true;
-          } else {
-            this.showFormDueDate = false;
-          }
-        }
+        formInfo = JSON.parse(localStorage.getItem('form_3X_report_type'));
+      } else if (localStorage.getItem('form_3X_report_type_backup') !== null) {
+        formInfo = JSON.parse(localStorage.getItem('form_3X_report_type_backup'));
       }
-    } else {
-      this.showFormDueDate = false;
+
+      // console.log(" formInfo = ", formInfo);
+
+      if (typeof formInfo === 'object') {
+        if (formInfo.hasOwnProperty('formType')) {
+          this.formType = formInfo.formType;
+        } else if (formInfo.hasOwnProperty('formtype')) {
+          this.formType = formInfo.formtype;
+        }
+
+        if (formInfo.hasOwnProperty('report_type_desciption')) {
+          this.formDescription = formInfo.report_type_desciption;
+        } else if (formInfo.hasOwnProperty('reporttypedescription')) {
+          this.formDescription = formInfo.reporttypedescription;
+        }
+
+        if (formInfo.hasOwnProperty('cvgStartDate')) {
+          this.formStartDate = formInfo.cvgStartDate;
+        } else if (formInfo.hasOwnProperty('cvgstartdate')) {
+          this.formStartDate = formInfo.cvgstartdate;
+        }
+
+        if (formInfo.hasOwnProperty('cvgEndDate')) {
+          this.formEndDate = formInfo.cvgEndDate;
+        } else if (formInfo.hasOwnProperty('cvgenddate')) {
+          this.formEndDate = formInfo.cvgenddate;
+        }
+
+        if (formInfo.hasOwnProperty('daysUntilDue')) {
+          this.formDaysUntilDue = Math.abs(formInfo.daysUntilDue).toString();
+        } else if (formInfo.hasOwnProperty('daysuntildue')) {
+          this.formDaysUntilDue = Math.abs(formInfo.daysuntildue).toString();
+        }
+
+        if (formInfo.hasOwnProperty('dueDate')) {
+          this.dueDate = formInfo.dueDate;
+        } else if (formInfo.hasOwnProperty('duedate')) {
+          this.dueDate = formInfo.duedate;
+        }
+
+        if (formInfo.hasOwnProperty('overDue')) {
+          this.reportOverDue = formInfo.overDue;
+        } else if (formInfo.hasOwnProperty('overdue')) {
+          /*if (formInfo.overdue > 0) {
+                this.reportOverDue = true;
+              }*/
+          // console.log("formInfo.overdue =", formInfo.overdue);
+          this.reportOverDue = formInfo.overdue;
+        }
+
+        if (this._step !== 'step_1') {
+          this.showFormDueDate = true;
+        } else {
+          this.showFormDueDate = false;
+        }
+      } else {
+        this.showFormDueDate = false;
+      }
     }
   }
   /**

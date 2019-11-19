@@ -22,14 +22,12 @@ import { ContactsService } from '../service/contacts.service';
 import { f3xTransactionTypes } from '../../shared/interfaces/FormsService/FormsService';
 import { alphaNumeric } from '../../shared/utils/forms/validation/alpha-numeric.validator';
 import { floatingPoint } from '../../shared/utils/forms/validation/floating-point.validator';
-import { contributionDate } from '../../shared/utils/forms/validation/contribution-date.validator';
 import { ReportTypeService } from '../../forms/form-3x/report-type/report-type.service';
 import { Observable, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { TypeaheadService } from 'src/app/shared/partials/typeahead/typeahead.service';
 import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
 import { ConfirmModalComponent } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
-//import { AddNewContactModel } from './model/add/new_contacts.model';
 import { ContactsMessageService } from '../service/contacts-message.service';
 import { ContactModel } from '../model/contacts.model';
 
@@ -53,20 +51,20 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
   @Input() transactionType = '';
   //@Input() scheduleAction: ContactActions = null;
   @Input() scheduleAction: ContactActions = ContactActions.add;
+  @Input() transactionToEdit: ContactModel;
 
   /**
    * Subscription for pre-populating the form for view or edit.
    */
   private _populateFormSubscription: Subscription;
+  private _loadFormFieldsSubscription: Subscription;
 
   public checkBoxVal: boolean = false;
-  public cvgStartDate: string = null;
-  public cvgEndDate: string = null;
   public frmContact: FormGroup;
   public formFields: any = [];
   public formVisible: boolean = false;
   public hiddenFields: any = [];
-  public memoCode: boolean = false;
+  //public memoCode: boolean = false;
   public testForm: FormGroup;
   public titles: any = [];
   public states: any = [];
@@ -79,61 +77,57 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
   public entityTypes: any = [];
   public officeSought: any = [];
   public officeState: any = [];
- 
+  public editScheduleAction: ContactActions = ContactActions.edit;
+  public addScheduleAction: ContactActions = ContactActions.add;
+  public isEditViewActive: boolean;
+
   private _formType: string = '';
-  private _reportType: any = null;
-  private _types: any = [];
-  private _transaction: any = {};
-  private _transactionType: string = null;
   private _transactionTypePrevious: string = null;
-  private _formSubmitted: boolean = false;
   private _contributionAggregateValue = 0.0;
-  private _contributionAmount = '';
-  private readonly _memoCodeValue: string = 'X';
   private _selectedEntity: any;
   private _contributionAmountMax: number;
   private _entityType: string = 'IND';
-  private _loading: boolean =  true;
-  private _selectedEntityChild: any;
-  private _selectedChangeWarn: any;
-  private _selectedChangeWarnChild: any;
   private readonly _childFieldNamePrefix = 'child*';
   private _contactToEdit: ContactModel;
+  private _loading: boolean = false;
+  private _selectedChangeWarn: any;
 
   constructor(
     private _http: HttpClient,
     private _fb: FormBuilder,
-    private _formService: FormsService,
     private _contactsService: ContactsService,
-    private _activatedRoute: ActivatedRoute,
     private _config: NgbTooltipConfig,
     private _router: Router,
     private _utilService: UtilService,
     private _messageService: MessageService,
-    private _currencyPipe: CurrencyPipe,
     private _decimalPipe: DecimalPipe,
-    private _reportTypeService: ReportTypeService,
     private _typeaheadService: TypeaheadService,
     private _dialogService: DialogService,
-    private _f3xMessageService: ContactsMessageService
+    private _contactsMessageService: ContactsMessageService,
+    private _formsService: FormsService
   ) {
     this._config.placement = 'right';
     this._config.triggers = 'click';
 
-    this._populateFormSubscription = this._f3xMessageService.getPopulateFormMessage().subscribe(message => {
+    this._populateFormSubscription = this._contactsMessageService.getPopulateFormMessage().subscribe(message => {
       this.populateFormForEditOrView(message);
+      //this.getFormFields();
+    });
+
+    this._loadFormFieldsSubscription = this._contactsMessageService.getLoadFormFieldsMessage().subscribe(message => {
+      //this.getFormFields();
     });
   }
 
   ngOnInit(): void {
     this._selectedEntity = null;
-    this._contributionAggregateValue = 0.0;
-    this._contributionAmount = '';
     this._contactToEdit = null;
     /*this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
     localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify({ saved: true }));
     localStorage.setItem('Receipts_Entry_Screen', 'Yes');*/
-
+    
+    localStorage.removeItem('contactsaved');
+    
     this._messageService.clearMessage();
 
     /*this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
@@ -141,29 +135,29 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     if (this._reportType === null || typeof this._reportType === 'undefined') {
       this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type_backup`));
     }*/
-    this.getFormFields();
-    this._entityType = "IND";
-    // this.loadDynamiceFormFields();
-    this.formFields  =  this.individualFormFields;
 
+    this.getFormFields();
+
+    this._entityType = 'IND';
+    //this.loadDynamiceFormFields();
+    //this.formFields = this.individualFormFields;
+    //console.log(" this.formFields",  this.formFields);
+
+    //this._setForm(this.formFields);
     this.frmContact = this._fb.group({});
     if (this.selectedOptions) {
       if (this.selectedOptions.length >= 1) {
         this.formVisible = true;
       }
     }
-
- 
   }
 
-  ngDoCheck(): void {
-  }
-    
+  public ngDoCheck(): void {}
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this._messageService.clearMessage();
     this._populateFormSubscription.unsubscribe();
-    localStorage.removeItem('contact_saved');
+    //localStorage.removeItem('contactsaved');
   }
 
   public debug(obj: any): void {
@@ -175,18 +169,12 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
    *
    * @param      {Array}  fields  The fields
    */
-  private _setForm(fields: any): void {
+  /*private _setForm(fields: any): void {
     const formGroup: any = [];
-
     fields.forEach(el => {
       if (el.hasOwnProperty('cols')) {
         el.cols.forEach(e => {
           formGroup[e.name] = new FormControl(e.value || null, this._mapValidators(e.validation, e.name));
-          /*if (e.name === 'contribution_amount') {
-            if (e.validation) {
-              this._contributionAmountMax = e.validation.max ? e.validation.max : 0;
-            }
-          }*/
         });
       }
     });
@@ -196,6 +184,34 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     // get form data API is passing X for memo code value.
     // Set it to null here until it is checked by user where it will be set to X.
     //this.frmContact.controls['memo_code'].setValue(null);
+  }*/
+
+  private _setForm(fields: any): void {
+    const formGroup: any = [];
+    console.log('_setForm fields ', fields);
+    fields.forEach(el => {
+      if (el.hasOwnProperty('cols')) {
+        el.cols.forEach(e => {
+          formGroup[e.name] = new FormControl(e.value || null, this._mapValidators(e.validation, e.name));
+        });
+      }
+    });
+
+    this.frmContact = new FormGroup(formGroup);
+
+    // SET THE DEFAULT HERE
+    if (this.frmContact.get('entity_type')) {
+      const entityTypeVal = this.frmContact.get('entity_type').value;
+      if (!entityTypeVal) {
+        this.frmContact.patchValue({ entity_type: this._entityType }, { onlySelf: true });
+      }
+    }
+
+    // get form data API is passing X for memo code value.
+    // Set it to null here until it is checked by user where it will be set to X.
+    //this.frmContact.controls['memo_code'].setValue(null);
+
+    this.populateFormForEditOrView(this.transactionToEdit);
   }
 
   /**
@@ -230,83 +246,15 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
           if (validators[validation] !== null) {
             formValidators.push(Validators.maxLength(validators[validation]));
           }
-        } 
+        }
       }
     }
 
     return formValidators;
   }
 
-  /**
-   * Validates the contribution date selected.
-   */
-  private _validateContributionDate(): void {
-    this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
-
-    if (this._reportType !== null) {
-      const cvgStartDate: string = this._reportType.cvgStartDate;
-      const cvgEndDate: string = this._reportType.cvgEndDate;
-
-      if (this.memoCode) {
-        this.frmContact.controls['contribution_date'].setValidators([Validators.required]);
-
-        this.frmContact.controls['contribution_date'].updateValueAndValidity();
-      } else {
-        if (this.frmContact.controls['contribution_date']) {
-          this.frmContact.controls['contribution_date'].setValidators([
-            contributionDate(cvgStartDate, cvgEndDate),
-            Validators.required
-          ]);
-
-          this.frmContact.controls['contribution_date'].updateValueAndValidity();
-        }
-      }
-    }
-
-    if (this.frmContact) {
-      if (this.frmContact.controls['contribution_amount']) {
-        this.frmContact.controls['contribution_amount'].setValidators([floatingPoint(), Validators.required]);
-
-        this.frmContact.controls['contribution_amount'].updateValueAndValidity();
-      }
-
-      if (this.frmContact.controls['contribution_aggregate']) {
-        this.frmContact.controls['contribution_aggregate'].setValidators([floatingPoint()]);
-
-        this.frmContact.controls['contribution_aggregate'].updateValueAndValidity();
-      }
-    }
-  }
-
-  /**
-   * Updates the contribution aggregate field once contribution ammount is entered.
-   *
-   * @param      {Object}  e       The event object.
-   */
-  public contributionAmountChange(e: any): void {
-    let contributionAmount: string = e.target.value;
-    // default to 0 when no value
-    contributionAmount = contributionAmount ? contributionAmount : '0';
-    // remove commas
-    contributionAmount = contributionAmount.replace(/,/g, ``);
-    // determine if negative, truncate if > max
-    contributionAmount = this.transformAmount(contributionAmount, this._contributionAmountMax);
-
-    this._contributionAmount = contributionAmount;
-    // this._contributionAmount = this.formatAmountForAPI(e.target.value)
-
-    const contributionAggregate: string = String(this._contributionAggregateValue);
-
-    const contributionAmountNum = parseFloat(contributionAmount);
-    const aggregateTotal: number = contributionAmountNum + parseFloat(contributionAggregate);
-    const aggregateValue: string = this._decimalPipe.transform(aggregateTotal, '.2-2');
-    const amountValue: string = this._decimalPipe.transform(contributionAmountNum, '.2-2');
-
-    this.frmContact.patchValue({ contribution_amount: amountValue }, { onlySelf: true });
-    this.frmContact.patchValue({ contribution_aggregate: aggregateValue }, { onlySelf: true });
-  }
-
-  /**
+  
+   /**
    * Prevent user from keying in more than the max allowed by the API.
    * HTML max must allow for commas, decimals and negative sign and therefore
    * this is needed to enforce digit limitation.  This method will remove
@@ -330,13 +278,14 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
   }
 
   private formatAmountForAPI(contributionAmount): string {
-    // default to 0 when no value
+   /*  // default to 0 when no value
     contributionAmount = contributionAmount ? contributionAmount : '0';
     // remove commas
     contributionAmount = contributionAmount.replace(/,/g, ``);
     // determine if negative, truncate if > max
     contributionAmount = this.transformAmount(contributionAmount, this._contributionAmountMax);
-    return contributionAmount;
+    return contributionAmount; */
+    return "";
   }
 
   /**
@@ -367,7 +316,7 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
    * Gets the transaction type.
    */
   private _getTransactionType(): void {
-    const transactionType: any = JSON.parse(localStorage.getItem(`form_${this._formType}_transaction_type`));
+   /*  const transactionType: any = JSON.parse(localStorage.getItem(`form_${this._formType}_transaction_type`));
 
     if (typeof transactionType === 'object') {
       if (transactionType !== null) {
@@ -383,11 +332,11 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
         // reload dynamic form fields
         this.getFormFields();
       }
-    }
+    } */
   }
 
   public handleFormFieldKeyup($event: any, col: any) {
-  /*  if (!col) {
+    /*if (!col) {
       return;
     }
     if (!col.name) {
@@ -408,6 +357,7 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
       if (this._selectedEntity) {
         this.frmContact.patchValue({ [col.name]: this._selectedEntity[col.name] }, { onlySelf: true });
         //this.showWarn(col.text);
+        this.showWarn(col.text, col.name);
       }
     } else {
       return null;
@@ -419,13 +369,13 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
    *
    * @param fieldLabel Field Label to show in the message
    */
-  private showWarn(fieldLabel: string) {
+  /*private showWarn(fieldLabel: string) {
     const message =
       `Changes to ${fieldLabel} can't be edited when a Contributor is` +
       ` selected from the dropdwon.  Go to the Contacts page to edit a Contributor.`;
 
     this._dialogService.confirm(message, ConfirmModalComponent, 'Caution!', false).then(res => {});
-  }
+  }*/
 
   /**
    * Updates vaprivate _memoCode variable.
@@ -467,7 +417,9 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
    *
    * @param stateOption the state selected in the dropdown.
    */
-  public handleStateChange(stateOption: any, col: any) {
+  
+   /*public handleStateChange(stateOption: any, col: any) {
+    console.log("handleStateChange stateOption", stateOption);
     if (this._selectedEntity) {
       //this.showWarn(col.text);
       this.frmContact.patchValue({ state: this._selectedEntity.state }, { onlySelf: true });
@@ -479,14 +431,139 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
           stateCode = stateCode.trim();
           if (stateCode.length > 1) {
             stateCode = stateCode.substring(0, 2);
+            console.log(" handleStateChange stateCode", stateCode);
           }
         }
       }
+      
       this.frmContact.patchValue({ state: stateCode }, { onlySelf: true });
+    }
+  }*/
+
+
+  /*public handleStateChange(stateOption: any, col: any) {
+   
+    if (this._selectedEntity) {
+      // this.showWarn(col.text);
+      this.frmContact.patchValue({ state: this._selectedEntity.state }, { onlySelf: true });
+    } else {
+      this.frmContact.patchValue({ state: stateOption.code }, { onlySelf: true });
+    }
+  } commented on 10052019*/
+
+
+  public handleStateChange(stateOption: any, col: any) {
+      if (this._selectedEntity) {
+        this.showWarn(col.text, 'state');
+        this.frmContact.patchValue({ state: this._selectedEntity.state }, { onlySelf: true });
+      } else {
+        this.frmContact.patchValue({ state: stateOption.code }, { onlySelf: true });
+     }
+  }
+
+  private showWarn(fieldLabel: string, name: string) {
+    if (this._selectedChangeWarn[name] === name) {
+        return;
+    }
+
+    //const message = `Please note that if you update contact information it will be updated in the Contacts file.`;
+    //this._dialogService.confirm(message, ConfirmModalComponent, 'Warning!', false).then(res => {});
+
+    this._selectedChangeWarn[name] = name;
+  }
+
+  public handleCandOfficeChange(candOfficeOption: any, col: any) {
+
+    if (this._selectedEntity) {
+      //this.showWarn(col.text);
+      this.frmContact.patchValue({ candOffice: this._selectedEntity.candOffice}, { onlySelf: true });
+    } else {
+      let officeCode = null;
+      if (candOfficeOption.$ngOptionLabel) {
+        officeCode = candOfficeOption.$ngOptionLabel;
+        if (officeCode) {
+          officeCode = officeCode.trim();
+          if (officeCode.length > 1) {
+            officeCode = officeCode.substring(0, 1);
+          }
+        }
+      }
+      
+      this.frmContact.patchValue({ candOffice: officeCode }, { onlySelf: true });
+    }
+  }
+  
+  public handleOfficeStateChange(officeStateOption: any, col: any) {
+
+    if (this._selectedEntity) {
+      //this.showWarn(col.text);
+      this.frmContact.patchValue({ candOfficeState: this._selectedEntity.candOfficeState}, { onlySelf: true });
+    } else {
+      let officeStateCode = null;
+      if (officeStateOption.$ngOptionLabel) {
+        officeStateCode = officeStateOption.$ngOptionLabel;
+        if (officeStateCode) {
+          officeStateCode = officeStateCode.trim();
+          if (officeStateCode.length > 1) {
+            officeStateCode = officeStateCode.substring(0, 2);
+          }
+        }
+      }
+      
+      this.frmContact.patchValue({ candOfficeState: officeStateCode }, { onlySelf: true });
     }
   }
 
- 
+  /*public handleTypeChange(entityOption: any, col: any) {
+    console.log("handleTypeChange entityOption", entityOption);
+    if (this._selectedEntity) {
+      //this.showWarn(col.text);
+      this.frmContact.patchValue({ entityType: this._selectedEntity.entityType }, { onlySelf: true });
+    } else {
+      let entityCode = null;
+      if (entityOption.$ngOptionLabel) {
+        entityCode = entityOption.$ngOptionLabel;
+        if (entityCode) {
+          entityCode = entityCode.trim();
+          if (entityCode.length > 1) {
+            entityCode = entityCode.substring(0, 3 );
+            console.log(" handleTypeChange entityCode", entityCode);
+            this.frmContact.patchValue({ entityType: entityCode }, { onlySelf: true });
+            this._entityType = entityCode;
+            this.loadDynamiceFormFields();
+          }
+        }
+      }
+     
+    }
+  }*/
+
+  public handleTypeChange(entityOption: any, col: any) {
+    console.log(" handleTypeChange entityOption", entityOption);
+    this._entityType = entityOption.code;
+    if (this._selectedEntity) {
+      // this.showWarn(col.text);
+      this.frmContact.patchValue({ entity_type: this._selectedEntity.entity_type }, { onlySelf: true });
+    } else {
+      this.loadDynamiceFormFields();
+      this.frmContact.patchValue({ entity_type: entityOption.code }, { onlySelf: true });
+    }
+  }
+
+  public handleEntityTypeChange(item: any, col: any, entityType: any) {
+    // Set the selectedEntityType for the toggle method to check.
+    for (const entityTypeObj of this.entityTypes) {
+      if (entityTypeObj.entityType === item.entityType) {
+        entityTypeObj.selected = true;
+        //this.selectedEntityType = entityTypeObj;
+        this._entityType = entityTypeObj;
+      } else {
+        entityTypeObj.selected = false;
+      }
+    }
+  }
+
+
   /**
    * Goes to the previous step.
    */
@@ -498,12 +575,10 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     });
   }
 
-  
   /**
    * @deprecated
    */
   public receiveTypeaheadData(contact: any, fieldName: string): void {
-    console.log('entity selected by typeahead is ' + contact);
 
     if (fieldName === 'first_name') {
       this.frmContact.patchValue({ last_name: contact.last_name }, { onlySelf: true });
@@ -522,24 +597,118 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     this.frmContact.patchValue({ street_2: contact.street_2 }, { onlySelf: true });
     this.frmContact.patchValue({ city: contact.city }, { onlySelf: true });
     this.frmContact.patchValue({ state: contact.state }, { onlySelf: true });
+    this.frmContact.patchValue({ entity_type: contact.entity_type }, { onlySelf: true });
     this.frmContact.patchValue({ zip_code: contact.zip_code }, { onlySelf: true });
     this.frmContact.patchValue({ occupation: contact.occupation }, { onlySelf: true });
     this.frmContact.patchValue({ employer: contact.employer }, { onlySelf: true });
-    
+
     this.frmContact.patchValue({ phoneNumber: contact.phoneNumber }, { onlySelf: true });
-    this.frmContact.patchValue({ officeSought: contact.officeSought}, { onlySelf: true });
-    this.frmContact.patchValue({ officeState: contact.officeState }, { onlySelf: true });
-    this.frmContact.patchValue({ district: contact.district }, { onlySelf: true });
-    
+    this.frmContact.patchValue({ candOffice: contact.candOffice }, { onlySelf: true });
+    this.frmContact.patchValue({ candOfficeState: contact.candOfficeState }, { onlySelf: true });
+    this.frmContact.patchValue({ candOfficeDistrict: contact.candOfficeDistrict }, { onlySelf: true });
+
   }
 
-  /**
+/**
    * Format an entity to display in the type ahead.
    *
    * @param result formatted item in the typeahead list
    */
   public formatTypeaheadItem(result: any) {
-    return `${result.last_name}, ${result.first_name}, ${result.street_1}, ${result.street_2}`;
+    const lastName = result.last_name ? result.last_name.trim() : '';
+    const firstName = result.first_name ? result.first_name.trim() : '';
+    const street1 = result.street_1 ? result.street_1.trim() : '';
+    const street2 = result.street_2 ? result.street_2.trim() : '';
+
+    return `${lastName}, ${firstName}, ${street1}, ${street2}`;
+  }
+
+  /**
+   * Format an entity to display in the Org type ahead.
+   *
+   * @param result formatted item in the typeahead list
+   */
+  public formatTypeaheadOrgItem(result: any) {
+    const street1 = result.street_1 ? result.street_1.trim() : '';
+    const street2 = result.street_2 ? result.street_2.trim() : '';
+    const name = result.entity_name ? result.entity_name.trim() : '';
+
+    return `${name}, ${street1}, ${street2}`;
+  }
+
+  /**
+   * Format an entity to display in the Committee ID type ahead.
+   *
+   * @param result formatted item in the typeahead list
+   */
+  public formatTypeaheadCommitteeId(result: any) {
+    const street1 = result.street_1 ? result.street_1.trim() : '';
+    const street2 = result.street_2 ? result.street_2.trim() : '';
+    const name = result.cmte_id ? result.cmte_id.trim() : '';
+
+    return `${name}, ${street1}, ${street2}`;
+  }
+
+  /**
+   * Format an entity to display in the Candidate ID type ahead.
+   *
+   * @param result formatted item in the typeahead list
+   */
+  public formatTypeaheadCandidateId(result: any) {
+    const candidateId = result.beneficiary_cand_id ? result.beneficiary_cand_id.trim() : '';
+    const lastName = result.cand_last_name ? result.cand_last_name.trim() : '';
+    const firstName = result.cand_first_name ? result.cand_first_name.trim() : '';
+    let office = result.cand_office ? result.cand_office.toUpperCase().trim() : '';
+    if (office) {
+      if (office === 'P') {
+        office = 'Presidential';
+      } else if (office === 'S') {
+        office = 'Senate';
+      } else if (office === 'H') {
+        office = 'House';
+      }
+    }
+    const officeState = result.cand_office_state ? result.cand_office_state.trim() : '';
+    const officeDistrict = result.cand_office_district ? result.cand_office_district.trim() : '';
+
+    return `${candidateId}, ${lastName}, ${firstName}, ${office}, ${officeState}, ${officeDistrict}`;
+  }
+
+  /**
+   * Format an entity to display in the Committee Name type ahead.
+   *
+   * @param result formatted item in the typeahead list
+   */
+  public formatTypeaheadCommitteeName(result: any) {
+    const street1 = result.street_1 ? result.street_1.trim() : '';
+    const street2 = result.street_2 ? result.street_2.trim() : '';
+    const name = result.cmte_id ? result.cmte_name.trim() : '';
+
+    return `${name}, ${street1}, ${street2}`;
+  }
+
+  /**
+   * Format an entity to display in the Candidate type ahead field.
+   *
+   * @param result formatted item in the typeahead list
+   */
+  public formatTypeaheadCandidate(result: any) {
+    const lastName = result.cand_last_name ? result.cand_last_name.trim() : '';
+    const firstName = result.cand_first_name ? result.cand_first_name.trim() : '';
+    let office = result.cand_office ? result.cand_office.toUpperCase().trim() : '';
+    if (office) {
+      if (office === 'P') {
+        office = 'Presidential';
+      } else if (office === 'S') {
+        office = 'Senate';
+      } else if (office === 'H') {
+        office = 'House';
+      }
+    }
+    const officeState = result.cand_office_state ? result.cand_office_state.trim() : '';
+    const officeDistrict = result.cand_office_district ? result.cand_office_district.trim() : '';
+
+    return `${lastName}, ${firstName}, ${office}, ${officeState}, ${officeDistrict}`;
   }
 
   /**
@@ -547,9 +716,24 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
    *
    * @param $event The mouse event having selected the contact from the typeahead options.
    */
+  public handleSelectedOrgItem($event: NgbTypeaheadSelectItemEvent) {
+    const contact = $event.item;
+    this._selectedEntity = this._utilService.deepClone(contact);
+    //this.frmContact.patchValue({ type: contact.type }, { onlySelf: true });
+    this.frmContact.patchValue({ last_name: contact.entity_name }, { onlySelf: true });
+    this.frmContact.patchValue({ street_1: contact.street_1 }, { onlySelf: true });
+    this.frmContact.patchValue({ street_2: contact.street_2 }, { onlySelf: true });
+    this.frmContact.patchValue({ city: contact.city }, { onlySelf: true });
+    this.frmContact.patchValue({ state: contact.state }, { onlySelf: true });
+    this.frmContact.patchValue({ zip_code: contact.zip_code }, { onlySelf: true });
+    this.frmContact.patchValue({ entity_type: contact.entity_type }, { onlySelf: true });
+    this.frmContact.patchValue({ phoneNumber: contact.phoneNumber }, { onlySelf: true });
+  }
+
   public handleSelectedItem($event: NgbTypeaheadSelectItemEvent) {
     const contact = $event.item;
     this._selectedEntity = this._utilService.deepClone(contact);
+    //this.frmContact.patchValue({ type: contact.type }, { onlySelf: true });
     this.frmContact.patchValue({ last_name: contact.last_name }, { onlySelf: true });
     this.frmContact.patchValue({ first_name: contact.first_name }, { onlySelf: true });
     this.frmContact.patchValue({ middle_name: contact.middle_name }, { onlySelf: true });
@@ -560,13 +744,15 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     this.frmContact.patchValue({ city: contact.city }, { onlySelf: true });
     this.frmContact.patchValue({ state: contact.state }, { onlySelf: true });
     this.frmContact.patchValue({ zip_code: contact.zip_code }, { onlySelf: true });
+    this.frmContact.patchValue({ entity_type: contact.entity_type }, { onlySelf: true });
     this.frmContact.patchValue({ occupation: contact.occupation }, { onlySelf: true });
     this.frmContact.patchValue({ employer: contact.employer }, { onlySelf: true });
 
-    this.frmContact.patchValue({ phoneNumber: contact.phoneNumber }, { onlySelf: true });
-    this.frmContact.patchValue({ officeSought: contact.officeSought}, { onlySelf: true });
-    this.frmContact.patchValue({ officeState: contact.officeState }, { onlySelf: true });
-    this.frmContact.patchValue({ district: contact.district }, { onlySelf: true });
+    //this.frmContact.patchValue({ phoneNumber: contact.phoneNumber }, { onlySelf: true });
+    //this.frmContact.patchValue({ candOffice: contact.candOffice }, { onlySelf: true });
+    //this.frmContact.patchValue({ candOfficeState: contact.candOfficeState }, { onlySelf: true });
+    //this.frmContact.patchValue({ candOfficeDistrict: contact.candOfficeDistrict }, { onlySelf: true });
+
 
     let transactionTypeIdentifier = '';
     // Use this if transaction_tye_identifier is to come from dynamic form data
@@ -581,7 +767,8 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     transactionTypeIdentifier = 'INDV_REC';
 
     //const reportId = this.getReportIdFromStorage();
-   }
+  }
+
 
   /**
    * Search for entities/contacts when last name input value changes.
@@ -616,6 +803,115 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     );
 
   /**
+   * Search for Candidates when last name input value changes.
+   */
+  searchCandLastName = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        if (searchText) {
+          return this._typeaheadService.getContacts(searchText, 'cand_last_name');
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  /**
+   * Search for Candidate when first name input value changes.
+   */
+  searchCandFirstName = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        if (searchText) {
+          return this._typeaheadService.getContacts(searchText, 'cand_first_name');
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  /**
+   * Search for entities when organization/entity_name input value changes.
+   */
+  searchOrg = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        if (searchText) {
+          return this._typeaheadService.getContacts(searchText, 'entity_name');
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  /**
+   * Search for entities when organization/entity_name input value changes.
+   */
+  searchCommitteeName = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        if (searchText) {
+          return this._typeaheadService.getContacts(searchText, 'cmte_name');
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  /**
+   * Search for entities when organization/entity_name input value changes.
+   */
+  searchCommitteeId = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        const searchTextUpper = searchText.toUpperCase();
+
+        if (
+          searchTextUpper === 'C' ||
+          searchTextUpper === 'C0' ||
+          searchTextUpper === 'C00' ||
+          searchTextUpper === 'C000'
+        ) {
+          return Observable.of([]);
+        }
+
+        if (searchText) {
+          return this._typeaheadService.getContacts(searchText, 'cmte_id');
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  /**
+   * Search for entities when Candidate ID input value changes.
+   */
+  searchCandidateId = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        if (searchText.length < 3) {
+          return Observable.of([]);
+        } else {
+          const searchTextUpper = searchText.toUpperCase();
+          return this._typeaheadService.getContacts(searchTextUpper, 'cand_id');
+        }
+      })
+    )
+
+
+  /**
    * format the value to display in the input field once selected from the typeahead.
    *
    * For some reason this gets called for all typeahead fields despite the binding in the
@@ -646,133 +942,230 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
   };
 
   /**
-   * Obtain the Report ID from local storage.
+   * format the value to display in the input field once selected from the typeahead.
+   *
+   * For some reason this gets called for all typeahead fields despite the binding in the
+   * template to the last name field.  In these cases return x to retain the value in the
+   * input for the other typeahead fields.
    */
-  /*private getReportIdFromStorage() {
-    let reportId = '0';
-    let form3XReportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
-
-    if (form3XReportType === null || typeof form3XReportType === 'undefined') {
-      form3XReportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type_backup`));
+  formatterCandLastName = (x: { cand_last_name: string }) => {
+    if (typeof x !== 'string') {
+      return x.cand_last_name;
+    } else {
+      return x;
     }
+  };
 
-    console.log('viewTransactions form3XReportType', form3XReportType);
-
-    if (typeof form3XReportType === 'object' && form3XReportType !== null) {
-      if (form3XReportType.hasOwnProperty('reportId')) {
-        reportId = form3XReportType.reportId;
-      } else if (form3XReportType.hasOwnProperty('reportid')) {
-        reportId = form3XReportType.reportid;
-      }
+  /**
+   * format the value to display in the input field once selected from the typeahead.
+   *
+   * For some reason this gets called for all typeahead fields despite the binding in the
+   * template to the first name field.  In these cases return x to retain the value in the
+   * input for the other typeahead fields.
+   */
+  formatterCandFirstName = (x: { cand_first_name: string }) => {
+    if (typeof x !== 'string') {
+      return x.cand_first_name;
+    } else {
+      return x;
     }
-    return reportId;
-  }*/
+  };
 
-  // Use this if the fields populated by the type-ahead should be disabled.
-  // public isReadOnly(name: string, type: string) {
-  //   if (name === 'contribution_aggregate' && type === 'text') {
-  //     return true;
-  //   }
-  //   if (name === 'first_name' || name === 'last_name' || name === 'prefix') {
-  //     if (this._selectedEntityId) {
-  //       console.log('this._selectedEntityId = ' + this._selectedEntityId);
-  //       return true;
-  //     }
-  //   }
-  //   return null;
-  // }
+  /**
+   * format the value to display in the input field once selected from the typeahead.
+   *
+   * For some reason this gets called for all typeahead fields despite the binding in the
+   * template to the entity name field.  In these cases return x to retain the value in the
+   * input for the other typeahead fields.
+   */
+  formatterOrgName = (x: { entity_name: string }) => {
+    if (typeof x !== 'string') {
+      return x.entity_name;
+    } else {
+      return x;
+    }
+  };
+
+  /**
+   * format the value to display in the input field once selected from the typeahead.
+   *
+   * For some reason this gets called for all typeahead fields despite the binding in the
+   * template to the committee ID field.  In these cases return x to retain the value in the
+   * input for the other typeahead fields.
+   */
+  formatterCommitteeId = (x: { cmte_id: string }) => {
+    if (typeof x !== 'string') {
+      return x.cmte_id;
+    } else {
+      return x;
+    }
+  };
+
+  /**
+   * format the value to display in the input field once selected from the typeahead.
+   *
+   * For some reason this gets called for all typeahead fields despite the binding in the
+   * template to the Candidate ID field.  In these cases return x to retain the value in the
+   * input for the other typeahead fields.
+   */
+  formatterCandidateId = (x: { beneficiary_cand_id: string }) => {
+    if (typeof x !== 'string') {
+      return x.beneficiary_cand_id;
+    } else {
+      return x;
+    }
+  }
+
+  /**
+   * format the value to display in the input field once selected from the typeahead.
+   *
+   * For some reason this gets called for all typeahead fields despite the binding in the
+   * template to the committee name field.  In these cases return x to retain the value in the
+   * input for the other typeahead fields.
+   */
+  formatterCommitteeName = (x: { cmte_name: string }) => {
+    if (typeof x !== 'string') {
+      return x.cmte_name;
+    } else {
+      return x;
+    }
+  };
 
   private getFormFields(): void {
- 
-    console.log('get contact form fields ' + this.transactionType);
     this._contactsService.getContactsDynamicFormFields().subscribe(res => {
       if (res) {
-             console.log("getFormFields res =", res );
-            if (res.hasOwnProperty('data')) {
-              if (typeof res.data === 'object') {
-                /*if (res.data.hasOwnProperty('formFields')) {
+        console.log('getFormFields res =', res);
+        if (res.hasOwnProperty('data')) {
+          if (typeof res.data === 'object') {
+            /*if (res.data.hasOwnProperty('formFields')) {
                   if (Array.isArray(res.data.formFields)) {
                     this.formFields = res.data.formFields;
 
                     this._setForm(this.formFields);
                   }
                 }*/
-                if (res.data.hasOwnProperty('individualFormFields')) {
+            if (res.data.hasOwnProperty('individualFormFields')) {
+              if (Array.isArray(res.data.individualFormFields)) {
+                this.individualFormFields = res.data.individualFormFields;
+                this.formFields = res.data.individualFormFields;
+                this._setForm(res.data.individualFormFields);
+              }
+            }
+
+            if (res.data.hasOwnProperty('committeeFormFields')) {
+              if (Array.isArray(res.data.committeeFormFields)) {
+                this.committeeFormFields = res.data.committeeFormFields;
+                //this.formFields = res.data.committeeFormFields;
+                //this._setForm(res.data.committeeFormFields);
+              }
+            }
+
+            if (res.data.hasOwnProperty('organizationFormFields')) {
+              if (Array.isArray(res.data.organizationFormFields)) {
+                this.organizationFormFields = res.data.organizationFormFields;
+                //this.formFields = res.data.organizationFormFields;
+                //this._setForm(res.data.organizationFormFields);
+              }
+            }
+
+            if (res.data.hasOwnProperty('candidateFormFields')) {
+              if (Array.isArray(res.data.candidateFormFields)) {
+                this.candidateFormFields = res.data.candidateFormFields;
+                //this.formFields = res.data.candidateFormFields;
+                //this._setForm(res.data.candidateFormFields);
+              }
+            }
+
+            if (res.data.hasOwnProperty('hiddenFields')) {
+              if (Array.isArray(res.data.hiddenFields)) {
+                this.hiddenFields = res.data.hiddenFields;
+              }
+            }
+
+            if (res.data.hasOwnProperty('states')) {
+              if (Array.isArray(res.data.states)) {
+                this.states = res.data.states;
+              }
+            }
+
+            if (res.data.hasOwnProperty('prefixes')) {
+              if (Array.isArray(res.data.prefixes)) {
+                this.prefixes = res.data.prefixes;
+              }
+            }
+
+            if (res.data.hasOwnProperty('suffixes')) {
+              if (Array.isArray(res.data.suffixes)) {
+                this.suffixes = res.data.suffixes;
+              }
+            }
+
+            if (res.data.hasOwnProperty('addEntityTypes')) {
+              if (Array.isArray(res.data.addEntityTypes)) {
+                this.entityTypes = res.data.addEntityTypes;
+              }
+            }
+          
+            if(this.scheduleAction === ContactActions.edit) {
+          
+              if (res.data.hasOwnProperty('editEntityTypes')) {
+                if (Array.isArray(res.data.addEntityTypes)) {
+                  this.entityTypes = res.data.editEntityTypes;
+                }
+
+                if (res.data.hasOwnProperty('individualFormFields') && this.transactionToEdit.entity_type === 'IND') {
                   if (Array.isArray(res.data.individualFormFields)) {
                     this.individualFormFields = res.data.individualFormFields;
+                    this.formFields = res.data.individualFormFields;
+                    this._setForm(res.data.individualFormFields);
                   }
                 }
-      
-                if (res.data.hasOwnProperty('committeeFormFields')) {
+
+                if (res.data.hasOwnProperty('committeeFormFields') && this.transactionToEdit.entity_type === 'COM') {
                   if (Array.isArray(res.data.committeeFormFields)) {
                     this.committeeFormFields = res.data.committeeFormFields;
+                    this.formFields = res.data.committeeFormFields;
+                    this._setForm(res.data.committeeFormFields);
+                  }
                 }
-                }   
 
-                if (res.data.hasOwnProperty('organizationFormFields')) {
+                if (res.data.hasOwnProperty('organizationFormFields') && this.transactionToEdit.entity_type === 'ORG') {
                   if (Array.isArray(res.data.organizationFormFields)) {
                     this.organizationFormFields = res.data.organizationFormFields;
+                    this.formFields = res.data.organizationFormFields;
+                    this._setForm(res.data.organizationFormFields);
                   }
-                }   
+                }
 
-                if (res.data.hasOwnProperty('candidateFormFields')) {
+                if (res.data.hasOwnProperty('candidateFormFields') && this.transactionToEdit.entity_type === 'CAN') {
                   if (Array.isArray(res.data.candidateFormFields)) {
                     this.candidateFormFields = res.data.candidateFormFields;
-                  }
-                }  
-
-                if (res.data.hasOwnProperty('hiddenFields')) {
-                  if (Array.isArray(res.data.hiddenFields)) {
-                    this.hiddenFields = res.data.hiddenFields;
+                    this.formFields = res.data.candidateFormFields;
+                    this._setForm(res.data.candidateFormFields);
                   }
                 }
+              }
+            }
 
-                if (res.data.hasOwnProperty('states')) {
-                  if (Array.isArray(res.data.states)) {
-                    this.states = res.data.states;
-                  }
-                }
+            if (res.data.hasOwnProperty('officeSought')) {
+              if (Array.isArray(res.data.officeSought)) {
+                this.officeSought = res.data.officeSought;
+              }
+            }
 
-                
-                  if (res.data.hasOwnProperty('prefixes')) {
-                  if (Array.isArray(res.data.prefixes)) {
-                    this.prefixes = res.data.prefixes;
-                  }
-                } 
+            if (res.data.hasOwnProperty('officeState')) {
+              if (Array.isArray(res.data.officeState)) {
+                this.officeState = res.data.officeState;
+              }
+            }
 
-                if (res.data.hasOwnProperty('suffixes')) {
-                  if (Array.isArray(res.data.suffixes)) {
-                    this.suffixes = res.data.suffixes;
-                  }
-                }   
+            if (res.data.hasOwnProperty('titles')) {
+              if (Array.isArray(res.data.titles)) {
+                this.titles = res.data.titles;
+              }
+            }
 
-                if (res.data.hasOwnProperty('entityTypes')) {
-                  if (Array.isArray(res.data.entityTypes)) {
-                    this.entityTypes = res.data.entityTypes;
-                  }
-                }   
-               
-                if (res.data.hasOwnProperty('officeSought')) {
-                  if (Array.isArray(res.data.officeSought)) {
-                    this.officeSought = res.data.officeSought;
-                  }
-                }   
-
-                if (res.data.hasOwnProperty('officeState')) {
-                  if (Array.isArray(res.data.officeState)) {
-                    this.officeState = res.data.officeState;
-                  }
-                }   
-
-                if (res.data.hasOwnProperty('titles')) {
-                  if (Array.isArray(res.data.titles)) {
-                    this.titles = res.data.titles;
-                  }
-                }
-
-                this._loading = false;
-                console.log(new Date().toISOString());
-      
+            this._loading = false;
           } // typeof res.data
         } // res.hasOwnProperty('data')
       } // res
@@ -783,12 +1176,12 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     // The action here is the same as the this.scheduleAction
     // using the field from the message in case there is a race condition with Input().
     if (editOrView !== null) {
-      if (editOrView.transactionModel) {
-        const formData: ContactModel = editOrView.transactionModel;
+      if (editOrView) { //.transactionModel) {
+        const formData: ContactModel = editOrView; //.transactionModel;
 
         this.hiddenFields.forEach(el => {
           if (el.name === 'id') {
-            el.value = formData.id
+            el.value = formData.id;
           }
         });
 
@@ -799,13 +1192,14 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
         const prefix = nameArray[3] ? nameArray[3] : null;
         const suffix = nameArray[4] ? nameArray[4] : null;
 
-        this.frmContact.patchValue({ first_name: firstName.trim() }, { onlySelf: true });
-        this.frmContact.patchValue({ last_name: lastName.trim() }, { onlySelf: true });
-        this.frmContact.patchValue({ middle_name: middleName.trim() }, { onlySelf: true });
-        this.frmContact.patchValue({ prefix: prefix.trim() }, { onlySelf: true });
-        this.frmContact.patchValue({ suffix: suffix.trim() }, { onlySelf: true });
-       
-        this.frmContact.patchValue({ street_1: formData.street }, { onlySelf: true });
+        this.frmContact.patchValue({ first_name: firstName }, { onlySelf: true });
+        this.frmContact.patchValue({ last_name: lastName }, { onlySelf: true });
+        this.frmContact.patchValue({ middle_name: middleName }, { onlySelf: true });
+        this.frmContact.patchValue({ prefix: prefix }, { onlySelf: true });
+        this.frmContact.patchValue({ suffix: suffix }, { onlySelf: true });
+
+        this.frmContact.patchValue({ entity_type: formData.entity_type }, { onlySelf: true });
+        this.frmContact.patchValue({ street_1: formData.street1 }, { onlySelf: true });
         this.frmContact.patchValue({ street_2: formData.street2 }, { onlySelf: true });
         this.frmContact.patchValue({ city: formData.city }, { onlySelf: true });
         this.frmContact.patchValue({ state: formData.state }, { onlySelf: true });
@@ -814,46 +1208,62 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
         this.frmContact.patchValue({ employer: formData.employer }, { onlySelf: true });
         this.frmContact.patchValue({ occupation: formData.occupation }, { onlySelf: true });
 
-        this.frmContact.patchValue({ phoneNumber: formData.phoneNumber }, { onlySelf: true });
-        this.frmContact.patchValue({ officeSought: formData.officeSought}, { onlySelf: true });
-        this.frmContact.patchValue({ officeState: formData.officeState }, { onlySelf: true });
-        this.frmContact.patchValue({ district: formData.district }, { onlySelf: true });
+        this.frmContact.patchValue({ phone_number: formData.phoneNumber }, { onlySelf: true });
+        this.frmContact.patchValue({ candOffice: formData.candOffice }, { onlySelf: true });
+        this.frmContact.patchValue({ candOfficeState: formData.candOfficeState }, { onlySelf: true });
+        this.frmContact.patchValue({ candOfficeDistrict: formData.candOfficeDistrict }, { onlySelf: true });
+      
+        this.frmContact.patchValue({ entity_name: formData.name }, { onlySelf: true });
+        
+        this.frmContact.patchValue({ candCmteId: formData.candCmteId }, { onlySelf: true });
+        this.frmContact.patchValue({ officeSought: formData.officeSought }, { onlySelf: true });
+        this.frmContact.patchValue({ candOfficeState: formData.candOfficeState }, { onlySelf: true });
+        this.frmContact.patchValue({ candOfficeDistrict: formData.candOfficeDistrict }, { onlySelf: true });
       }
     }
   }
 
-  public selectTypeChange(e): void {
-     this._entityType= e.target.value;
-     this.loadDynamiceFormFields();
-     console.log("selectTypeChange this._entityType = ", this._entityType);
-  }
+  /*public selectTypeChange(e): void {
+    this._entityType = e.target.value;
+    this.loadDynamiceFormFields();
+    console.log('selectTypeChange this._entityType = ', this._entityType);
+  }*/
 
   public loadDynamiceFormFields(): void {
-    if  (this._entityType === 'IND'){
-      this.formFields  =  this.individualFormFields;
-      this._setForm(this.formFields);
-      } else if  (this._entityType === 'ORG'){
-        this.formFields  =  this.organizationFormFields;
-        this._setForm(this.formFields);
-      } else if  (this._entityType === 'COM'){
-        this.formFields  =  this.committeeFormFields;
-        this._setForm(this.formFields);
-      } else if  (this._entityType === 'CAN'){
-        this.formFields  =  this.candidateFormFields;
-        this._setForm(this.formFields);
-      } 
+    if (this._entityType === 'IND') {
+      this.formFields = this.individualFormFields;
+    } else if (this._entityType === 'ORG') {
+      this.formFields = this.organizationFormFields;
+    } else if (this._entityType === 'COM') {
+      this.formFields = this.committeeFormFields;
+    } else if (this._entityType === 'CAN') {
+      this.formFields = this.candidateFormFields;
+    }
+    this._setForm(this.formFields);
   }
 
   public cancelStep(): void {
-    this.frmContact.reset();
+    if(this.scheduleAction !== this.editScheduleAction) {
+      this.frmContact.reset();
+      this._router.navigate([`/contacts`]);
+    }else {
+      this.status.emit({
+        editView: false
+      })
+    }
+  }
+  
+  public viewContacts(): void {
+    
+    if (this.frmContact.dirty || this.frmContact.touched){
+      localStorage.setItem('contactsaved', JSON.stringify({ saved: false }));
+    }
     this._router.navigate([`/contacts`]);
   }
-  public saveAndExit(): void {
-    this.doValidateContact("saveAndExit");
-  }
+
   public saveAndAddMore(): void {
-    this.doValidateContact("saveAndAddMore");
-     //this._router.navigate([`/contacts`]);
+    this.doValidateContact('saveAndAddMore');
+    //this._router.navigate([`/contacts`]);
   }
 
   public isFieldName(fieldName: string, nameString: string): boolean {
@@ -864,18 +1274,17 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
    * Vaidates the form on submit.
    */
   public doValidateContact(callFrom: string) {
-
     if (this.frmContact.valid) {
-
       const contactObj: any = {};
 
       for (const field in this.frmContact.controls) {
-         if (field === 'last_name' ||
-                   field === 'first_name' ||
-                   this.isFieldName(field, 'cmte_id') ||
-                   this.isFieldName(field, 'cmte_name') ||
-                   this.isFieldName(field, 'entity_name')
-                   ) {
+        if (
+          field === 'last_name' ||
+          field === 'first_name' ||
+          this.isFieldName(field, 'cmte_id') ||
+          this.isFieldName(field, 'cmte_name') ||
+          this.isFieldName(field, 'entity_name')
+        ) {
           // if (this._selectedEntity) {
           // If the typeahead was used to load the entity into the form,
           // we don't allow users to make changes to the entity. Non-Typeahead
@@ -898,7 +1307,7 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
             contactObj[field] = typeAheadField;
           }
           // }
-         } else {
+        } else {
           contactObj[field] = this.frmContact.get(field).value;
         }
       }
@@ -918,43 +1327,71 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
         contactObj[el.name] = el.value;
       });
 
-
       // If entity ID exist, the transaction will be added to the existing entity by the API
       // Otherwise it will create a new Entity.
       if (this._selectedEntity) {
         contactObj.entity_id = this._selectedEntity.entity_id;
       }
-      contactObj.entity_type= this._entityType;
+      contactObj.entity_type = this._entityType;
+
+      if(this.scheduleAction === ContactActions.edit) {
+        contactObj.id = this.transactionToEdit.id;
+      }
 
       localStorage.setItem('contactObj', JSON.stringify(contactObj));
-      console.log("callFrom before saving=", callFrom);
       this._contactsService.saveContact(this.scheduleAction).subscribe(res => {
         if (res) {
-          console.log("_contactsService.saveContact res", res);
+          console.log('_contactsService.saveContact res', res);
           this._contactToEdit = null;
-          this._formSubmitted = true;
           this.frmContact.reset();
-          
-          //this.frmContact.controls['memo_code'].setValue(null);
           this._selectedEntity = null;
-          this._selectedChangeWarn = null;
-          this._selectedEntityChild = null;
-          this._selectedChangeWarnChild = null;
-
           localStorage.removeItem(contactObj);
-          if (callFrom ==='saveAndExit'){
+          if (callFrom === 'viewContacts') {
             this._router.navigate([`/contacts`]);
           }
-          //localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify({ saved: true }));
+          localStorage.setItem('contactsaved', JSON.stringify({ saved: true }));
           //window.scrollTo(0, 0);
+
+          if(this.scheduleAction === ContactActions.edit) {
+            this.status.emit({
+              editView: false
+            })
+          }
         }
       });
     } else {
       this.frmContact.markAsDirty();
       this.frmContact.markAsTouched();
-      //localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify({ saved: false }));
+      localStorage.setItem('contactsaved', JSON.stringify({ saved: false }));
       window.scrollTo(0, 0);
     }
   }
 
+  /**
+   * Determines ability for a person to leave a page with a form on it.
+   *
+   * @return     {boolean}  True if able to deactivate, False otherwise.
+   */
+  /*public async canDeactivate(): Promise<boolean> {
+    if (this._formsService.HasUnsavedData('contact')) {
+      let result: boolean = null;
+      result = await this._dialogService
+        .confirm('', ConfirmModalComponent)
+        .then(res => {
+          let val: boolean = null;
+
+          if(res === 'okay') {
+            val = true;
+          } else if(res === 'cancel') {
+            val = false;
+          }
+
+          return val;
+        });
+
+      return result;
+    } else {
+      return true;
+  }
+ }*/
 }

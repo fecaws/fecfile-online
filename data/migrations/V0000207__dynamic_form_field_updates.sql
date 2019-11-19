@@ -1,0 +1,1 @@
+UPDATE public.dynamic_form_fields SET width='154px' WHERE transaction_type= 'ALLOC_EXP_DEBT' AND field_db_name = 'expenditure_date';
