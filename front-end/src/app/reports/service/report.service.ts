@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import 'rxjs/add/observable/of';
 import { CookieService } from 'ngx-cookie-service';
 import { environment } from 'src/environments/environment';
-//import { TransactionModel } from '../model/report.model';
+//import { ReportModel } from '../model/report.model';
 import { reportModel } from '../model/report.model';
 import { OrderByPipe } from 'src/app/shared/pipes/order-by/order-by.pipe';
 import { FilterPipe, FilterTypeEnum } from 'src/app/shared/pipes/filter/filter.pipe';
@@ -12,6 +12,7 @@ import { ReportFilterModel } from '../model/report-filter.model';
 import { DatePipe } from '@angular/common';
 import { ZipCodePipe } from 'src/app/shared/pipes/zip-code/zip-code.pipe';
 import { ActiveView } from '../reportheader/reportheader.component';
+import { map } from 'rxjs/operators';
 
 export interface GetReportsResponse {
   reports: reportModel[];
@@ -28,11 +29,11 @@ export class ReportsService {
   /** The array of items to show in the recycle bin. TODO rename it */
   private mockRestoreTrxArray = [];
   /** The array of items trashed from the transaction table to be added to the recyle bin */
-  //private mockTrashedTrxArray: Array<TransactionModel> = [];
-  /** The array of items restored from the recycle bin to be readded to the transactions table. TODO rename */
+  //private mockTrashedTrxArray: Array<ReportModel> = [];
+  /** The array of items restored from the recycle bin to be readded to the reports table. TODO rename */
   private mockRecycleBinArray = [];
-  private mockTransactionId = 'TID12345';
-  private mockTransactionIdRecycle = 'TIDRECY';
+  private mockReportId = 'TID12345';
+  private mockReportIdRecycle = 'TIDRECY';
 
   // only for mock data - end
   // only for mock data - end
@@ -134,7 +135,32 @@ export class ReportsService {
     params = params.append('view', view);
     params = params.append('reportId', reportId.toString());
 
-    console.log('${environment.apiUrl}${url}', `${environment.apiUrl}${url}`);
+    return this._http.get(`${environment.apiUrl}${url}`, {
+      headers: httpOptions,
+      params
+    });
+  }
+
+  public getTrashedReports(
+    view: string,
+    page: number,
+    itemsPerPage: number,
+    sortColumnName: string,
+    descending: boolean,
+    filter: ReportFilterModel,
+    reportId: number
+  ): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions = new HttpHeaders();
+    let params = new HttpParams();
+
+    const url = '/core/get_all_trashed_reports';
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    params = params.append('view', view);
+    params = params.append('reportId', reportId.toString());
 
     return this._http.get(`${environment.apiUrl}${url}`, {
       headers: httpOptions,
@@ -164,6 +190,12 @@ export class ReportsService {
       model.last_update_date = row.last_update_date;
       model.report_type_desc = row.report_type_desc;
       model.filed_date = row.filed_date;
+      model.deleteddate = row.deleteddate;
+      model.delete_ind = row.delete_ind;
+      model.amend_number = row.amend_number;
+      model.previous_report_id = row.previous_report_id;
+      model.amend_show = true;
+      model.amend_max = row.amend_max;
       modelArray.push(model);
     }
 
@@ -190,14 +222,14 @@ export class ReportsService {
    * @param response the server data
    */
   public mockAddUIFileds(response: any) {
-    for (const trx of response.transactions) {
-      trx.transaction_date_ui = this._datePipe.transform(trx.transaction_date, 'MM/dd/yyyy');
-      trx.deleted_date_ui = this._datePipe.transform(trx.deleted_date, 'MM/dd/yyyy');
+    for (const rep of response.reports) {
+      rep.transaction_date_ui = this._datePipe.transform(rep.transaction_date, 'MM/dd/yyyy');
+      rep.deleted_date_ui = this._datePipe.transform(rep.deleted_date, 'MM/dd/yyyy');
     }
   }
 
   /**
-   * This method handles filtering the transactions array and will be replaced
+   * This method handles filtering the reports array and will be replaced
    * by a backend API.
    */
   public mockApplyFilters(response: any, filters: ReportFilterModel) {
@@ -296,16 +328,15 @@ export class ReportsService {
     }
 
     if (filters.filterFiledDateFrom && filters.filterFiledDateTo) {
-      const filedFromDate = this.getDateMMDDYYYYformat(new Date(filters.filterFiledDateFrom));
-      const filedToDate = this.getDateMMDDYYYYformat(new Date(filters.filterFiledDateTo));
+      const filedFromDate = this._datePipe.transform(filters.filterFiledDateFrom, 'Mddyyyy');
+      const filedToDate = this._datePipe.transform(filters.filterFiledDateTo, 'Mddyyyy');
       const filteredFiledDateArray = [];
       for (const rep of response.reports) {
         if (rep.status === 'Filed') {
           if (rep.filed_date) {
-            let d = new Date(rep.filed_date);
-            d.setUTCHours(0, 0, 0, 0);
-            const repDate = this.getDateMMDDYYYYformat(d);
-
+            //this fix is done till services send data in EST format
+            let d = this.convertUtcToLocalDate(rep.filed_date);
+            let repDate = this._datePipe.transform(d, 'Mddyyyy');
             if (repDate >= filedFromDate && repDate <= filedToDate) {
               isFilter = true;
             } else {
@@ -315,9 +346,9 @@ export class ReportsService {
         } else if (rep.status === 'Saved') {
           if (rep.last_update_date) {
             //const repDate =  this.getDateMMDDYYYYformat(new Date(rep.last_update_date));
-            let d = new Date(rep.last_update_date);
-            d.setUTCHours(0, 0, 0, 0);
-            const repDate = this.getDateMMDDYYYYformat(d);
+            //this fix is done till services send data in EST format
+            let d = this.convertUtcToLocalDate(rep.last_update_date);
+            let repDate = this._datePipe.transform(d, 'Mddyyyy');
             if (repDate >= filedFromDate && repDate <= filedToDate) {
               isFilter = true;
             } else {
@@ -333,7 +364,46 @@ export class ReportsService {
 
       response.reports = filteredFiledDateArray;
     }
+
+    if (filters.filterDeletedDateFrom && filters.filterDeletedDateTo) {
+      const deletedFromDate = new Date(filters.filterDeletedDateFrom);
+      const deletedToDate = new Date(filters.filterDeletedDateTo);
+      const filteredDeletedDateArray = [];
+
+      for (const rep of response.reports) {
+        if (rep.deleteddate) {
+          let d = new Date(rep.deleteddate);
+          d.setUTCHours(0, 0, 0, 0);
+          //const repDate = this.getDateMMDDYYYYformat(d);
+          const repDate = d;
+
+          if (repDate >= deletedFromDate && repDate <= deletedToDate) {
+            isFilter = true;
+          } else {
+            isFilter = false;
+          }
+        }
+
+        if (isFilter) {
+          filteredDeletedDateArray.push(rep);
+        }
+      }
+      response.reports = filteredDeletedDateArray;
+    }
   }
+  convertUtcToLocalDate(val: Date): Date {
+    var d = new Date(val); // val is in UTC
+    var usaTime = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    var dateNy = new Date(usaTime);
+
+    var newOffset = dateNy.getTimezoneOffset();
+    var localOffset = (d.getTimezoneOffset() - newOffset) * 60000;
+    var localTime = d.getTime() - localOffset;
+
+    d.setTime(localTime);
+    return d;
+  }
+
   private getDateMMDDYYYYformat(dateValue: Date): string {
     var year = dateValue.getUTCFullYear() + '';
     var month = dateValue.getUTCMonth() + 1 + '';
@@ -347,9 +417,6 @@ export class ReportsService {
     let params = new HttpParams();
     let url: string = '';
 
-    console.log('form_type =', form_type);
-    console.log('report_id =', report_id);
-
     if (form_type === 'F99') {
       url = '/f99/get_f99_report_info';
     } else if (form_type === 'F3X') {
@@ -361,8 +428,6 @@ export class ReportsService {
 
     //params = params.append('committeeid', committee_id);
     params = params.append('reportid', report_id);
-    console.log('params =', params);
-    console.log('${environment.apiUrl}${url} =', `${environment.apiUrl}${url}`);
 
     if (form_type === 'F99') {
       return this._http.get(`${environment.apiUrl}${url}`, {
@@ -395,5 +460,109 @@ export class ReportsService {
           return res;
         });
     }
+  }
+  public trashOrRestoreReports(action: string, reports: Array<reportModel>) {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions = new HttpHeaders();
+    const url = '/core/trash_restore_report';
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    const request: any = {};
+    const actions = [];
+    for (const rpt of reports) {
+      actions.push({
+        action: action,
+        id: rpt.report_id
+      });
+    }
+    request.actions = actions;
+
+    return this._http
+      .put(`${environment.apiUrl}${url}`, request, {
+        headers: httpOptions
+      })
+      .map(res => {
+        if (res) {
+          console.log('Report Trash Restore response: ', res);
+          return res;
+        }
+        return false;
+      });
+  }
+  public deleteRecycleBinReport(reports: Array<reportModel>): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions = new HttpHeaders();
+    const url = '/core/delete_trashed_reports';
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    const request: any = {};
+    const actions = [];
+    for (const rep of reports) {
+      actions.push({
+        id: rep.report_id
+      });
+    }
+    request.actions = actions;
+
+    return this._http
+      .post(`${environment.apiUrl}${url}`, request, {
+        headers: httpOptions
+      })
+      .map(res => {
+        return false;
+      });
+  }
+
+  public amendReport(report: reportModel): Observable<any> {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions = new HttpHeaders();
+    const url = '/core/create_amended_reports';
+    
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    const formData: FormData = new FormData();
+    formData.append('report_id', report.report_id);
+
+    return this._http
+      .post(`${environment.apiUrl}${url}`, formData, {
+        headers: httpOptions
+      })
+      .pipe(
+        map(res => {
+          if (res) {
+            console.log('amend res: ', res);
+            return res;
+          }
+          return false;
+        })
+      );
+  }
+
+  public updateReportDate(report: reportModel) {
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions = new HttpHeaders();
+    const url = '/core/new_report_update_date';
+
+    // httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    const formData: FormData = new FormData();
+    formData.append('report_id', report.report_id);
+
+    return this._http
+      .put(`${environment.apiUrl}${url}`, formData, {
+        headers: httpOptions
+      })
+      .map(res => {
+        if (res) {
+          // console.log('Ypdate Report Date response: ', res);
+          return res;
+        }
+        return false;
+      });
   }
 }

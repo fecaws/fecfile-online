@@ -1,11 +1,16 @@
 import { Component, EventEmitter, ElementRef, HostListener, OnInit, Output, ViewChild, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { form99 } from '../../../shared/interfaces/FormsService/FormsService';
 import { MessageService } from '../../../shared/services/MessageService/message.service';
 import { ValidateComponent } from '../../../shared/partials/validate/validate.component';
-
+import {
+  ConfirmModalComponent,
+  ModalHeaderClassEnum
+} from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
+import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
+import { ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 @Component({
   selector: 'f99-type',
   templateUrl: './type.component.html',
@@ -18,6 +23,8 @@ export class TypeComponent implements OnInit {
   @ViewChild('mswCollapse') mswCollapse;
 
   public frmType: FormGroup;
+  public editMode: boolean;
+  public reportId: number;
   public typeSelected: string = '';
   public isValidType: boolean = false;
   public typeFailed: boolean = false;
@@ -25,22 +32,42 @@ export class TypeComponent implements OnInit {
   public tooltipPosition: string = 'right';
   public tooltipLeft: string = 'auto';
 
+  private committee_details: any = {};
   private _form99Details: form99;
   private _newForm: boolean = false;
   private _previousUrl: string = null;
+  private _setRefresh: boolean = false;
 
   constructor(
     private _fb: FormBuilder,
     private _router: Router,
-    private _messageService: MessageService
+    private _messageService: MessageService,
+    private _activatedRoute: ActivatedRoute,
+    private _dialogService: DialogService
   ) {
     this._messageService.clearMessage();
+    _activatedRoute.queryParams.subscribe(p => {
+      if (p.refresh) {
+        this._setRefresh = true;
+        this.ngOnInit();
+      }
+      if (p.reportId) {
+        this.reportId = p.reportId;
+      }
+    });
   }
 
   ngOnInit(): void {
+    this._form99Details = null;
     this._form99Details = JSON.parse(localStorage.getItem('form_99_details'));
+    this.committee_details = JSON.parse(localStorage.getItem('committee_details'));
     console.log(" type this._form99Details =", this._form99Details)
     this.screenWidth = window.innerWidth;
+    this.editMode = this._activatedRoute.snapshot.queryParams.edit === 'false' ? false : true;
+
+    console.log(" Type this.editMode = ", this.editMode);
+    console.log(" Type this._form99Details = ", this._form99Details);
+
 
     if(this.screenWidth < 768) {
       this.tooltipPosition = 'bottom';
@@ -115,19 +142,72 @@ export class TypeComponent implements OnInit {
     }
   }
 
+  private _setF99Details(): void {
+    if(this.committee_details) {
+      if(this.committee_details.committeeid) {
+        this._form99Details = this.committee_details;
+
+        this._form99Details.reason = '';
+        this._form99Details.text = '';
+        this._form99Details.signee = `${this.committee_details.treasurerfirstname} ${this.committee_details.treasurerlastname}`;
+        this._form99Details.additional_email_1 = '-';
+        this._form99Details.additional_email_2 = '-';
+        this._form99Details.created_at = '';
+        this._form99Details.is_submitted = false;
+        this._form99Details.id = '';
+
+        let formSavedObj: any = {
+          'saved': false
+        };
+        localStorage.setItem(`form_99_details`, JSON.stringify(this._form99Details));
+        localStorage.setItem(`form_99_saved`, JSON.stringify(formSavedObj));
+      }
+    }
+  }
+
   /**
    * Updates the type selected.
    *
    * @param      {<type>}  val     The value
    */
   public updateTypeSelected(e): void {
-    if(e.target.checked) {
+    if (this.editMode) {
+      //if(e.target.checked) {
       this.typeSelected = e.target.value;
       this.typeFailed = false;
+      /*} else {
+        this.typeSelected = '';
+        this.typeFailed = true;
+      }*/
     } else {
-      this.typeSelected = '';
-      this.typeFailed = true;
+      this._dialogService
+        .newReport(
+          'This report has been filed with the FEC. If you want to change, you must file a new report.',
+          ConfirmModalComponent,
+          'Warning',
+          true, false, true
+          )
+        .then(res => {
+          if (res === 'cancel' ||
+          res === ModalDismissReasons.BACKDROP_CLICK ||
+          res === ModalDismissReasons.ESC) {
+            this._setForm();
+            this._dialogService.checkIfModalOpen();
+          } else if (res === 'NewReport') {
+            //this._router.navigate(['/reports']);
+            //this._router.navigate(['/forms/form/99'], { queryParams: { step: 1, edit: this.editMode } });
+            this.editMode = true;
+            localStorage.removeItem('form_99_details');
+            localStorage.removeItem('form_99_saved');
+            this._setF99Details();
+            setTimeout(() => {
+              this._router.navigate(['/forms/form/99'], { queryParams: { step: 'step_1', edit: this.editMode, refresh: true } });
+            }, 500);
+          }
+        });
     }
+    window.scrollTo(0, 0);
+
   }
 
   /**
@@ -135,12 +215,17 @@ export class TypeComponent implements OnInit {
    *
    */
   public doValidateType() {
-    if (this.frmType.get('reasonTypeRadio').value) {
+    // get the selected F99 option, instead of defaulting
+    let reasonType = this.typeSelected;
+    if(!reasonType) {
+      reasonType = this.frmType.get('reasonTypeRadio').value;
+    }
+    if (reasonType) {
         this.typeFailed = false;
         this.isValidType = true;
         this._form99Details = JSON.parse(localStorage.getItem('form_99_details'));
 
-        this._form99Details.reason = this.frmType.get('reasonTypeRadio').value;
+        this._form99Details.reason = reasonType;
 
         window.localStorage.setItem('form_99_details', JSON.stringify(this._form99Details));
 
@@ -148,7 +233,10 @@ export class TypeComponent implements OnInit {
           form: this.frmType,
           direction: 'next',
           step: 'step_2',
-          previousStep: 'step_1'
+          previousStep: 'step_1',
+          refresh: this._setRefresh,
+          reportId: this.reportId,
+          edit: this.editMode
         });
 
         return 1;
@@ -160,7 +248,8 @@ export class TypeComponent implements OnInit {
         form: this.frmType,
         direction: 'next',
         step: 'step_1',
-        previousStep: ''
+        previousStep: '',
+        edit: this.editMode
       });
 
       return 0;
@@ -181,6 +270,17 @@ export class TypeComponent implements OnInit {
 
   public cancel(): void {
     this._router.navigateByUrl('/dashboard');
+  }
+
+  /*
+    This function is called while selecting a list from report screen
+  */
+  public optionsListClick(type): void {
+    console.log("Selected report =", type);
+    if(document.getElementById(type) != null) {
+      document.getElementById(type).click();
+      console.log("Selected report clicked");
+    }
   }
 
 }

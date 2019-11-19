@@ -5,7 +5,10 @@
   margin-right: auto;
   min-height: 500px;
   position: relative;
-
+  font-family: 'Roboto', 'sans-serif';
+    font-size: 1rem;
+    font-weight: 400;
+    color: #212121;
  
  .search {
   margin: auto;
@@ -33,10 +36,31 @@
    top: 12px;
    right: 10%;
  }
+ .btn-toolbar button{
+  margin: auto;
+  width: 44%;
+  position: relative;
+  display: inline-block;
+  
+}
+#scrollable-dropdown-menu ngb-typeahead-window {
+  max-height: 150px;
+  overflow-y: auto;
+ }
+ #sidebar_signBtn{
+  margin: auto;
+  width: 90%;
+  position: relative;
+  display: inline-block;
+ }
+
 
   // }
   
   section {
+    .form-sidebar-item:hover{
+      cursor: pointer !important;
+    }
     .form-sidebar__links {
       list-style-type: none;
       margin-top: 15px;
@@ -81,20 +105,20 @@
   }
   footer {
     background-color: $mineShaft;
-    //bottom: 0;
+    //bottom: 0; 
     position: absolute;
     width: 100%;
     .form-sidebar__item {
       border-bottom: 1px solid $white;
       color: $white;
-      height: 25px;
-      line-height: 25px;
+      height: 45px;
+      line-height: 45px;
       padding-bottom: 10px;
       vertical-align: middle;
       .form-sidebar-item__text {
         color: $white;
         float: left;
-        padding-left: 5px;
+        padding-left: 65px;
       }
       .form-sidebar-item__value {
         color: $white;

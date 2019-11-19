@@ -3,6 +3,8 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import 'rxjs/add/observable/of';
 import { CookieService } from 'ngx-cookie-service';
+import { IndividualReceiptService } from '../../form-3x/individual-receipt/individual-receipt.service';
+import { MessageService } from '../../../shared/services/MessageService/message.service';
 import { environment } from '../../../../environments/environment';
 import { TransactionModel } from '../model/transaction.model';
 import { OrderByPipe } from 'src/app/shared/pipes/order-by/order-by.pipe';
@@ -42,7 +44,12 @@ export class TransactionsService {
   private _datePipe: DatePipe;
   private _propertyNameConverterMap: Map<string, string> = new Map([['zip', 'zip_code']]);
 
-  constructor(private _http: HttpClient, private _cookieService: CookieService) {
+  constructor(
+    private _http: HttpClient,
+    private _cookieService: CookieService,
+    private _receiptService: IndividualReceiptService,
+    private _messageService: MessageService
+  ) {
     // mock out the recycle trx
     for (let i = 0; i < 13; i++) {
       const t1: any = this.createMockTrx();
@@ -75,7 +82,10 @@ export class TransactionsService {
     itemsPerPage: number,
     sortColumnName: string,
     descending: boolean,
-    filters: TransactionFilterModel
+    filters: TransactionFilterModel,
+    categoryType: string,
+    trashed_flag: boolean,
+    allTransactionsFlag: boolean
   ): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
     let httpOptions = new HttpHeaders();
@@ -87,11 +97,16 @@ export class TransactionsService {
     // const serverSortColumnName = this.mapToSingleServerName(sortColumnName);
 
     const request: any = {};
-    request.reportid = reportId;
+    if (!allTransactionsFlag) {
+      request.reportid = reportId;
+    }
+
     request.page = page;
     request.itemsPerPage = itemsPerPage;
     request.sortColumnName = sortColumnName;
     request.descending = descending;
+    request.category_type = categoryType;
+    request.trashed_flag = trashed_flag;
 
     if (filters) {
       request.filters = filters;
@@ -153,7 +168,8 @@ export class TransactionsService {
     itemsPerPage: number,
     sortColumnName: string,
     descending: boolean,
-    filters: TransactionFilterModel
+    filters: TransactionFilterModel,
+    categoryType: string
   ): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
     let httpOptions = new HttpHeaders();
@@ -168,6 +184,7 @@ export class TransactionsService {
     request.itemsPerPage = itemsPerPage;
     request.sortColumnName = sortColumnName;
     request.descending = descending;
+    request.category_type = categoryType;
 
     if (filters) {
       request.filters = filters;
@@ -233,29 +250,55 @@ export class TransactionsService {
     const modelArray = [];
     for (const row of serverData) {
       const model = new TransactionModel({});
-      model.type = row.transaction_type_desc;
-      model.transactionTypeIdentifier = row.transaction_type_identifier;
-      model.transactionId = row.transaction_id;
-      model.name = row.name;
-      model.street = row.street_1;
-      model.street2 = row.street_2;
-      model.city = row.city;
-      model.state = row.state;
-      model.zip = row.zip_code;
-      model.date = row.transaction_date;
-      model.amount = row.transaction_amount;
-      model.aggregate = row.aggregate_amt ? row.aggregate_amt : 0;
-      model.purposeDescription = row.purpose_description;
-      model.contributorEmployer = row.employer;
-      model.contributorOccupation = row.occupation;
-      model.memoCode = row.memo_code;
-      model.memoText = row.memo_text;
-      model.deletedDate = row.deleted_date ? row.deleted_date : null;
-      model.itemized = row.itemized;
-      model.reportStatus = row.reportStatus;
+      mapDatabaseRowToModel(model, row);
+      if (row.child) {
+        const modelChildArray = [];
+        for (const childRow of row.child) {
+          const childModel = new TransactionModel({});
+          mapDatabaseRowToModel(childModel, childRow);
+          modelChildArray.push(childModel);
+        }
+        model.child = modelChildArray;
+      }
       modelArray.push(model);
     }
     return modelArray;
+  }
+
+  /**
+   * Map Sched server fields to a TransactionModel.
+   */
+  public mapFromServerSchedFields(serverData: any) {
+    if (!serverData || !Array.isArray(serverData)) {
+      return;
+    }
+    const modelArray = [];
+    for (const row of serverData) {
+      const model = new TransactionModel({});
+      this.mapSchedDatabaseRowToModel(model, row);
+      if (row.child) {
+        const modelChildArray = [];
+        for (const childRow of row.child) {
+          const childModel = new TransactionModel({});
+          this.mapSchedDatabaseRowToModel(childModel, childRow);
+          modelChildArray.push(childModel);
+        }
+        model.child = modelChildArray;
+      }
+      modelArray.push(model);
+    }
+    return modelArray;
+  }
+
+  public mapSchedDatabaseRowToModel(model: TransactionModel, row: any) {
+    // TODO add full field mapping if needed in the future.
+    model.transactionId = row.transaction_id;
+    model.date = row.contribution_date;
+    model.memoCode = row.memo_code;
+    model.amount = row.contribution_amount;
+    model.aggregate = row.contribution_aggregate;
+    model.entityId = row.entity_id;
+    model.reportType = row.report_type;
   }
 
   /**
@@ -276,14 +319,23 @@ export class TransactionsService {
 
     name = appFieldName;
     switch (appFieldName) {
+      case 'reportType':
+        name = 'report_type';
+        break;
       case 'type':
         name = 'transaction_type_desc';
+        break;
+      case 'entityId':
+        name = 'entity_id';
         break;
       case 'transactionTypeIdentifier':
         name = 'transaction_type_identifier';
         break;
       case 'transactionId':
         name = 'transaction_id';
+        break;
+      case 'apiCall':
+        name = 'api_call';
         break;
       case 'street':
         name = 'street_1';
@@ -324,6 +376,36 @@ export class TransactionsService {
       case 'itemized':
         name = 'itemized';
         break;
+      case 'election_code':
+        name = 'electionCode';
+        break;
+      case 'loan_amount':
+        name = 'loanAmount';
+        break;
+      case 'loan_balance':
+        name = 'loanBalance';
+        break;
+      case 'loan_beginning_balance':
+        name = 'loanBeginningBalance';
+        break;
+      case 'loan_closing_balance':
+        name = 'loanClosingBalance';
+        break;
+      case 'loan_due_date':
+        name = 'loanDueDate';
+        break;
+      case 'loan_incurred_amt':
+        name = 'loanIncurredAmt';
+        break;
+      case 'loan_incurred_date':
+        name = 'loanIncurredDate';
+        break;
+      case 'loan_payment_amt':
+        name = 'loanPaymentAmt';
+        break;
+      case 'loan_payment_to_date':
+        name = 'loanPaymentToDate';
+        break;
       default:
     }
     return name ? name : '';
@@ -339,9 +421,11 @@ export class TransactionsService {
     if (!model) {
       return serverObject;
     }
-
+    serverObject.report_type = model.reportType;
+    serverObject.entity_id = model.entityId;
     serverObject.transaction_type_desc = model.type;
     serverObject.transaction_type_identifier = model.transactionTypeIdentifier;
+    serverObject.api_call = model.apiCall;
     serverObject.transaction_id = model.transactionId;
     serverObject.name = model.name;
     serverObject.street_1 = model.street;
@@ -429,7 +513,10 @@ export class TransactionsService {
           'transaction_date_ui',
           'deleted_date_ui',
           'zip_code_ui',
-          'itemized'
+          'itemized',
+          'election_code',
+          'election_year',
+          ''
         ];
 
         for (let keyword of filters.keywords) {
@@ -679,11 +766,17 @@ export class TransactionsService {
   /**
    * Trash or restore tranactions to/from the Recycling Bin.
    *
+   * @param formType the form type for this report
    * @param action the action to be applied to the transactions (e.g. trash, restore)
    * @param reportId the unique identifier for the Report
    * @param transactions the transactions to trash or restore
    */
-  public trashOrRestoreTransactions(action: string, reportId: string, transactions: Array<TransactionModel>) {
+  public trashOrRestoreTransactions(
+    formType: string,
+    action: string,
+    reportId: string,
+    transactions: Array<TransactionModel>
+  ) {
     const token: string = JSON.parse(this._cookieService.get('user'));
     let httpOptions = new HttpHeaders();
     const url = '/core/trash_restore_transactions';
@@ -710,10 +803,78 @@ export class TransactionsService {
         map(res => {
           if (res) {
             console.log('Trash Restore response: ', res);
+            // refresh the left summary menu
+            this._receiptService.getSchedule(formType, { report_id: reportId }).subscribe(resp => {
+              const message: any = {
+                formType: formType,
+                totals: resp
+              };
+              this._messageService.sendMessage(message);
+            });
+
             return res;
           }
           return false;
         })
       );
   }
+
+  public cloneTransaction(transactionId: string) {
+
+    const token: string = JSON.parse(this._cookieService.get('user'));
+    let httpOptions = new HttpHeaders();
+    const url = '/core/clone_a_transaction';
+
+    httpOptions = httpOptions.append('Content-Type', 'application/json');
+    httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
+
+    return this._http
+      .post(`${environment.apiUrl}${url}`, {transaction_id: transactionId}, {
+        headers: httpOptions
+      })
+      .pipe(
+        map(res => {
+          if (res) {
+            return res;
+          }
+          return false;
+        })
+      );
+  }
+}
+function mapDatabaseRowToModel(model: TransactionModel, row: any) {
+  model.reportType = row.report_type;
+  model.type = row.transaction_type_desc;
+  model.entityId = row.entity_id;
+  model.transactionTypeIdentifier = row.transaction_type_identifier;
+  model.apiCall = row.api_call;
+  model.transactionId = row.transaction_id;
+  model.name = row.name;
+  model.street = row.street_1;
+  model.street2 = row.street_2;
+  model.city = row.city;
+  model.state = row.state;
+  model.zip = row.zip_code;
+  model.date = row.transaction_date;
+  model.amount = row.transaction_amount;
+  model.aggregate = row.aggregate_amt;
+  model.purposeDescription = row.purpose_description;
+  model.contributorEmployer = row.employer;
+  model.contributorOccupation = row.occupation;
+  model.memoCode = row.memo_code;
+  model.memoText = row.memo_text;
+  model.deletedDate = row.deleted_date ? row.deleted_date : null;
+  model.itemized = row.itemized;
+  model.reportStatus = row.reportStatus;
+  model.electionCode = row.election_code;
+  model.electionYear = row.election_year;
+  model.loanAmount = row.loan_amount;
+  model.loanBalance = row.loan_balance;
+  model.loanBeginningBalance = row.loan_beginning_balance;
+  model.loanClosingBalance = row.loan_closing_balance;
+  model.loanDueDate = row.loan_due_date;
+  model.loanIncurredAmt = row.loan_incurred_amt;
+  model.loanIncurredDate = row.loan_incurred_date;
+  model.loanPaymentAmt = row.loan_payment_amt;
+  model.loanPaymentToDate = row.loan_payment_to_date;
 }

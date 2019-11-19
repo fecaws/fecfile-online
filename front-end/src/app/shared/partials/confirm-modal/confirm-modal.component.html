@@ -21,11 +21,17 @@
         type="button" 
         (click)="activeModal.close('cancel')"
         class="btn btn-secondary-gray"
-      >Cancel</button>   
+      >{{cancelTitle}}</button>   
       <button *ngIf="isShowReportExist"
       type="button" 
       (click)="activeModal.close('ReportExist')"
       class="btn btn-primary btn-right"
-    >Show Report</button>     
+    >Show Report</button>    
+    <button *ngIf="isShownewReport"
+        type="button" 
+        (click)="activeModal.close('NewReport')"
+        class="btn btn-primary btn-right"
+        >New Report
+    </button>                
     </div>
   </div>

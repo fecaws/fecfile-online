@@ -28,7 +28,12 @@ export enum FilterTypes {
   deletedDate = 'deletedDate',
   state = 'state',
   memoCode = 'memoCode',
-  itemizations = 'itemizations'
+  itemizations = 'itemizations',
+  electionCodes = 'electionCodes',
+  electionYear = 'electionYear',
+  loanAmount = 'loanAmount',
+  loanClosingBalance = 'loanClosingBalance',
+  schedule = 'schedule'
 }
 
 /**
@@ -142,6 +147,10 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       .getShowTransactionsMessage()
       .subscribe(message => {
         this.showTransactions();
+      });
+
+      _activatedRoute.queryParams.subscribe(p => {
+        this.transactionCategory = p.transactionCategory;
       });
   }
 
@@ -322,6 +331,25 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Closing loan balance
+    if (filters.filterLoanClosingBalanceMin && filters.filterLoanClosingBalanceMax) {
+      const amountGroup = [];
+      amountGroup.push({
+        filterLoanClosingBalanceMin: filters.filterLoanClosingBalanceMin,
+        filterLoanClosingBalanceMax: filters.filterLoanClosingBalanceMax
+      });
+      let amtTag = false;
+      for (const tag of this.tagArray) {
+        if (tag.type === FilterTypes.loanClosingBalance) {
+          amtTag = true;
+          tag.group = amountGroup;
+        }
+      }
+      if (!amtTag) {
+        this.tagArray.push({ type: FilterTypes.amount, prefix: 'Balance at close', group: amountGroup });
+      }
+    }
+
     // State
     if (this.filters.filterStates.length > 0) {
       const stateGroup = [];
@@ -394,6 +422,73 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         }
       } else {
         this.removeTagArrayItem(FilterTypes.itemizations);
+      }
+    }
+
+    // Election codes
+    if (this.filters.filterElectionCodes) {
+      if (this.filters.filterElectionCodes.length > 0) {
+        const electionCodesGroup = [];
+
+        // is tag showing? Then modify it is the curr position
+        // TODO put type strings in constants file as an enumeration
+        // They are also used in the filter component as well.
+
+        let electionsTag = false;
+        for (const tag of this.tagArray) {
+          if (tag.type === FilterTypes.electionCodes) {
+            electionsTag = true;
+            for (const item of filters.filterElectionCodes) {
+              electionCodesGroup.push(item);
+            }
+            tag.group = electionCodesGroup;
+          }
+        }
+        // If tag is not already showing, add it to the tag array.
+        if (!electionsTag) {
+          for (const item of filters.filterElectionCodes) {
+            electionCodesGroup.push(item);
+          }
+          this.tagArray.push({ type: FilterTypes.electionCodes, prefix: 'Election code', group: electionCodesGroup });
+        }
+      } else {
+        this.removeTagArrayItem(FilterTypes.electionCodes);
+      }
+    }
+
+    // Election year
+    if (this.filters.filterElectionYearFrom && this.filters.filterElectionYearTo) {
+      const filterYearGroup = [];
+      filterYearGroup.push({
+        filterElectionYearFrom: filters.filterElectionYearFrom,
+        filterElectionYearTo: filters.filterElectionYearTo
+      });
+      let filterYearTag = false;
+      for (const tag of this.tagArray) {
+        if (tag.type === FilterTypes.electionYear) {
+          filterYearTag = true;
+          tag.group = filterYearGroup;
+        }
+      }
+      if (!filterYearTag) {
+        this.tagArray.push({ type: FilterTypes.electionYear, prefix: 'Election year', group: filterYearGroup });
+      }
+    }
+
+    // Schedule
+    if (this.filters.filterSchedule) {
+      // if memo tag showing, do nothing.  If not showing, add it.
+      let scheduleTag = false;
+      const scheduleGroup = [];
+      for (const tag of this.tagArray) {
+        if (tag.type === FilterTypes.schedule) {
+          scheduleTag = true;
+          scheduleGroup.push(filters.filterSchedule);
+          break;
+        }
+      }
+      if (!scheduleTag) {
+        this.tagArray.push({ type: FilterTypes.schedule, prefix: 'Schedule', group: scheduleGroup });
       }
     }
 
@@ -501,6 +596,15 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.removeFilter(FilterTypes.aggregateAmount, null);
   }
 
+  /**
+   * Remove the Loan Closing Balance filter tag and inform the filter component to clear it.
+   */
+  public removeLoanClosingBalanceFilter() {
+    this.filters.filterLoanClosingBalanceMin = null;
+    this.filters.filterLoanClosingBalanceMax = null;
+    this.removeFilter(FilterTypes.loanClosingBalance, null);
+  }
+
   public removeMemoFilter() {
     this.filters.filterMemoCode = false;
     this.removeFilter(FilterTypes.memoCode, null);
@@ -512,6 +616,31 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   public removeItemizationsFilter(index: number, item: string) {
     this.filters.filterItemizations.splice(index, 1);
     this.removeFilter(FilterTypes.itemizations, item);
+  }
+
+  /**
+   * Remove the election codes filter tag and inform the filter component to clear it.
+   */
+  public removeElectionCodesFilter(index: number, item: string) {
+    this.filters.filterElectionCodes.splice(index, 1);
+    this.removeFilter(FilterTypes.electionCodes, item);
+  }
+
+  /**
+   * Remove the election year filter tag and inform the filter component to clear it.
+   */
+  public removeElectionYearFilter() {
+    this.filters.filterElectionYearFrom = null;
+    this.filters.filterElectionYearTo = null;
+    this.removeFilter(FilterTypes.electionYear, null);
+  }
+
+  /**
+   * Remove the schedule filter tag and inform the filter component to clear it.
+   */
+  public removeScheduleFilter() {
+    this.filters.filterSchedule = null;
+    this.removeFilter(FilterTypes.schedule, null);
   }
 
   /**
@@ -555,6 +684,10 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         this.removeAggregateAmountFilter();
         this.removeTagArrayItem(type);
         break;
+      case FilterTypes.loanClosingBalance:
+        this.removeLoanClosingBalanceFilter();
+        this.removeTagArrayItem(type);
+        break;
       case FilterTypes.keyword:
         this.removeSearchText(tagText);
         this.removeSearchTagArrayItem(tagText);
@@ -566,6 +699,18 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       case FilterTypes.itemizations:
         this.removeItemizationsFilter(index, tagText);
         this.removeTagArrayGroupItem(type, index);
+        break;
+      case FilterTypes.electionCodes:
+        this.removeElectionCodesFilter(index, tagText);
+        this.removeTagArrayGroupItem(type, index);
+        break;
+      case FilterTypes.electionYear:
+        this.removeElectionYearFilter();
+        this.removeTagArrayItem(type);
+        break;
+      case FilterTypes.schedule:
+        this.removeScheduleFilter();
+        this.removeTagArrayItem(type);
         break;
       default:
         console.log('unexpected type received for remove tag');
@@ -660,33 +805,49 @@ export class TransactionsComponent implements OnInit, OnDestroy {
    * Show edit for a single transaction.
    */
   public showEdit() {
-    let accessedByRoute = false;
-    if (this.routeData) {
-      if (this.routeData.accessedByRoute && this.routeData.reportId) {
-        accessedByRoute = true;
+    const emptyValidForm = this._fb.group({});
+    this.showTransaction.emit({
+      form: emptyValidForm,
+      direction: 'next',
+      step: 'step_3',
+      previousStep: 'transactions',
+      action: ScheduleActions.edit,
+      transactionCategory: this.transactionCategory,
+      scheduleType: this.transactionToEdit.scheduleType,
+      transactionDetail: {
+        transactionModel: this.transactionToEdit
       }
-    }
+    });
 
-    // TODO remove for edit route and accessedByRoute if not used.  Does not appear to be.
-    if (accessedByRoute) {
-      // this._router.navigate([`/forms/form/${this.formType}`], {
-      //   queryParams: { step: 'step_3' }
-      // });
+    this.showCategories();
 
-      this._router.navigate([`/forms/form/edit/${this.formType}/${this.routeData.reportId}`]);
-      const editOrView = { action: ScheduleActions.edit, transactionModel: this.transactionToEdit };
-      this._f3xMessageService.sendPopulateFormMessage(editOrView);
-      // this.showEditTransaction = true;
-    } else {
-      const emptyValidForm = this._fb.group({});
-      this.showTransaction.emit({
-        form: emptyValidForm,
-        direction: 'next',
-        step: 'step_3',
-        previousStep: 'transactions',
-        editOrView: { action: ScheduleActions.edit, transactionModel: this.transactionToEdit }
-      });
-    }
+    // let accessedByRoute = false;
+    // if (this.routeData) {
+    //   if (this.routeData.accessedByRoute && this.routeData.reportId) {
+    //     accessedByRoute = true;
+    //   }
+    // }
+
+    // // TODO remove for edit route and accessedByRoute if not used.  Does not appear to be.
+    // if (accessedByRoute) {
+    //   // this._router.navigate([`/forms/form/${this.formType}`], {
+    //   //   queryParams: { step: 'step_3' }
+    //   // });
+
+    //   this._router.navigate([`/forms/form/edit/${this.formType}/${this.routeData.reportId}`]);
+    //   const editOrView = { action: ScheduleActions.edit, transactionModel: this.transactionToEdit };
+    //   this._f3xMessageService.sendPopulateFormMessage(editOrView);
+    //   // this.showEditTransaction = true;
+    // } else {
+    //   const emptyValidForm = this._fb.group({});
+    //   this.showTransaction.emit({
+    //     form: emptyValidForm,
+    //     direction: 'next',
+    //     step: 'step_3',
+    //     previousStep: 'transactions',
+    //     editOrView: { action: ScheduleActions.edit, transactionModel: this.transactionToEdit }
+    //   });
+    // }
   }
 
   /**
@@ -750,7 +911,8 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   }
 
   public printPreview(): void {
-    console.log("TransactionsTableComponent printPreview...!");
+    console.log('TransactionsTableComponent printPreview...!');
+
     this._reportTypeService.printPreview('transaction_table_screen', '3X');
   }
 }

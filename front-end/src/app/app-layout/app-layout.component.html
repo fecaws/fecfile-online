@@ -39,12 +39,12 @@
     <div class="app__content-wrapper">
       <div class="app__committee-info">
         <div class="float-left">
-          <div class="committee-id">
+          <h1 class="committee-id">
             {{ committeeId }}
-          </div>
-          <div class="committee-name">
+          </h1>
+          <h2 class="committee-name">
             {{ committeeName }}
-          </div> 
+          </h2> 
         </div>
         <div class="float-right">
           <div class="float-right" *ngIf="showFormDueDate">
@@ -55,7 +55,7 @@
               </div>              
               <ng-container *ngIf="reportOverDue">
                 <span class="text-error">
-                  Over due by {{ formDaysUntilDue }} days ({{ dueDate | date: 'MM/dd/yyyy' }})
+                  Overdue by {{ formDaysUntilDue }} days ({{ dueDate | date: 'MM/dd/yyyy' }})
                 </span>
               </ng-container>
               <ng-container *ngIf="!reportOverDue">
@@ -84,7 +84,7 @@
             <address>
               1050 First Street NE, Washington DC, 20002
               <br />
-              <a href="https://fec.gov/contact" draggable="false" target="_blank">fec.gov/contact</a>
+              <a href="https://fec.gov" draggable="false" target="_blank">fec.gov</a>
             </address>
           </h6>
         </div>
@@ -125,8 +125,8 @@
             <address>
               (202) 694-1307
             </address>
-            <a href="mailto:tech@fec.gov">
-              tech@fec.gov
+            <a href="mailto:eFiletechsupport@fec.gov">
+              eFiletechsupport@fec.gov
             </a>
           </h6>
         </div>

@@ -5,6 +5,7 @@ import { environment } from '../../../../environments/environment';
 import { ReportTypeService } from '../../../forms/form-3x/report-type/report-type.service';
 import { FinancialSummaryService } from '../financial-summary/financial-summary.service';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { TransactionsMessageService } from '../../transactions/service/transactions-message.service';
 
 @Component({
   selector: 'f3x-financial-summary',
@@ -23,6 +24,7 @@ export class FinancialSummaryComponent implements OnInit {
   public viewMode: string = '';
   public reportId: string = '';
   public step: string = '';
+  public editMode: boolean;
 
   private _form3XReportType: any = {};
 
@@ -31,6 +33,7 @@ export class FinancialSummaryComponent implements OnInit {
     private _config: NgbTooltipConfig,
     private _http: HttpClient,
     private _financialSummaryService: FinancialSummaryService,
+    private _transactionsMessageService: TransactionsMessageService,
     private _reportTypeService: ReportTypeService,
     private _activatedRoute: ActivatedRoute,
     private _router: Router
@@ -43,6 +46,7 @@ export class FinancialSummaryComponent implements OnInit {
     this.viewMode = 'tab1';
     this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
     this.step = this._activatedRoute.snapshot.queryParams.step;
+    this.editMode = this._activatedRoute.snapshot.queryParams.edit === 'false' ? false : true;
     localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify({ saved: true }));
     console.log('this.step = ', this.step);
 
@@ -92,19 +96,24 @@ export class FinancialSummaryComponent implements OnInit {
       }
     }
     console.log(' FinancialSummaryComponent this.reportId = ', this.reportId);
+    this._transactionsMessageService.sendLoadTransactionsMessage(this.reportId);
     this._router.navigate([`/forms/form/${this._formType}`], {
-      queryParams: { step: 'transactions', reportId: this.reportId }
+      queryParams: { step: 'transactions', reportId: this.reportId, edit: this.editMode }
     });
   }
 
   public all_Transactions(): void {
-    this._router.navigate([`/forms/form/${this._formType}`], { queryParams: { step: 'step_2' } });
+    this._router.navigate([`/forms/form/${this._formType}`], { queryParams: { step: 'step_2', edit: this.editMode } });
   }
 
   public expanded_Summary(): void {
     alert('This functionality not yet implemented...!');
   }
 
+  public ImportTransactions(): void {
+    alert('Import transaction is not yet supported');
+  }
+  
   /**
    * A method to run when component is destroyed.
    */

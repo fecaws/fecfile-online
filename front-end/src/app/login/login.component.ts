@@ -7,6 +7,7 @@ import { MessageService } from '../shared/services/MessageService/message.servic
 import { CookieService } from 'ngx-cookie-service';
 import { ApiService } from '../shared/services/APIService/api.service';
 import { AuthService } from '../shared/services/AuthService/auth.service';
+import { SessionService } from '../shared/services/SessionService/session.service';
 
 @Component({
   selector: 'app-login',
@@ -23,6 +24,9 @@ export class LoginComponent implements OnInit {
   public appTitle: string = null;
   public loggedOut: any = '';
   private _subscription: Subscription;
+  public titleF: string;
+  public titleR: string;
+  public show: boolean;
 
   constructor(
     private _fb: FormBuilder,
@@ -32,7 +36,8 @@ export class LoginComponent implements OnInit {
     private _router: Router,
     private _route: ActivatedRoute,
     private _cookieService: CookieService,
-    private _messageService: MessageService
+    private _messageService: MessageService,
+    private _sessionService: SessionService
   ) {
     this.frm = _fb.group({
       commiteeId: ['', Validators.required],
@@ -46,10 +51,15 @@ export class LoginComponent implements OnInit {
             this.loggedOut = res;
           }
         });
+    this.show = false;
  }
 
   ngOnInit() {
+    this._sessionService.destroy();
+    localStorage.clear();
     this.appTitle = environment.appTitle;
+    this.titleF = this.appTitle.substring(0, 3);
+    this.titleR = this.appTitle.substring(3);
   }
 
   ngOnDestroy() {
@@ -107,5 +117,9 @@ export class LoginComponent implements OnInit {
         this.isBusy = false;
         this.hasFailed = true;
       });
+  }
+
+  showPassword() {
+    this.show = !this.show;
   }
 }

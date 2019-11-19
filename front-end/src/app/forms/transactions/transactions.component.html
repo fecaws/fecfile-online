@@ -23,7 +23,7 @@
           <div class="grid-row__col grid-row__col--12">
             <div class="float-left">
               <h1 *ngIf="!isEditViewActive(); else editHeading">
-                Transactions / Form {{ formType }}
+                Form {{ formType }} / Transactions / {{transactionCategory | titlecase}}
                 <span [@fadeInOut] *ngIf="isRecycleBinViewActive()">
                   / Recycling Bin
                   <span class="trash-icon"></span>
@@ -56,7 +56,6 @@
                 <span class="sr-only">Click for more options</span>
               </button>
               <div ngbDropdownMenu aria-labelledby="actionsMenu">
-                <button class="dropdown-item"><i class="view-icon"></i> View</button>
                 <button class="dropdown-item" (click)="printPreview()"><i class="print-icon"></i> Print</button>
                 <button class="dropdown-item"><i class="far fa-file-import"></i> Import</button>
               </div>
@@ -162,7 +161,7 @@
                           (click)="removeTag(tag.type, i, gTag)"
                         >
                           <i class="fas fa-window-close transactions__close-tag"></i>
-                          <span *ngIf="tag.type !== 'amount' && tag.type !== 'aggregateAmount' && tag.type !== 'date'">
+                          <span *ngIf="tag.type !== 'amount' && tag.type !== 'aggregateAmount' && tag.type !== 'date' && tag.type !== 'electionYear'">
                             <span *ngIf="tag.prefix">{{ tag.prefix }}: </span>{{ gTag }}
                           </span>
                           <span *ngIf="tag.type === 'date'"
@@ -177,6 +176,11 @@
                             >{{ tag.prefix }}:
                             {{ gTag.filterAggregateAmountMin | currency: 'USD':'symbol-narrow':'1.2-2' }} -
                             {{ gTag.filterAggregateAmountMax | currency: 'USD':'symbol-narrow':'1.2-2' }}
+                          </span>
+                          <span *ngIf="tag.type === 'electionYear'"
+                            >{{ tag.prefix }}:
+                            {{ gTag.filterElectionYearFrom }} -
+                            {{ gTag.filterElectionYearTo }}
                           </span>
                         </button>
                         <span class="transactions__btn-search-filter-join" *ngIf="i < tag.group.length - 1">
