@@ -11,7 +11,7 @@ INSERT INTO public.dynamic_form_fields(
     SELECT form_type, 'ALLOC_FEA_CC_PAY_MEMO', field_label, field_value, 
        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
        field_is_readonly, field_validation, field_infoicon, field_info, 
-       field_order, field_section, '10', create_date, 
+       field_order, 'Memo Section', '10', create_date, 
        last_update_date, field_db_name, class_name, height, width, scroll, 
        seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
        child_form, form_sub_title, toggle, entity_group, entity_id_mapping
@@ -29,9 +29,225 @@ INSERT INTO public.dynamic_form_fields(
     SELECT form_type, 'ALLOC_FEA_STAF_REIM_MEMO', field_label, field_value, 
        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
        field_is_readonly, field_validation, field_infoicon, field_info, 
-       field_order, field_section, '10', create_date, 
+       field_order, 'Memo Section', '10', create_date, 
        last_update_date, field_db_name, class_name, height, width, scroll, 
        seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
        child_form, form_sub_title, toggle, entity_group, entity_id_mapping
   FROM public.dynamic_form_fields WHERE 
    field_db_name='memo_code' and transaction_type='PARTN_MEMO';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_CC_PAY_MEMO', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='PARTN_MEMO';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_STAF_REIM_MEMO', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='PARTN_MEMO';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_PMT_TO_PROL_MEMO', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='PARTN_MEMO';
+
+INSERT INTO public.dynamic_form_fields(
+            form_type, transaction_type, field_label, field_value, 
+            field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+            field_is_readonly, field_validation, field_infoicon, field_info, 
+            field_order, field_section, field_section_order, create_date, 
+            last_update_date, field_db_name, class_name, height, width, scroll, 
+            seperator, transaction_type_desc, field_input_group, field_input_icon, 
+            child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+    SELECT form_type, 'ALLOC_FEA_DISB', field_label, field_value, 
+       field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+       field_is_readonly, field_validation, field_infoicon, field_info, 
+       '19', 'Memo Section', '10', create_date, 
+       last_update_date, field_db_name, class_name, height, width, scroll, 
+       seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+       child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+  FROM public.dynamic_form_fields WHERE 
+   field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+            form_type, transaction_type, field_label, field_value, 
+            field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+            field_is_readonly, field_validation, field_infoicon, field_info, 
+            field_order, field_section, field_section_order, create_date, 
+            last_update_date, field_db_name, class_name, height, width, scroll, 
+            seperator, transaction_type_desc, field_input_group, field_input_icon, 
+            child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+    SELECT form_type, 'ALLOC_FEA_VOID', field_label, field_value, 
+       field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+       field_is_readonly, field_validation, field_infoicon, field_info, 
+       '19', 'Memo Section', '10', create_date, 
+       last_update_date, field_db_name, class_name, height, width, scroll, 
+       seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+       child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+  FROM public.dynamic_form_fields WHERE 
+   field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+            form_type, transaction_type, field_label, field_value, 
+            field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+            field_is_readonly, field_validation, field_infoicon, field_info, 
+            field_order, field_section, field_section_order, create_date, 
+            last_update_date, field_db_name, class_name, height, width, scroll, 
+            seperator, transaction_type_desc, field_input_group, field_input_icon, 
+            child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+    SELECT form_type, 'ALLOC_FEA_STAF_REIM', field_label, field_value, 
+       field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+       field_is_readonly, field_validation, field_infoicon, field_info, 
+       '19', 'Memo Section', '10', create_date, 
+       last_update_date, field_db_name, class_name, height, width, scroll, 
+       seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+       child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+  FROM public.dynamic_form_fields WHERE 
+   field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+            form_type, transaction_type, field_label, field_value, 
+            field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+            field_is_readonly, field_validation, field_infoicon, field_info, 
+            field_order, field_section, field_section_order, create_date, 
+            last_update_date, field_db_name, class_name, height, width, scroll, 
+            seperator, transaction_type_desc, field_input_group, field_input_icon, 
+            child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+    SELECT form_type, 'ALLOC_FEA_CC_PAY', field_label, field_value, 
+       field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+       field_is_readonly, field_validation, field_infoicon, field_info, 
+       '19', 'Memo Section', '10', create_date, 
+       last_update_date, field_db_name, class_name, height, width, scroll, 
+       seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+       child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+  FROM public.dynamic_form_fields WHERE 
+   field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_VOID', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_CC_PAY', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_STAF_REIM', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
+
+INSERT INTO public.dynamic_form_fields(
+        form_type, transaction_type, field_label, field_value, 
+        field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+        field_is_readonly, field_validation, field_infoicon, field_info, 
+        field_order, field_section, field_section_order, create_date, 
+        last_update_date, field_db_name, class_name, height, width, scroll, 
+        seperator, transaction_type_desc, field_input_group, field_input_icon, 
+        child_form, form_sub_title, toggle, entity_group, entity_id_mapping)
+SELECT form_type, 'ALLOC_EXP_PMT_TO_PROL', field_label, field_value, 
+   field_size, field_type, field_html_type, field_is_required, field_is_hidden, 
+   field_is_readonly, field_validation, field_infoicon, field_info, 
+   '20', 'Memo Section', '10', create_date, 
+   last_update_date, field_db_name, class_name, height, width, scroll, 
+   seperator, 'Operating Expenditure', field_input_group, field_input_icon, 
+   child_form, form_sub_title, toggle, entity_group, entity_id_mapping
+FROM public.dynamic_form_fields WHERE 
+field_db_name='memo_code' and transaction_type='LEVIN_VOTER_ID';
