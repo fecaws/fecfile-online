@@ -46,7 +46,7 @@ if [ ! -z "$POD" ]; then
 fi
 
 # create the job
-kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 apply -f flywaydb.yml
+kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 create -f flywaydb.yml
 
 sleep 20
 NEWPOD=$(kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 get pods --selector=job-name=fecfile-flyway-db-job --output=jsonpath={.items..metadata.name} | awk '{ print $1 }')
