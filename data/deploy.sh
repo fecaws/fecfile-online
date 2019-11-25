@@ -50,5 +50,8 @@ kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespac
 
 sleep 20
 NEWPOD=$(kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 get pods --selector=job-name=fecfile-flyway-db-job --output=jsonpath={.items..metadata.name} | awk '{ print $1 }')
-kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 logs $NEWPOD
+if [ ! -z "$NEWPOD" ]; then
+  kubectl --context=arn:aws:eks:us-east-1:813218302951:cluster/fecfile4 --namespace=$3 logs $NEWPOD
+fi
+
 
