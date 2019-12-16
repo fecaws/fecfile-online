@@ -1,11 +1,11 @@
 import { Component, OnInit, OnDestroy, OnChanges, Output, EventEmitter, Input, SimpleChanges } from '@angular/core';
 import { IndividualReceiptComponent } from '../form-3x/individual-receipt/individual-receipt.component';
-import { FormBuilder } from '@angular/forms';
+import { FormBuilder, FormGroup } from '@angular/forms';
 import { FormsService } from 'src/app/shared/services/FormsService/forms.service';
 import { IndividualReceiptService } from '../form-3x/individual-receipt/individual-receipt.service';
 import { ContactsService } from 'src/app/contacts/service/contacts.service';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
+import { NgbTooltipConfig, NgbTypeaheadSelectItemEvent } from '@ng-bootstrap/ng-bootstrap';
 import { UtilService } from 'src/app/shared/utils/util.service';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ReportTypeService } from '../form-3x/report-type/report-type.service';
@@ -22,6 +22,9 @@ import { AbstractSchedule } from '../form-3x/individual-receipt/abstract-schedul
 import { ReportsService } from 'src/app/reports/service/report.service';
 import { TransactionModel } from '../transactions/model/transaction.model';
 import { AbstractScheduleParentEnum } from '../form-3x/individual-receipt/abstract-schedule-parent.enum';
+import { schedFstaticFormFields } from './static-form-fields.json';
+import { Observable } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 /**
  * Schedule F is a sub-transaction of Schedule D.
@@ -43,142 +46,7 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
   public showPart2: boolean;
   public loaded = false;
 
-  protected staticFormFields = [
-    {
-      childForm: false,
-      childFormTitle: null,
-      colClassName: 'col col-md-4',
-      seperator: false,
-      cols: [
-        {
-          staticField: true,
-          name: 'coord_expenditure_yn',
-          value: null,
-          validation: {
-            required: true
-          }
-        },
-        {
-          staticField: true,
-          preText: null,
-          setEntityIdTo: 'entity_id',
-          isReadonly: false,
-          entityGroup: 'org-group',
-          toggle: true,
-          inputGroup: false,
-          inputIcon: '',
-          text: 'Organization Name',
-          infoIcon: false,
-          infoText: 'Request language from RAD',
-          name: 'designated_com_id',
-          type: 'text',
-          value: null,
-          scroll: false,
-          height: '30px',
-          width: '200px',
-          validation: {
-            required: true,
-            max: 9,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          preText: null,
-          setEntityIdTo: 'entity_id',
-          isReadonly: false,
-          entityGroup: 'org-group',
-          toggle: true,
-          inputGroup: false,
-          inputIcon: '',
-          text: 'Organization Name',
-          infoIcon: false,
-          infoText: 'Request language from RAD',
-          name: 'designated_com_name',
-          type: 'text',
-          value: null,
-          scroll: false,
-          height: '30px',
-          width: '200px',
-          validation: {
-            required: true,
-            max: 200,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'subordinate_com_id',
-          value: null,
-          validation: {
-            required: true,
-            max: 9,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'subordinate_com_name',
-          value: null,
-          validation: {
-            required: true,
-            max: 200,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'street_1_co_exp',
-          value: null,
-          validation: {
-            required: true,
-            max: 34,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'street_2_co_exp',
-          value: null,
-          validation: {
-            required: false,
-            max: 34,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'city_co_exp',
-          value: null,
-          validation: {
-            required: true,
-            max: 30,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'state_co_exp',
-          value: null,
-          validation: {
-            required: true,
-            max: 2,
-            alphaNumeric: true
-          }
-        },
-        {
-          staticField: true,
-          name: 'zip_co_exp',
-          value: null,
-          validation: {
-            required: true,
-            max: 10,
-            alphaNumeric: true
-          }
-        }
-      ]
-    }
-  ];
+  protected staticFormFields = schedFstaticFormFields;
 
   constructor(
     _http: HttpClient,
@@ -227,8 +95,11 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
   }
 
   public ngOnInit() {
+    this.frmIndividualReceipt = this._fb.group({});
     this.formFieldsPrePopulated = true;
     this.abstractScheduleComponent = AbstractScheduleParentEnum.schedFComponent;
+    this.transactionType = 'COEXP_PARTY_DEBT';
+    this.transactionTypeText = 'Coordinated Party Expenditure Debt to Vendor';
     super.ngOnInit();
     this.showPart2 = false;
     this._setTransactionDetail();
@@ -237,6 +108,7 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
     // before rendering the static fields, otherwise validation error styling
     // is not working (input-error-field class).  If dynamic forms deliver
     // the static fields, then remove this or set a flag when formGroup is ready
+    super.ngOnChanges(null);
     setTimeout(() => {
       this.loaded = true;
     }, 2000);
@@ -245,12 +117,7 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
   public ngOnChanges(changes: SimpleChanges) {
     this.showPart2 = false;
     this._setTransactionDetail();
-    super.ngOnChanges(changes);
-
-    if (this._prePopulateFromSchedDData && this.scheduleAction === ScheduleActions.addSubTransaction) {
-      this._prePopulateFromSchedD(this._prePopulateFromSchedDData);
-      this._prePopulateFromSchedDData = null;
-    }
+    super.ngOnChanges(null);
   }
 
   public ngOnDestroy(): void {
@@ -264,48 +131,67 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
     this.saveAndReturnToParent();
   }
 
+  /**
+   * Proceed to 2nd part of the payment.
+   */
   public next() {
-    // TODO add this in once the form fields are displaying red when in error.
-    // check all page 1 for valid
-
     this.frmIndividualReceipt.markAsTouched();
 
-    if (!this._checkFormFieldIsValid('coord_expenditure_yn')) {
+    if (!this._checkFormFieldIsValid('coordinated_exp_ind')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('designated_com_id')) {
+    if (!this._checkFormFieldIsValid('designating_cmte_id')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('designated_com_name')) {
+    if (!this._checkFormFieldIsValid('designating_cmte_name')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('subordinate_com_id')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_id')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('subordinate_com_name')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_name')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('street_1_co_exp')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_street_1')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('street_2_co_exp')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_street_2')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('city_co_exp')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_city')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('state_co_exp')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_state')) {
       return;
     }
-    if (!this._checkFormFieldIsValid('zip_co_exp')) {
+    if (!this._checkFormFieldIsValid('subordinate_cmte_zip')) {
       return;
     }
+    // this.frmIndividualReceipt.markAsUntouched();
+    // this.frmIndividualReceipt.markAsPristine();
     this.showPart2 = true;
   }
 
+  /**
+   * Return to the first part of the payment.
+   */
   public back() {
     this.showPart2 = false;
   }
+
+  // /**
+  //  * Special handling for Sched F Payment Aggregate.
+  //  * @param $event
+  //  * @param col
+  //  */
+  // public handleOnBlurEvent($event: any, col: any) {
+  //   if (this.isFieldName(col.name, 'aggregate_general_elec_exp')) {
+  //     // this.contributionAmountChange($event, col.name, col.validation.dollarAmountNegative);
+  //     this.frmIndividualReceipt.patchValue({ aggregate_general_elec_exp: 111.11 }, { onlySelf: true });
+  //   } else {
+  //     super.handleOnBlurEvent($event, col);
+  //   }
+  // }
 
   /**
    * Returns true if the field is valid.
@@ -315,20 +201,21 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
     if (this.frmIndividualReceipt.contains(fieldName)) {
       return this.frmIndividualReceipt.get(fieldName).valid;
     }
+    // return true;
   }
 
   private _setTransactionDetail() {
-    // this.subTransactionInfo = {
-    //   transactionType: 'DEBT_TO_VENDOR',
-    //   transactionTypeDescription: 'Debt to Vendor',
-    //   scheduleType: 'sched_d',
-    //   subTransactionType: 'COEXP_PARTY_DEBT',
-    //   subScheduleType: 'sched_f',
-    //   subTransactionTypeDescription: 'Coordinated Party Expenditure (SF)',
-    //   api_call: '/sd/schedD',
-    //   isParent: false,
-    //   isEarmark: false
-    // };
+    this.subTransactionInfo = {
+      transactionType: 'DEBT_TO_VENDOR',
+      transactionTypeDescription: 'Debt to Vendor',
+      scheduleType: 'sched_d',
+      subTransactionType: 'COEXP_PARTY_DEBT',
+      subScheduleType: 'sched_f',
+      subTransactionTypeDescription: 'Coordinated Party Expenditure (SF)',
+      api_call: '/sd/schedD',
+      isParent: false,
+      isEarmark: false
+    };
 
     if (this.scheduleAction === ScheduleActions.addSubTransaction) {
       this.clearFormValues();
@@ -360,5 +247,113 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
         return false;
       }
     }
+  }
+
+  private _patchSubordinateFormFields(fieldNames: any[], entity: any) {
+    if (fieldNames) {
+      for (const field of fieldNames) {
+        const patch = {};
+        patch[field.formName] = entity[field.entityFieldName];
+        this.frmIndividualReceipt.patchValue(patch, { onlySelf: true });
+      }
+    }
+  }
+
+  /**
+   * Handle user selection of Schedule F Designating or Subordinate Committee.
+   * @param $event
+   * @param name
+   */
+  public handleSelectedSFCommittee($event: NgbTypeaheadSelectItemEvent, name: string) {
+    const entity = $event.item;
+
+    const fieldNames = [];
+    if (name === 'designating_cmte_id' || name === 'designating_cmte_name') {
+      if (name === 'designating_cmte_id') {
+        fieldNames.push({ formName: 'designating_cmte_name', entityFieldName: 'cmte_name' });
+      } else {
+        fieldNames.push({ formName: 'designating_cmte_id', entityFieldName: 'cmte_id' });
+      }
+    } else if (name === 'subordinate_cmte_id' || name === 'subordinate_cmte_name') {
+      fieldNames.push({ formName: 'subordinate_cmte_id', entityFieldName: 'cmte_id' });
+      fieldNames.push({ formName: 'subordinate_cmte_name', entityFieldName: 'cmte_name' });
+      fieldNames.push({ formName: 'subordinate_cmte_street_1', entityFieldName: 'street_1' });
+      fieldNames.push({ formName: 'subordinate_cmte_street_2', entityFieldName: 'street_2' });
+      fieldNames.push({ formName: 'subordinate_cmte_state', entityFieldName: 'state' });
+      fieldNames.push({ formName: 'subordinate_cmte_city', entityFieldName: 'city' });
+      fieldNames.push({ formName: 'subordinate_cmte_zip', entityFieldName: 'zip_code' });
+    }
+    this._patchSubordinateFormFields(fieldNames, entity);
+  }
+
+  /**
+   * Cancel the payment and return to the start or first part.
+   */
+  public cancelSFPayment() {
+    this.showPart2 = false;
+    this.clearFormValues();
+    this.returnToParent(this.editScheduleAction);
+  }
+
+  /**
+   * Search for Committee Payees when Committee ID input value changes.
+   */
+  searchPayeeCommitteeId = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        const searchTextUpper = searchText.toUpperCase();
+
+        if (
+          searchTextUpper === 'C' ||
+          searchTextUpper === 'C0' ||
+          searchTextUpper === 'C00' ||
+          searchTextUpper === 'C000'
+        ) {
+          return Observable.of([]);
+        }
+
+        if (searchText) {
+          return this._typeaheadService.getContacts(searchText, 'payee_cmte_id');
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  formatterPayeeCommitteeId = (x: { payee_cmte_id: string }) => {
+    if (typeof x !== 'string') {
+      return x.payee_cmte_id;
+    } else {
+      return x;
+    }
+  };
+
+  /**
+   * Format a Candidate Entity to display in the Payee Committee ID type ahead.
+   *
+   * @param result formatted item in the typeahead list
+   */
+  public formatTypeaheadPayeeCommitteeId(result: any) {
+    const payeeCmteID = result.payee_cmte_id ? result.payee_cmte_id.trim() : '';
+    const candidateId = result.beneficiary_cand_id ? result.beneficiary_cand_id.trim() : '';
+    const lastName = result.cand_last_name ? result.cand_last_name.trim() : '';
+    const firstName = result.cand_first_name ? result.cand_first_name.trim() : '';
+    let office = result.cand_office ? result.cand_office.toUpperCase().trim() : '';
+    if (office) {
+      if (office === 'P') {
+        office = 'Presidential';
+      } else if (office === 'S') {
+        office = 'Senate';
+      } else if (office === 'H') {
+        office = 'House';
+      }
+    }
+    const officeState = result.cand_office_state ? result.cand_office_state.trim() : '';
+    const officeDistrict = result.cand_office_district ? result.cand_office_district.trim() : '';
+
+    return `${payeeCmteID}, ${candidateId}, ${lastName}, ${firstName}, ${office},
+      ${officeState}, ${officeDistrict}`;
   }
 }

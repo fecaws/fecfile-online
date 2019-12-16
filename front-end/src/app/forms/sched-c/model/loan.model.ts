@@ -44,6 +44,8 @@ export class LoanModel {
   memo_text: string;
   delete_ind: string;
   selected: boolean;
+  payments: any[];
+  child: any[];
     constructor(loan: any) {
         this.cmte_id = loan.cmte_id ? loan.cmte_id : '';
         this.report_id = loan.report_id ? loan.report_id : 0;
@@ -85,6 +87,8 @@ export class LoanModel {
         this.memo_text = loan.memo_text ? loan.memo_text : '';
         this.delete_ind = loan.delete_ind ? loan.delete_ind : '';        
         this.selected = loan.selected;
+        this.child = loan.child;
+        this.payments = loan.payments;
  
 
     }

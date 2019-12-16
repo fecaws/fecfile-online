@@ -1,3 +1,4 @@
+import { TransactionModel } from './../../transactions/model/transaction.model';
 import { Component, OnInit, Output, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -19,7 +20,6 @@ import {
 import { MessageService } from '../../../shared/services/MessageService/message.service';
 import { F3xMessageService } from '../service/f3x-message.service';
 import { ScheduleActions } from '../individual-receipt/schedule-actions.enum';
-import { TransactionModel } from '../../transactions/model/transaction.model';
 import { AbstractScheduleParentEnum } from '../individual-receipt/abstract-schedule-parent.enum';
 
 @Component({
@@ -62,12 +62,14 @@ export class F3xComponent implements OnInit {
   public scheduleFAction: ScheduleActions;
   public forceChangeDetectionC1: Date;
   public forceChangeDetectionFDebtPayment: Date;
+  public forceChangeDetectionDebtSummary: Date;
 
   public allTransactions: boolean = false;
 
   private _step: string = '';
   private _cloned: boolean = false;
   private _reportId: any;
+  public loanPaymentScheduleAction: ScheduleActions;
 
   constructor(
     private _reportTypeService: ReportTypeService,
@@ -299,7 +301,7 @@ export class F3xComponent implements OnInit {
             // The solutionhere is to call the message service.  This may be the preferred
             // mechanism to use going forward.
             if (this.transactionType && this.transactionType === e.transactionType) {
-              this._f3xMessageService.sendLoadFormFieldsMessage('');
+              this._f3xMessageService.sendLoadFormFieldsMessage(AbstractScheduleParentEnum.schedMainComponent);
             }
             if (
               e.transactionDetail &&
@@ -309,13 +311,13 @@ export class F3xComponent implements OnInit {
               this._cloned = true;
             }
 
-            this.scheduleType = e.scheduleType ? e.scheduleType : 'sched_a';
+            this.extractScheduleType(e);
 
             // Do this before setting scheduleAction to prevent change detection
             // in individual-receipt.component when sched F.
             // TODO add if else around schedules with component specific action
             // such as sched F and sched C.
-            if (this._handleScheduleFDebtPayment(e)) {
+            if (this._handleAddScheduleFDebtPayment(e)) {
               return;
             }
 
@@ -329,13 +331,16 @@ export class F3xComponent implements OnInit {
               this.scheduleAction = ScheduleActions.add;
             }
 
-            if (this._handleScheduleC(e.transactionDetail)) {
+            if (this._handleScheduleC(e)) {
+              return;
+            }
+
+            if (this._handleScheduleD()) {
               return;
             }
 
             // Coming from transactions, the event may contain the transaction data
             // with an action to allow for view or edit.
-
             let transactionTypeText = '';
             let transactionType = '';
 
@@ -357,37 +362,18 @@ export class F3xComponent implements OnInit {
                 this.scheduleType = 'sched_c';
                 this.scheduleCAction = ScheduleActions.edit;
                 this.transactionDetailSchedC = e.transactionDetail.transactionModel;
-
-                // this._router.navigate([`/forms/form/${this.formType}`], {
-                //   queryParams: {
-                //     step: 'loan',
-                //     reportId: this._reportId,
-                //     edit: this.editMode,
-                //     transactionCategory: '',
-                //     transactionTypeIdentifier: ''
-                //   }
-                // });
               } else if (apiCall === '/sc/schedC1') {
                 alert('edit C1 not yet supported');
               } else if (apiCall === '/sf/schedF') {
-                alert('edit schedule F not yet supported');
+                // force change to set show first page.
+                this.forceChangeDetectionFDebtPayment = new Date();
+                this._populateFormForEdit(e, AbstractScheduleParentEnum.schedFComponent);
               } else {
-                // message the child component rather than sending data as input because
-                // ngOnChanges fires when the form fields are changed, thereby reseting the
-                // fields to the previous value.  Result is fields can't be changed.
-                e.transactionDetail.action = this.scheduleAction;
-                this._f3xMessageService.sendPopulateFormMessage({
-                  key: 'fullForm',
-                  abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
-                  transactionModel: e.transactionDetail
-                });
+                this._populateFormForEdit(e, AbstractScheduleParentEnum.schedMainComponent);
                 const transactionModel: TransactionModel = e.transactionDetail.transactionModel;
                 transactionTypeText = transactionModel.type;
                 transactionType = transactionModel.transactionTypeIdentifier;
               }
-              // } else if (this.scheduleAction === ScheduleActions.loanSummary) {
-              //   this.scheduleType = 'sched_c_ls';
-              //   this.scheduleCAction = ScheduleActions.loanSummary;
             } else {
               transactionTypeText = e.transactionTypeText ? e.transactionTypeText : '';
               transactionType = e.transactionType ? e.transactionType : '';
@@ -401,6 +387,7 @@ export class F3xComponent implements OnInit {
                 } else if (e.hasOwnProperty('prePopulateFromSchedD')) {
                   this._f3xMessageService.sendPopulateFormMessage({
                     key: 'prePopulateFromSchedD',
+                    abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
                     prePopulateFromSchedD: e.prePopulateFromSchedD
                   });
                 }
@@ -434,25 +421,63 @@ export class F3xComponent implements OnInit {
             this._step = e.step;
           }
         }
-      } else if(e.hasOwnProperty('otherSchedHTransactionType')){        
+      } else if (e.hasOwnProperty('otherSchedHTransactionType')) {
         this.transactionType = e.otherSchedHTransactionType;
       }
     }
   }
 
   /**
+   * This method should extract the schedule type based on transactionTypeIdentifier in certain
+   * cases. It was being defaulted to sched_a but in case of e.g. sched c, it should be extracted.
+   * Additional use cases can be added to it
+   * @param e
+   */
+  private extractScheduleType(e: any) {
+    if (
+      e.transactionDetail &&
+      e.transactionDetail.transactionModel &&
+      e.transactionDetail.transactionModel.transactionTypeIdentifier === 'LOAN_REPAY_MADE'
+    ) {
+      e.scheduleType = 'sched_c_loan_payment';
+    }
+
+    //default to sched_a ?
+    this.scheduleType = e.scheduleType ? e.scheduleType : 'sched_a';
+  }
+
+  /**
+   * Send a message the child component rather than sending data as input because
+   * ngOnChanges fires when the form fields are changed, thereby reseting the
+   * fields to the previous value.  Result is fields can't be changed.
+   * @param e
+   * @param schedule
+   */
+  private _populateFormForEdit(e: any, schedule: AbstractScheduleParentEnum) {
+    e.transactionDetail.action = this.scheduleAction;
+    this._f3xMessageService.sendPopulateFormMessage({
+      key: 'fullForm',
+      abstractScheduleComponent: schedule,
+      transactionModel: e.transactionDetail
+    });
+  }
+
+  /**
    * Handle Schedule C forms.
    * @returns true if schedule C and should stop processing
    */
-  private _handleScheduleC(transactionDetail: any): boolean {
+  private _handleScheduleC(transaction: any): boolean {
+    let transactionDetail = transaction.transactionDetail;
     let finish = false;
     if (
       this.scheduleType === 'sched_c' ||
       this.scheduleType === 'sched_c_ls' ||
       this.scheduleType === 'sched_c_loan_payment' ||
-      this.scheduleType === 'sched_c1'
+      this.scheduleType === 'sched_c1' ||
+      this.scheduleType === 'sched_c_en' ||
+      this.scheduleType === 'sched_c_es'
     ) {
-      if (this.scheduleType === 'sched_c') {
+      if (this.scheduleType === 'sched_c' || this.scheduleType === 'sched_c_en') {
         if (this.scheduleAction === ScheduleActions.add) {
           // this.forceChangeDetectionC = new Date();
           this.scheduleCAction = ScheduleActions.add;
@@ -467,6 +492,26 @@ export class F3xComponent implements OnInit {
         this.scheduleType = 'sched_c_ls';
         this.scheduleCAction = ScheduleActions.loanSummary;
       } else if (this.scheduleType === 'sched_c_loan_payment') {
+        //this is being done in case loan payment is being accessed from transaction table,
+        //a flag is needed to return back to the transaction table's 'disbursement tab'
+        //upon clicking cancel, based on the current implementation of loan payments.
+        if (transaction.previousStep === 'transactions') {
+          transactionDetail.transactionModel.entryScreenScheduleType = transaction.previousStep;
+        }
+
+        //also loan payment needs to have a schedule action of its own, 'loanPaymentScheduleAction'
+        //since a new payment can be "added" while "editing" the loan itself
+        if (
+          transaction &&
+          transaction.transactionDetail &&
+          transaction.transactionDetail.transactionModel &&
+          transaction.transactionDetail.transactionModel.apiCall === '/sb/schedB' &&
+          transaction.transactionDetail.transactionModel.transactionId
+        ) {
+          this.loanPaymentScheduleAction = ScheduleActions.edit;
+        } else {
+          this.loanPaymentScheduleAction = ScheduleActions.add;
+        }
       } else if (this.scheduleType === 'sched_c1') {
         this.forceChangeDetectionC1 = new Date();
       }
@@ -481,18 +526,43 @@ export class F3xComponent implements OnInit {
   }
 
   /**
+   * Special handling for Sched D.  For example, don't call dynamic forms for Summary.
+   * @returns true if schedule D and should stop processing
+   */
+  private _handleScheduleD(): boolean {
+    let finish = false;
+    if (this.scheduleType === 'sched_d_ds') {
+      this.forceChangeDetectionDebtSummary = new Date();
+      this.canContinue();
+      finish = true;
+    }
+    return finish;
+  }
+
+  /**
    * Handle Schedule F Debt Payment form.
    * @returns true if schedule F and should stop processing
    */
-  private _handleScheduleFDebtPayment(e: any): boolean {
+  private _handleAddScheduleFDebtPayment(e: any): boolean {
     let finish = false;
     if (this.scheduleType === 'sched_f') {
-      this.scheduleFAction = e.action;
-      this.transactionTypeSchedF = e.transactionType ? e.transactionType : '';
-      this.transactionTypeTextSchedF = e.transactionTypeText ? e.transactionTypeText : '';
-      this.forceChangeDetectionFDebtPayment = new Date();
-      this.canContinue();
-      finish = true;
+      if (e.action === ScheduleActions.addSubTransaction) {
+        this.scheduleFAction = e.action;
+        this.transactionTypeSchedF = e.transactionType ? e.transactionType : '';
+        this.transactionTypeTextSchedF = e.transactionTypeText ? e.transactionTypeText : '';
+        this.forceChangeDetectionFDebtPayment = new Date();
+        if (this.scheduleFAction === ScheduleActions.addSubTransaction) {
+          if (e.hasOwnProperty('prePopulateFromSchedD')) {
+            this._f3xMessageService.sendPopulateFormMessage({
+              key: 'prePopulateFromSchedD',
+              abstractScheduleComponent: AbstractScheduleParentEnum.schedFComponent,
+              prePopulateFromSchedD: e.prePopulateFromSchedD
+            });
+          }
+        }
+        this.canContinue();
+        finish = true;
+      }
     }
     return finish;
   }
