@@ -32,9 +32,11 @@ from fecfiler.sched_A.views import (
     find_form_type,
     find_aggregate_date,
 )
-from fecfiler.core.transaction_util import transaction_exists
+from fecfiler.core.transaction_util import transaction_exists, update_sched_d_parent
 from fecfiler.sched_D.views import do_transaction
 
+# TODO: add date validation: disbur and dissem should have at least one of them
+# TODO: need to check and exclude memo transaction from aggregation
 
 # Create your views here.
 logger = logging.getLogger(__name__)
@@ -166,6 +168,25 @@ def schedE_sql_dict(data):
         raise Exception("invalid request data.")
 
 
+def get_existing_expenditure_amount(cmte_id, transaction_id):
+    """
+    fetch existing expenditure amount in the db for current transaction
+    """
+    _sql = """
+    select expenditure_amount
+    from public.sched_e
+    where cmte_id = %s
+    and transaction_id = %s
+    """
+    _v = (cmte_id, transaction_id)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(_sql, _v)
+            return cursor.fetchone()[0]
+    except:
+        raise
+
+
 def put_schedE(data):
     """
     update sched_E item
@@ -174,8 +195,20 @@ def put_schedE(data):
     try:
         check_mandatory_fields_SE(data)
         # check_transaction_id(data.get('transaction_id'))
+        existing_expenditure = get_existing_expenditure_amount(
+            data.get("cmte_id"), data.get("transaction_id")
+        )
         try:
             put_sql_schedE(data)
+            # update sched_d parent if IE debt payment
+            if data.get("transaction_type_identifier") == "IE_B4_DISSE_MEMO":
+                if float(existing_expenditure) != float(data.get("enpenditure_amount")):
+                    update_sched_d_parent(
+                        data.get("cmte_id"),
+                        data.get("back_ref_transaction_id"),
+                        data.get("expenditure_amount"),
+                        existing_expenditure,
+                    )
         except Exception as e:
             raise Exception(
                 "The put_sql_schedE function is throwing an error: " + str(e)
@@ -188,7 +221,7 @@ def put_schedE(data):
 def put_sql_schedE(data):
     """
     update a schedule_e item                    
-            
+
     """
     _sql = """
     UPDATE public.sched_e
@@ -383,7 +416,7 @@ def get_transactions_election_and_office(start_date, end_date, data):
 def update_aggregate_amt_se(data):
     """
     update related se aggrgate amount
-    
+
     """
     try:
         # itemization_value = 200
@@ -502,6 +535,14 @@ def post_schedE(data):
         try:
             logger.debug("saving new sched_e item with data:{}".format(data))
             post_sql_schedE(data)
+
+            # update sched_d parent if IE debt payment
+            if data.get("transaction_type_identifier") == "IE_B4_DISSE_MEMO":
+                update_sched_d_parent(
+                    data.get("cmte_id"),
+                    data.get("back_ref_transaction_id"),
+                    data.get("expenditure_amount"),
+                )
         except Exception as e:
             # remove entiteis if saving sched_a fails
             if rollback_flag:
@@ -815,17 +856,19 @@ def schedE(request):
     elif request.method == "GET":
         try:
             data = {"cmte_id": request.user.username}
-            if "report_id" in request.data and check_null_value(
-                request.data.get("report_id")
+            if "report_id" in request.query_params and check_null_value(
+                request.query_params.get("report_id")
             ):
-                data["report_id"] = check_report_id(request.data.get("report_id"))
+                data["report_id"] = check_report_id(
+                    request.query_params.get("report_id")
+                )
             else:
                 raise Exception("Missing Input: report_id is mandatory")
-            if "transaction_id" in request.data and check_null_value(
-                request.data.get("transaction_id")
+            if "transaction_id" in request.query_params and check_null_value(
+                request.query_params.get("transaction_id")
             ):
                 data["transaction_id"] = check_transaction_id(
-                    request.data.get("transaction_id")
+                    request.query_params.get("transaction_id")
                 )
             datum = get_schedE(data)
             return JsonResponse(datum, status=status.HTTP_200_OK, safe=False)
@@ -903,4 +946,3 @@ def schedE(request):
 
     else:
         raise NotImplementedError
-

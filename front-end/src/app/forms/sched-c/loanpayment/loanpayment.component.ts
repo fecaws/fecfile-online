@@ -1,29 +1,31 @@
-import { validateAmount } from 'src/app/shared/utils/forms/validation/amount.validator';
-import { ReportTypeService } from './../../form-3x/report-type/report-type.service';
-import { MessageService } from './../../../shared/services/MessageService/message.service';
-import { LoanService } from './../service/loan.service';
-import { UtilService } from './../../../shared/utils/util.service';
-import { Component, OnInit, ViewChild, AfterViewChecked, Input, ChangeDetectorRef, Output, EventEmitter } from '@angular/core';
-import { NgForm, Validators, FormControl } from '@angular/forms';
-import { CookieService } from 'ngx-cookie-service';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { ScheduleActions } from '../../form-3x/individual-receipt/schedule-actions.enum';
-import { environment } from '../../../../environments/environment';
+import { Component, EventEmitter, Input, OnInit, Output, ViewChild, OnDestroy } from '@angular/core';
+import { NgForm, Validators } from '@angular/forms';
+import { CookieService } from 'ngx-cookie-service';
+import { Subscription } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { validateAmount } from 'src/app/shared/utils/forms/validation/amount.validator';
+import { environment } from '../../../../environments/environment';
 import { validateContributionAmount } from '../../../shared/utils/forms/validation/amount.validator';
 import { ContributionDateValidator } from '../../../shared/utils/forms/validation/contribution-date.validator';
+import { ScheduleActions } from '../../form-3x/individual-receipt/schedule-actions.enum';
+import { F3xMessageService } from '../../form-3x/service/f3x-message.service';
+import { MessageService } from './../../../shared/services/MessageService/message.service';
+import { UtilService } from './../../../shared/utils/util.service';
+import { ReportTypeService } from './../../form-3x/report-type/report-type.service';
+import { LoanService } from './../service/loan.service';
+import { DecimalPipe } from '@angular/common';
 
 @Component({
   selector: 'app-loanpayment',
   templateUrl: './loanpayment.component.html',
   styleUrls: ['./loanpayment.component.scss']
 })
-export class LoanpaymentComponent implements OnInit {
+export class LoanpaymentComponent implements OnInit, OnDestroy {
 
   @Input() transactionDetail: any;
-  @Input() scheduleAction: ScheduleActions = ScheduleActions.add;
+  @Input() scheduleAction: ScheduleActions ;
   @Output() status: EventEmitter<any> = new EventEmitter<any>();
 
   tooltipPlaceholder: string = 'Language to be provided by RAD';
@@ -33,17 +35,35 @@ export class LoanpaymentComponent implements OnInit {
   states: any = [];
   entityTypes: any = [{ code: 'IND', description: 'Individual' }, { code: 'ORG', description: 'Organization' }];
   outstandingLoanBalance: number;
+  public _contributionAmountMax = 12;
+
+  private _loanTransactionId;
+
+  private _clearFormSubscription: Subscription;
+  editMode: any;
+
 
   constructor(private _cookieService: CookieService,
     private _http: HttpClient,
     private utilService: UtilService,
     private _contributionDateValidator: ContributionDateValidator,
     private _loanService: LoanService,
+    private _decimalPipe: DecimalPipe,
     private _receiptService: LoanService,
     private _messageService: MessageService,
     private _reportTypeService: ReportTypeService,
-    private _router: Router, 
-    private changeDetectorRef: ChangeDetectorRef) { }
+    private _f3xMessageService: F3xMessageService,
+    private _activatedRoute: ActivatedRoute,
+    private _router: Router) {
+
+    this._clearFormSubscription = this._f3xMessageService.getInitFormMessage().subscribe(message => {
+      if (this.form) {
+        this.form.reset();
+        this.initializeForm();
+      }
+    });
+
+  }
 
 
 
@@ -55,19 +75,43 @@ export class LoanpaymentComponent implements OnInit {
     this.initializeForm();
     this.getStates();
   }
-  
 
-  isIndividual(){
-    if(this.form.control.get('entity_type').value === 'IND'){
+  public ngOnDestroy(): void {
+    this._messageService.clearMessage();
+    this._clearFormSubscription.unsubscribe();
+  }
+
+  ngOnChanges(){
+    this.ngOnInit();
+  }
+
+  isIndividual() {
+    if (this.form.control.get('entity_type').value === 'IND') {
       return true;
     }
     return false;
   }
-  
+
   private getLoanRepaymentData() {
-    
+
+    this.scheduleAction ? this.scheduleAction : this.scheduleAction = ScheduleActions.add;
     const reportId: string = this._reportTypeService.getReportIdFromStorage('3X').toString();
-    this._loanService.getDataSchedule(reportId, this.transactionDetail.transactionId).subscribe(res => {
+
+
+    if (this.transactionDetail && this.transactionDetail.transactionTypeIdentifier === "LOAN_REPAY_MADE") {
+      if(this.transactionDetail.backRefTransactionId){
+        this._loanTransactionId = this.transactionDetail.backRefTransactionId;
+      }
+      else if(this.transactionDetail.back_ref_transaction_id){
+        this._loanTransactionId = this.transactionDetail.back_ref_transaction_id;
+      }
+    }
+    else {
+      this._loanTransactionId = this.transactionDetail.transactionId;
+    }
+
+
+    this._loanService.getDataSchedule(reportId, this._loanTransactionId).subscribe(res => {
       res = res[0];
       this.selectedEntity = res.entity_type;
 
@@ -83,11 +127,19 @@ export class LoanpaymentComponent implements OnInit {
       this.form.control.patchValue({ 'city': res.city });
       this.form.control.patchValue({ 'zip': res.zip_code });
       this.form.control.patchValue({ 'state': res.state });
+      this.form.control.patchValue({ 'entity_id': res.entity_id });
       this.outstandingLoanBalance = Number(res.loan_balance);
+
+      if(this.scheduleAction === ScheduleActions.edit){
+         this.form.control.patchValue({ 'expenditure_date': this.transactionDetail.date });
+         this.form.control.patchValue({ 'expenditure_amount': this._decimalPipe.transform(this.transactionDetail.amount, '.2-2')});
+         this.form.control.patchValue({ 'expenditure_purpose': this.transactionDetail.purposeDescription });
+         this.form.control.patchValue({ 'memo_text': this.transactionDetail.memoText });
+      }
 
       //remove unnecessary form controls
       this.removeUnnecessaryFormControls();
-      
+
       //validators have to be set after getting current loan metadata to enfore max contribution amount
       this.setupValidators();
 
@@ -176,18 +228,71 @@ export class LoanpaymentComponent implements OnInit {
 
   }
 
+  expenditureAmountChanged(amount: any) {
+    this._formatAmount(amount, 'expenditure_amount', false);
+  }
+
+  private _formatAmount(e: any, fieldName: string, negativeAmount: boolean) {
+    let contributionAmount: string = e.target.value;
+
+    // default to 0 when no value
+    contributionAmount = contributionAmount ? contributionAmount : '0';
+
+    // remove commas
+    contributionAmount = contributionAmount.replace(/,/g, ``);
+
+    // determine if negative, truncate if > max
+    contributionAmount = this._transformAmount(contributionAmount, this._contributionAmountMax);
+
+    let contributionAmountNum = parseFloat(contributionAmount);
+    // Amount is converted to negative for Return / Void / Bounced
+    if (negativeAmount) {
+      contributionAmountNum = -Math.abs(contributionAmountNum);
+      // this._contributionAmount = String(contributionAmountNum);
+    }
+
+    const amountValue: string = this._decimalPipe.transform(contributionAmountNum, '.2-2');
+    const patch = {};
+    patch[fieldName] = amountValue;
+    this.form.control.patchValue(patch, { onlySelf: true });
+  }
+
+  /**
+  * Allow for negative sign and don't allow more than the max
+  * number of digits.
+  */
+  private _transformAmount(amount: string, max: number): string {
+    if (!amount) {
+      return amount;
+    } else if (amount.length > 0 && amount.length <= max) {
+      return amount;
+    } else {
+      // Need to handle negative sign, decimal and max digits
+      if (amount.substring(0, 1) === '-') {
+        if (amount.length === max || amount.length === max + 1) {
+          return amount;
+        } else {
+          return amount.substring(0, max + 2);
+        }
+      } else {
+        const result = amount.substring(0, max + 1);
+        return result;
+      }
+    }
+  }
+
   private removeCommas(amount: string): string {
-    return amount.replace(new RegExp(',', 'g'), '');
+    return amount.toString().replace(new RegExp(',', 'g'), '');
 
   }
 
-  public saveLoanPayment(form: string, scheduleAction: ScheduleActions) {
+  public saveLoanPayment(form: string) {
 
 
     if (this.validateForm()) {
 
       let formType: string = '3X';
-      scheduleAction = ScheduleActions.add;
+      // scheduleAction = ScheduleActions.add;
 
       const token: string = JSON.parse(this._cookieService.get('user'));
       let url: string = '/sb/schedB';
@@ -210,18 +315,18 @@ export class LoanpaymentComponent implements OnInit {
 
       formData.append('cmte_id', committeeDetails.committeeid);
       formData.append('transaction_type_identifier', 'LOAN_REPAY_MADE');
-      formData.append('back_ref_transaction_id', this.transactionDetail.transactionId);
-      
-      if(this.transactionDetail.entityId){
+      formData.append('back_ref_transaction_id', this._loanTransactionId);
+
+      if (this.transactionDetail.entityId) {
         formData.append('entity_id', this.transactionDetail.entityId);
       }
 
       console.log();
 
-      for (const [key, value] of Object.entries(this.form.controls)){
-        if(value.value !== null){
-          if(typeof value.value === 'string'){
-            formData.append(key,value.value);
+      for (const [key, value] of Object.entries(this.form.controls)) {
+        if (value.value !== null) {
+          if (typeof value.value === 'string') {
+            formData.append(key, value.value);
           }
         }
       }
@@ -232,7 +337,7 @@ export class LoanpaymentComponent implements OnInit {
         formData.append('memo_code', 'X');
       }
 
-      if (scheduleAction === ScheduleActions.add || scheduleAction === ScheduleActions.addSubTransaction) {
+      if (this.scheduleAction === ScheduleActions.add || this.scheduleAction === ScheduleActions.addSubTransaction) {
         return this._http
           .post(`${environment.apiUrl}${url}`, formData, {
             headers: httpOptions
@@ -259,23 +364,70 @@ export class LoanpaymentComponent implements OnInit {
             return false;
           }
           );
-      } else if (scheduleAction === ScheduleActions.edit) {
+      } else if (this.scheduleAction === ScheduleActions.edit) {
+        formData.set('transaction_id', this.transactionDetail.transactionId);
         return this._http
           .put(`${environment.apiUrl}${url}`, formData, {
             headers: httpOptions
           })
-          .pipe(
-            map(res => {
-              if (res) {
-                return res;
-              }
-              return false;
-            })
+          .subscribe(res => {
+            if (res) {
+              //update sidebar
+              this._receiptService.getSchedule(formType, res).subscribe(resp => {
+                const message: any = {
+                  formType,
+                  totals: resp
+                };
+                this._messageService.sendMessage(message);
+              });
+
+              //navigate to Loan Summary here
+              this._goToLoanSummary();
+              // return res;
+            }
+            console.log('success but no response.. failure?')
+            return false;
+          }
           );
       } else {
-        console.log('unexpected ScheduleActions received - ' + scheduleAction);
+        console.log('unexpected ScheduleActions received - ' + this.scheduleAction);
       }
     }
+  }
+
+  cancelLoanPayment() {
+    
+    
+    if (this.transactionDetail.entryScreenScheduleType === 'transactions') {
+      this.goToTransactionsTable();
+    }
+    else {
+      this.status.emit({
+        form: {},
+        direction: 'previous',
+        step: 'step_3',
+        action: ScheduleActions.edit,
+        scheduleType: this.transactionDetail.entryScreenScheduleType,
+        transactionDetail: {
+          transactionModel: this.transactionDetail
+        }
+
+      });
+    }
+  }
+
+  private goToTransactionsTable() {
+    this.editMode = this._activatedRoute.snapshot.queryParams.edit
+      ? this._activatedRoute.snapshot.queryParams.edit
+      : true;
+    this._router.navigate([`/forms/form/3X`], {
+      queryParams: {
+        step: 'transactions',
+        reportId: this._reportTypeService.getReportIdFromStorage('3X').toString(),
+        edit: this.editMode,
+        transactionCategory: 'disbursements'
+      }
+    });
   }
 
   private _goToLoanSummary() {
@@ -285,7 +437,6 @@ export class LoanpaymentComponent implements OnInit {
       step: 'step_3',
       previousStep: 'step_2',
       scheduleType: 'sched_c_ls',
-      // action: ScheduleActions.add,
     };
     this.status.emit(loanRepaymentEmitObj);
   }
