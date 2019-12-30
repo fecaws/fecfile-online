@@ -302,8 +302,6 @@ CREATE OR REPLACE VIEW public.all_contacts_view AS
    FROM entity e
   ORDER BY e.last_update_date DESC;
 
-DROP VIEW public.all_receipts_transactions_view;
-
 CREATE OR REPLACE VIEW public.all_receipts_transactions_view AS 
  SELECT sa.cmte_id,
     sa.report_id,
@@ -370,8 +368,6 @@ CREATE OR REPLACE VIEW public.all_receipts_transactions_view AS
      JOIN reports rp ON rp.cmte_id::text = sa.cmte_id::text AND rp.report_id = sa.report_id
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text
   WHERE sa.transaction_type_identifier::text <> ALL (ARRAY['LEVIN_PARTN_MEMO'::character varying::text, 'LEVIN_TRIB_REC'::character varying::text, 'LEVIN_PARTN_REC'::character varying::text, 'LEVIN_ORG_REC'::character varying::text, 'LEVIN_INDV_REC'::character varying::text, 'LEVIN_NON_FED_REC'::character varying::text, 'LEVIN_OTH_REC'::character varying::text, 'LEVIN_PAC_REC'::character varying::text]);
-
-DROP VIEW public.all_disbursements_transactions_view;
 
 CREATE OR REPLACE VIEW public.all_disbursements_transactions_view AS 
  SELECT sb.cmte_id,
@@ -442,8 +438,6 @@ CREATE OR REPLACE VIEW public.all_disbursements_transactions_view AS
      JOIN reports rp ON rp.cmte_id::text = sb.cmte_id::text AND rp.report_id = sb.report_id
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text
   WHERE sb.transaction_type_identifier::text <> ALL (ARRAY['LEVIN_VOTER_REG'::character varying::text, 'LEVIN_VOTER_ID'::character varying::text, 'LEVIN_GOTV'::character varying::text, 'LEVIN_GEN'::character varying::text, 'LEVIN_OTH_DISB'::character varying::text]);
-
-DROP VIEW public.all_loans_debts_transactions_view;
 
 CREATE OR REPLACE VIEW public.all_loans_debts_transactions_view AS 
  SELECT sc.cmte_id,
@@ -567,8 +561,6 @@ UNION
      JOIN ref_transaction_types rt ON rt.tran_identifier::text = sd.transaction_type_identifier::text
      JOIN reports rp ON rp.cmte_id::text = sd.cmte_id::text AND rp.report_id = sd.report_id
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text;
-
-DROP VIEW public.all_other_transactions_view;
 
 CREATE OR REPLACE VIEW public.all_other_transactions_view AS 
  SELECT sa.cmte_id,
