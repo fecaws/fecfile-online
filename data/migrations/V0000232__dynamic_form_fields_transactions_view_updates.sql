@@ -1226,3 +1226,6 @@ INSERT INTO public.dynamic_form_fields(
        seperator, transaction_type_desc, field_input_group, field_input_icon, 
        child_form, form_sub_title, toggle, entity_group, entity_id_mapping
   FROM public.dynamic_form_fields WHERE transaction_type = 'OTH_REC';
+
+UPDATE public.dynamic_form_fields SET field_is_readonly = true WHERE transaction_type='OTH_REC_DEBT' AND field_db_name in ('entity_type', 'entity_name', 
+    'last_name', 'first_name', 'middle_name', 'prefix', 'suffix', 'street_1', 'street_2', 'city', 'state', 'zip_code');
