@@ -3691,4 +3691,4 @@ UPDATE public.transaction_categories SET tran_type='JF Transfer - National Party
 
 UPDATE public.dynamic_form_fields SET field_value='Non-Contribution Account Receipt' WHERE transaction_type='IND_REC_NON_CONT_ACC' AND field_db_name='pretext';
 
-UPDATE public.dynamic_form_fields SET field_is_required='t' transaction_type='OPEXP_VOID' AND field_db_name='expenditure_purpose';
+UPDATE public.dynamic_form_fields SET field_is_required='t' WHERE transaction_type='OPEXP_VOID' AND field_db_name='expenditure_purpose';
