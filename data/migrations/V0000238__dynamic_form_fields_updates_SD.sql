@@ -1,0 +1,1 @@
+DELETE FROM public.dynamic_form_fields WHERE transaction_type = 'OTH_REC_DEBT' AND field_db_name in ('employer','occupation');
