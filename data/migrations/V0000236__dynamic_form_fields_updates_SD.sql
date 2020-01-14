@@ -1,0 +1,1 @@
+UPDATE public.dynamic_form_fields SET field_value='OTH_REC_DEBT' WHERE transaction_type ='OTH_REC_DEBT' AND field_db_name='transaction_type_identifier';
