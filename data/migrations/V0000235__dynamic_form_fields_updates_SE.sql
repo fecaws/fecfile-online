@@ -1,0 +1,1 @@
+UPDATE public.dynamic_form_fields SET field_db_name='cand_election_year' WHERE transaction_type in ('IE', 'IE_VOID', 'IE_MULTI', 'IE_CC_PAY', 'IE_PMT_TO_PROL', 'IE_STAF_REIM', 'IE_CC_PAY_MEMO', 'IE_STAF_REIM_MEMO', 'IE_PMT_TO_PROL_MEMO') AND field_db_name='election_year';
