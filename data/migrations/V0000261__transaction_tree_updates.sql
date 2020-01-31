@@ -6,3 +6,5 @@ UPDATE public.transaction_categories SET tran_type='Payment to Payroll for Other
 WHERE tran_type_identifier='OTH_DISB_PMT_TO_PROL';
 UPDATE public.transaction_categories SET tran_type='Void of Other Disbursements' 
 WHERE tran_type_identifier='OTH_DISB_VOID';
+UPDATE public.transaction_categories SET tran_type='Void of Contributions to Other Committees'
+WHERE tran_type_identifier='CONT_VOID';
