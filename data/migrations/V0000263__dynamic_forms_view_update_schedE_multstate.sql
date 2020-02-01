@@ -4,6 +4,6 @@ update dynamic_form_fields set field_order = 36, seperator='false' where transac
 
 update dynamic_form_fields set field_order = 37, seperator='true' where transaction_type = 'IE_MULTI' and field_db_name='memo_text_states';
 
-update dynamic_form_fields set field_order = field_order + 1 where transaction_type = 'IE_MULTI' and field_order >= 37 and field_html_type != 'hidden'
+update dynamic_form_fields set field_order = field_order + 1 where transaction_type = 'IE_MULTI' and field_order >= 37 and field_html_type != 'hidden';
 
 update dynamic_form_fields set field_order = 37, seperator='true' where transaction_type = 'IE_MULTI' and field_db_name='memo_text_states';
