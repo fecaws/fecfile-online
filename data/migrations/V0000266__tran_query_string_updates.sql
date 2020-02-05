@@ -42,6 +42,8 @@ WHERE t1.transaction_type_identifier = ''LOANS_OWED_BY_CMTE'' AND t1.report_id =
 ' WHERE tran_type_identifier = 'LOANS_OWED_BY_CMTE'
                     AND form_type = 'F3X' AND sched_type = 'SC';
 
+DELETE FROM public.tran_query_string WHERE tran_type_identifier='ALLOC_FEA_DISB_DEBT';
+
 INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
                     VALUES ('F3X', 'SH6', 'ALLOC_FEA_DISB_DEBT', '
 SELECT COALESCE(t1.line_number, '''') AS "lineNumber",
