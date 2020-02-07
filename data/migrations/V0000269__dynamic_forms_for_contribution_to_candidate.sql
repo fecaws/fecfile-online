@@ -1,3 +1,7 @@
+DELETE FROM dynamic_form_fields where transaction_type = 'CONT_TO_CAN';
+commit;
+
+
 INSERT INTO dynamic_form_fields (form_type,transaction_type,field_label,field_value,field_size,field_type,field_html_type,field_is_required,field_is_hidden,field_is_readonly,field_validation,field_infoicon,field_info,field_order,field_section,field_section_order,create_date,last_update_date,field_db_name,class_name,height,width,"scroll",seperator,transaction_type_desc,field_input_group,field_input_icon,child_form,form_sub_title,toggle,entity_group,entity_id_mapping) VALUES 
 ('F3X','CONT_TO_CAN','Entity Type','COM',3,'hidden','hidden',true,true,false,'alphaNumeric',false,NULL,1,'Name Section 1',1,'2019-09-24','2019-09-24','entity_type','col col-md-4','30px','450px',false,false,'Individual Receipt',false,'',false,NULL,false,NULL,'entity_id')
 ,('F3X','CONT_TO_CAN','Organization Name',NULL,200,'text','input',true,false,false,'alphaNumeric',false,NULL,2,'Name Section 1',2,'2019-09-24','2019-09-24','entity_name','col col-md-4','30px','197px',false,true,'Individual Receipt',false,'',false,NULL,false,NULL,'entity_id')
