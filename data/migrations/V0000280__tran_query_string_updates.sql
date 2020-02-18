@@ -1,6 +1,6 @@
 DELETE FROM public.tran_query_string WHERE tran_type_identifier in ('IE', 'IE_CC_PAY_MEMO', 
 'IE_STAF_REIM_MEMO', 'IE_VOID', 'IE_B4_DISSE_MEMO', 'IE_MULTI', 'IE_CC_PAY', 'IE_PMT_TO_PROL',
-'IE_STAF_REIM', 'IE_PMT_TO_PROL_MEMO');
+'IE_STAF_REIM', 'IE_PMT_TO_PROL_MEMO', 'IE_B4_DISSE');
 
 INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
 VALUES ('F3X', 'SE', 'IE', '
