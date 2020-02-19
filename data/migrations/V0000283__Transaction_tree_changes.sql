@@ -14,7 +14,7 @@ UPDATE transaction_categories SET tran_type = 'Refund of Unregistered Contributi
 UPDATE transaction_categories SET tran_type = 'Refund of Unregistered Contribution - Void' WHERE tran_type_identifier = 'REF_CONT_NON_FED_VOID';
 
 -- Removed from disbursement
-DELETE FROM transaction_categories WHERE cmte_type_category = 'PAC' AND tran_type_identifier IN ('COEXP_PARTY', 'COEXP_CC_PAY', 'COEXP_STAF_REIM', 'COEXP_PMT_PROL', 'COEXP_PMT_PROL_VOID');
+DELETE FROM transaction_categories WHERE cmte_type_category = 'PTY' AND tran_type_identifier IN ('COEXP_PARTY', 'COEXP_CC_PAY', 'COEXP_STAF_REIM', 'COEXP_PMT_PROL', 'COEXP_PMT_PROL_VOID');
 
 DELETE FROM transaction_categories WHERE cmte_type_category = 'PAC' AND tran_type_identifier IN ('ALLOC_EXP_DIR_CAN_SUP', 'ALLOC_EXP_DIR_CAN_SUP_CONT', 'ALLOC_EXP_DIR_CAN_IE', 'ALLOC_EXP_DIR_CAN_COORD');
 
