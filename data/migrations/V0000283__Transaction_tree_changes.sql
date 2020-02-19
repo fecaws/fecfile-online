@@ -19,4 +19,3 @@ DELETE FROM transaction_categories WHERE cmte_type_category = 'PAC' AND tran_typ
 DELETE FROM transaction_categories WHERE cmte_type_category = 'PAC' AND tran_type_identifier IN ('ALLOC_EXP_DIR_CAN_SUP', 'ALLOC_EXP_DIR_CAN_SUP_CONT', 'ALLOC_EXP_DIR_CAN_IE', 'ALLOC_EXP_DIR_CAN_COORD');
 
 DELETE FROM transaction_categories WHERE sub_category_type='Federal Election Activity Expenditures' AND cmte_type_category = 'PAC';
-hq-ltm-1180:FEC rsanchez$
