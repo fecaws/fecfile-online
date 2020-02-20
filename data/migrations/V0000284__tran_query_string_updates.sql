@@ -1,3 +1,5 @@
+DELETE FROM public.tran_query_string WHERE tran_type_identifier in ('ALLOC_H1','ALLOC_H2_RATIO');
+
 INSERT INTO public.tran_query_string(form_type, sched_type, tran_type_identifier, query_string)
 VALUES ('F3X', 'SH1', 'ALLOC_H1', '
                     SELECT COALESCE(t1.line_number, '''') AS "lineNumber",
