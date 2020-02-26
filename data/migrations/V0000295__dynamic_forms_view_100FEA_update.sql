@@ -1,0 +1,1 @@
+update dynamic_form_fields set field_is_readonly = false, field_input_group = false where transaction_type = 'FEA_100PCT_PAY' and field_db_name = 'expenditure_purpose';
