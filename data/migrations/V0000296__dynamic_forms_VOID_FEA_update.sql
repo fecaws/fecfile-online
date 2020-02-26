@@ -1,0 +1,1 @@
+update dynamic_form_fields set field_is_readonly = false where transaction_type = 'FEA_VOID' and field_db_name = 'expenditure_purpose';
