@@ -46,6 +46,12 @@ export class SubTransactionsTableComponent implements OnInit, OnChanges {
   @Input()
   public subTransactions: any[];
 
+  @Input()
+  public returnToDebtSummary: boolean;
+
+  @Input()
+  public returnToDebtSummaryInfo: any;
+
   public transactionsModel: Array<TransactionModel>;
 
   public constructor(
@@ -129,6 +135,9 @@ export class SubTransactionsTableComponent implements OnInit, OnChanges {
 
         model.date = trx.expenditure_date ? trx.expenditure_date : trx.contribution_date;
         model.aggregate = trx.contribution_aggregate;
+        if(!model.aggregate && this.subTransactionsTableType === 'sched_e'){
+          model.aggregate = trx.expenditure_aggregate;
+        }
 
         model.activityEventType = trx.activity_event_type;
         model.activityEventIdentifier = trx.activity_event_identifier;
@@ -149,6 +158,8 @@ export class SubTransactionsTableComponent implements OnInit, OnChanges {
         model.transactionId = trx.transaction_id;
         model.backRefTransactionId = trx.back_ref_transaction_id;
         model.apiCall = trx.api_call;
+        model.disbursementDate = trx.disbursement_date;
+        model.disseminationDate = trx.dissemination_date;
 
         modelArray.push(model);
       }
@@ -220,13 +231,24 @@ export class SubTransactionsTableComponent implements OnInit, OnChanges {
    * @param trx the Transaction to edit
    */
   public editTransaction(trx: TransactionModel): void {
-    if(this.isH4OrH6() === 'H4') {
+    if (this.isH4OrH6() === 'H4') {
       trx.apiCall = '/sh4/schedH4';
-    }else if(this.isH4OrH6() === 'H6') {
+    } else if (this.isH4OrH6() === 'H6') {
       trx.apiCall = '/sh6/schedH6';
+    } else if (this.isSchedF(trx)) {
+      trx.apiCall = '/sf/schedF';
     }
-
-    this._transactionsMessageService.sendEditTransactionMessage(trx);
+    if (this.returnToDebtSummary) {
+      const debtSummary = {
+        returnToDebtSummary: this.returnToDebtSummary,
+        returnToDebtSummaryInfo: this.returnToDebtSummaryInfo
+      };
+      this._transactionsMessageService.sendEditDebtSummaryTransactionMessage(
+        {trx: trx, debtSummary: debtSummary}
+      );
+    } else {
+      this._transactionsMessageService.sendEditTransactionMessage(trx);
+    }
   }
 
   public isH4OrH6(): string {
@@ -247,5 +269,16 @@ export class SubTransactionsTableComponent implements OnInit, OnChanges {
         }
       }
     }
+  }
+
+  private isSchedF(trx: TransactionModel) {
+    if (trx) {
+      if ( trx.transactionTypeIdentifier === 'COEXP_CC_PAY_MEMO' ||
+          trx.transactionTypeIdentifier === 'COEXP_STAF_REIM_MEMO' ||
+          trx.transactionTypeIdentifier === 'COEXP_PMT_PROL_MEMO' ) {
+        return true;
+      }
+    }
+    return false;
   }
 }

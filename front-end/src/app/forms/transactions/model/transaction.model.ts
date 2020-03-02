@@ -39,6 +39,12 @@ export class TransactionModel {
   loanIncurredDate: any;
   loanPaymentAmt: any;
   loanPaymentToDate: any;
+  isReattribution = false;
+  reattribution_id:string;
+  isreattributable = false;
+  isRedesignation = false;
+  redesignation_id:string;
+  isredesignatable = false;
   reportType: any;
   activityEventType: any;
   activityEventIdentifier: any;
@@ -48,7 +54,39 @@ export class TransactionModel {
   purpose: any;
   reportId: any;
   scrollDebtPaymentButtonIntoView: boolean;
-  iseditable: boolean; 
+  iseditable: boolean;
+  isTrashable:boolean;
+  disbursementDate:Date;
+  disseminationDate:Date;
+  candLastName: string;
+  candFirstName: string;
+  candMiddleName: string;
+  candPrefix: string;
+  candSuffix: string;
+  candFECId: string;
+  benificiaryCandId: string;
+  candOffice:string;
+  candOfficeState:string;
+  candOfficeDistrict:string;
+  candElectionCode:string;
+  candElectionYear:string;
+  candSupportOpposeFlag:string;
+  candElectionOtherDesc: string;
+  originalAmount: any;
+
+  //used by sched f core child trx
+  coordinatedExpInd: string;
+  designatingCmteId: string;
+  designatingCmteName: string;
+  subordinateCmteId: string;
+  subordinateCmteName: string;
+  subordinateCmteStreet_1: string;
+  subordinateCmteStreet_2: string;
+  subordinateCmteCity: string;
+  subordinateCmteState: string;
+  subordinateCmteZip: string;
+
+
 
   constructor(transaction: any) {
     this.type = transaction.type ? transaction.type : '';
@@ -68,6 +106,8 @@ export class TransactionModel {
     this.date = transaction.date ? transaction.date : null;
     this.amount = transaction.amount ? transaction.amount : null;
     this.deletedDate = transaction.deletedDate ? transaction.deletedDate : null;
+    this.disbursementDate = transaction.disbursementDate ? transaction.disbursementDate : null;
+    this.disseminationDate = transaction.disseminationDate ? transaction.disseminationDate : null;
     this.aggregate = transaction.aggregate ? transaction.aggregate : null;
     this.purposeDescription = transaction.purposeDescription ? transaction.purposeDescription : '';
     this.contributorEmployer = transaction.contributorEmployer ? transaction.contributorEmployer : '';
@@ -99,5 +139,27 @@ export class TransactionModel {
     this.purpose = transaction.purpose;
     this.scrollDebtPaymentButtonIntoView = transaction.scrollDebtPaymentButtonIntoView ? transaction.scrollDebtPaymentButtonIntoView : false;
     this.reportId = transaction.reportId;
+    this.candLastName = transaction.candLastName;
+    this.candFirstName = transaction.candFirstName;
+    this.candMiddleName = transaction.candMiddleName;
+    this.candPrefix = transaction.candPrefix;
+    this.candSuffix = transaction.candSuffix;
+    this.candFECId = transaction.candFECId;
+    this.benificiaryCandId = transaction.benificiaryCandId;
+    this.candOffice = transaction.candOffice;
+    this.candOfficeState = transaction.candOfficeState;
+    this.candOfficeDistrict = transaction.candOfficeDistrict;
+    this.candElectionCode = transaction.candElectionCode;
+    this.candElectionYear = transaction.candElectionYear;
+    this.candElectionOtherDesc = transaction.candElectionOtherDesc;
+    this.candSupportOpposeFlag = transaction.candSupportOpposeFlag;
+    this.isReattribution = transaction.isReattribution;
+    this.isreattributable = transaction.isreattributable;
+    this.reattribution_id = transaction.reattribution_id;
+    this.isredesignatable = transaction.isredesignatable;
+    this.isRedesignation = transaction.isRedesignation;
+    this.redesignation_id = transaction.redesignation_id;
+    this.originalAmount = transaction.originalAmount;
+
   }
 }

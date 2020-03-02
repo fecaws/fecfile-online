@@ -1,29 +1,20 @@
-import { LoanMessageService } from './../../sched-c/service/loan-message.service';
-import { TransactionModel } from './../../transactions/model/transaction.model';
-import { Component, OnInit, Output, ViewEncapsulation } from '@angular/core';
-import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { Component, OnDestroy, OnInit, ViewEncapsulation } from '@angular/core';
+import { FormBuilder } from '@angular/forms';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
-import { ReportTypeService } from '../report-type/report-type.service';
-import { TransactionTypeService } from '../transaction-type/transaction-type.service';
+import { Subject } from 'rxjs';
+import 'rxjs/add/operator/takeUntil';
 import { FormsService } from '../../../shared/services/FormsService/forms.service';
-import {
-  form3x_data,
-  form3XReport,
-  form3xReportTypeDetails
-} from '../../../shared/interfaces/FormsService/FormsService';
-import {
-  selectedElectionState,
-  selectedElectionDate,
-  selectedReportType
-} from '../../../shared/interfaces/FormsService/FormsService';
-import { MessageService } from '../../../shared/services/MessageService/message.service';
-import { F3xMessageService } from '../service/f3x-message.service';
-import { ScheduleActions } from '../individual-receipt/schedule-actions.enum';
-import { AbstractScheduleParentEnum } from '../individual-receipt/abstract-schedule-parent.enum';
 import { SchedHMessageServiceService } from '../../sched-h-service/sched-h-message-service.service';
 import { SchedHServiceService } from '../../sched-h-service/sched-h-service.service';
+import { AbstractScheduleParentEnum } from '../individual-receipt/abstract-schedule-parent.enum';
+import { ScheduleActions } from '../individual-receipt/schedule-actions.enum';
+import { ReportTypeService } from '../report-type/report-type.service';
+import { F3xMessageService } from '../service/f3x-message.service';
+import { TransactionTypeService } from '../transaction-type/transaction-type.service';
+import { LoanMessageService } from './../../sched-c/service/loan-message.service';
+import { TransactionModel } from './../../transactions/model/transaction.model';
 
 @Component({
   selector: 'app-f3x',
@@ -32,7 +23,7 @@ import { SchedHServiceService } from '../../sched-h-service/sched-h-service.serv
   providers: [NgbTooltipConfig],
   encapsulation: ViewEncapsulation.None
 })
-export class F3xComponent implements OnInit {
+export class F3xComponent implements OnInit, OnDestroy {
   public loadingData = false;
   public currentStep: string = 'step_1';
   public editMode: boolean = true;
@@ -54,9 +45,12 @@ export class F3xComponent implements OnInit {
   public transactionCategories: any = [];
   public transactionCategory: string = '';
   public transactionTypeText = '';
+  public mainTransactionTypeText = '';
   public transactionType = '';
   public transactionTypeTextSchedF = '';
   public transactionTypeSchedF = '';
+  public transactionTypeTextSchedFCore = '';
+  public transactionTypeSchedFCore = '';
   public transactionTypeTextDebtSummary = '';
   public transactionTypeDebtSummary = '';
   public transactionDetailSchedC: any;
@@ -66,6 +60,7 @@ export class F3xComponent implements OnInit {
   public scheduleAction: ScheduleActions;
   public scheduleCAction: ScheduleActions;
   public scheduleFAction: ScheduleActions;
+  public scheduleFCoreAction: ScheduleActions;
   public forceChangeDetectionC1: Date;
   public forceChangeDetectionFDebtPayment: Date;
   public forceChangeDetectionDebtSummary: Date;
@@ -76,6 +71,9 @@ export class F3xComponent implements OnInit {
   private _cloned: boolean = false;
   private _reportId: any;
   public loanPaymentScheduleAction: ScheduleActions;
+  private showPart2: boolean;
+
+  private onDestroy$ = new Subject();
 
   constructor(
     private _reportTypeService: ReportTypeService,
@@ -86,14 +84,15 @@ export class F3xComponent implements OnInit {
     private _config: NgbTooltipConfig,
     private _router: Router,
     private _activatedRoute: ActivatedRoute,
-    private _f3xMessageService: F3xMessageService, 
-    private _loanMessageService: LoanMessageService, 
-    private _schedHMessageServce:SchedHMessageServiceService, 
+    private _f3xMessageService: F3xMessageService,
+    private _loanMessageService: LoanMessageService,
+    private _schedHMessageServce: SchedHMessageServiceService,
     private _schedHService: SchedHServiceService
   ) {
     this._config.placement = 'right';
     this._config.triggers = 'click';
-    _activatedRoute.queryParams.subscribe(p => {
+
+    _activatedRoute.queryParams.takeUntil(this.onDestroy$).subscribe(p => {
       this.transactionCategory = p.transactionCategory;
       if (p.edit === 'true' || p.edit === true) {
         this.editMode = true;
@@ -136,7 +135,7 @@ export class F3xComponent implements OnInit {
       }
     });
 
-    this._router.events.subscribe(val => {
+    this._router.events.takeUntil(this.onDestroy$).subscribe(val => {
       if (val) {
         if (val instanceof NavigationEnd) {
           if (
@@ -170,6 +169,10 @@ export class F3xComponent implements OnInit {
         }
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.onDestroy$.next(true);
   }
 
   ngDoCheck(): void {
@@ -318,8 +321,14 @@ export class F3xComponent implements OnInit {
               e.transactionDetail.transactionModel.cloned
             ) {
               this._cloned = true;
-            }else{
+            } else {
               this._cloned = false;
+            }
+
+            if (e.showPart2 === false || e.showPart2 === 'false') {
+              this.showPart2 = false;
+            } else {
+              this.showPart2 = null;
             }
 
             this.extractScheduleType(e);
@@ -350,6 +359,10 @@ export class F3xComponent implements OnInit {
               return;
             }
 
+            if (this._handleScheduleL(e)) {
+              return;
+            }
+
             if (this._handleScheduleD(e)) {
               return;
             }
@@ -358,10 +371,22 @@ export class F3xComponent implements OnInit {
             // with an action to allow for view or edit.
             let transactionTypeText = '';
             let transactionType = '';
+            let mainTransactionTypeText = '';
+
+            this.handleReattributionOrRedesignation(e);
 
             if (this.scheduleAction === ScheduleActions.edit) {
               // Sched C uses change detection for populating form for edit.
               // Have API add scheduleType to transactions table - using apiCall until then
+
+              this.transactionCategories.filter(el => {
+                if (el.value === this.transactionCategory) {
+                  mainTransactionTypeText = el.text;
+                }
+              });
+              if (!mainTransactionTypeText) {
+                mainTransactionTypeText = e.mainTransactionTypeText ? e.mainTransactionTypeText : '';
+              }
 
               let apiCall = null;
               if (e.transactionDetail) {
@@ -380,19 +405,58 @@ export class F3xComponent implements OnInit {
               } else if (apiCall === '/sc/schedC1') {
                 alert('edit C1 not yet supported');
               } else if (apiCall === '/sf/schedF') {
+                if (this.scheduleType === 'sched_f_core') {
+                  this._populateFormForEdit(e, AbstractScheduleParentEnum.schedFCoreComponent);
+                  const transactionModel: TransactionModel = e.transactionDetail.transactionModel;
+                  transactionTypeText = transactionModel.type;
+                  transactionType = transactionModel.transactionTypeIdentifier;
+                } else {
+                  // force change to set show first page.
+                  this.forceChangeDetectionFDebtPayment = new Date();
+                  this._populateFormForEdit(e, AbstractScheduleParentEnum.schedFComponent);
+                }
+              } else if (apiCall === '/se/schedE') {
                 // force change to set show first page.
-                this.forceChangeDetectionFDebtPayment = new Date();
-                this._populateFormForEdit(e, AbstractScheduleParentEnum.schedFComponent);
+                // this.forceChangeDetectionFDebtPayment = new Date();
+                this._populateFormForEdit(e, AbstractScheduleParentEnum.schedEComponent);
+                const transactionModel: TransactionModel = e.transactionDetail.transactionModel;
+                transactionTypeText = transactionModel.type;
+                transactionType = transactionModel.transactionTypeIdentifier;
               } else {
                 this._populateFormForEdit(e, AbstractScheduleParentEnum.schedMainComponent);
                 const transactionModel: TransactionModel = e.transactionDetail.transactionModel;
                 transactionTypeText = transactionModel.type;
                 transactionType = transactionModel.transactionTypeIdentifier;
               }
+            } else if (this.scheduleAction === ScheduleActions.view) {
+              let apiCall = null;
+              if (e.transactionDetail) {
+                if (e.transactionDetail.transactionModel) {
+                  if (e.transactionDetail.transactionModel.hasOwnProperty('apiCall')) {
+                    apiCall = e.transactionDetail.transactionModel.apiCall;
+                  }
+                }
+              }
+
+              this._populateFormForView(e, AbstractScheduleParentEnum.schedMainComponent);
+              const transactionModel: TransactionModel = e.transactionDetail.transactionModel;
+              transactionTypeText = transactionModel.type;
+              transactionType = transactionModel.transactionTypeIdentifier;
             } else {
               transactionTypeText = e.transactionTypeText ? e.transactionTypeText : '';
               transactionType = e.transactionType ? e.transactionType : '';
-
+              mainTransactionTypeText = e.mainTransactionTypeText ? e.mainTransactionTypeText : '';
+              // if (!mainTransactionTypeText) {
+              //   mainTransactionTypeText = this._findMainTransactionTypeText(transactionType);
+              // }
+              if (
+                e &&
+                e.transactionDetail &&
+                e.transactionDetail.transactionModel &&
+                e.transactionDetail.transactionModel.isRedesignation
+              ) {
+                this._populateFormForEdit(e, AbstractScheduleParentEnum.schedMainComponent);
+              }
               if (this.scheduleAction === ScheduleActions.addSubTransaction) {
                 if (e.hasOwnProperty('prePopulateFieldArray') && Array.isArray(e.prePopulateFieldArray)) {
                   this._f3xMessageService.sendPopulateFormMessage({
@@ -400,27 +464,51 @@ export class F3xComponent implements OnInit {
                     fieldArray: e.prePopulateFieldArray
                   });
                 } else if (e.hasOwnProperty('prePopulateFromSchedD')) {
-                  this._f3xMessageService.sendPopulateFormMessage({
+                  const component =
+                    e.scheduleType === 'sched_e'
+                      ? AbstractScheduleParentEnum.schedEComponent
+                      : AbstractScheduleParentEnum.schedMainComponent;
+                  const emitObject: any = {
                     key: 'prePopulateFromSchedD',
-                    abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
+                    abstractScheduleComponent: component,
                     prePopulateFromSchedD: e.prePopulateFromSchedD
-                  });
+                  };
+                  if (
+                    (e.prePopulateFromSchedD.transaction_type_identifier === 'DEBT_TO_VENDOR' ||
+                      e.prePopulateFromSchedD.transaction_type_identifier === 'DEBT_BY_VENDOR') &&
+                    e.returnToDebtSummary
+                  ) {
+                    emitObject.returnToDebtSummary = true;
+                    emitObject.returnToDebtSummaryInfo = e.returnToDebtSummaryInfo;
+                  }
+                  this._f3xMessageService.sendPopulateFormMessage(emitObject);
                 } else if (e.hasOwnProperty('prePopulateFromSchedL')) {
                   this._f3xMessageService.sendPopulateFormMessage({
                     key: 'prePopulateFromSchedL',
                     abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
                     prePopulateFromSchedL: e.prePopulateFromSchedL
                   });
+                }else if (e.hasOwnProperty('prePopulateFromSchedH')) {
+                  this._f3xMessageService.sendPopulateFormMessage({
+                    key: 'prePopulateFromSchedH',
+                    abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
+                    prePopulateFromSchedH: e.prePopulateFromSchedH
+                  });
                 }
               }
             }
-            this._setTransactionTypeBySchedule(transactionTypeText, transactionType, this.scheduleType);
+            this._setTransactionTypeBySchedule(
+              transactionTypeText,
+              transactionType,
+              mainTransactionTypeText,
+              this.scheduleType
+            );
           }
 
           //transactionModel is being passed in so to leverage the reportId if present instead of getting from localStorage
-          if(e && e.transactionDetail && e.transactionDetail.transactionModel){
-            this.canContinue(e.transactionDetail.transactionModel);  
-          }else{
+          if (e && e.transactionDetail && e.transactionDetail.transactionModel) {
+            this.canContinue(e.transactionDetail.transactionModel);
+          } else {
             this.canContinue();
           }
         } else if (typeof e.form === 'string') {
@@ -451,45 +539,116 @@ export class F3xComponent implements OnInit {
       } else if (e.hasOwnProperty('otherSchedHTransactionType')) {
         this.transactionType = e.otherSchedHTransactionType;
 
-        if(this.transactionType === 'ALLOC_H4_SUM') {
-          this.transactionTypeText = 'H4 Transaction List'
-        }else if(this.transactionType === 'ALLOC_H4_TYPES') {
-          this.transactionTypeText = 'H4 Entry'
-        }else if(this.transactionType === 'ALLOC_EXP') {
-          this.transactionTypeText = 'Allocated Federal / Non-Federal Expenditure'
-        }else if(this.transactionType === 'ALLOC_EXP_CC_PAY') {
-          this.transactionTypeText = 'Credit Card Payment for Allocated Expenditure'
-        }else if(this.transactionType === 'ALLOC_EXP_CC_PAY_MEMO') {
-          this.transactionTypeText = 'Credit Card Corresponding Memo'
-        }else if(this.transactionType === 'ALLOC_EXP_STAF_REIM') {
-          this.transactionTypeText = 'Staff Reimbursement for Allocated Expenditure'
-        }else if(this.transactionType === 'ALLOC_EXP_STAF_REIM_MEMO') {
-          this.transactionTypeText = 'Staff Reimbursement Corresponding Memo'
-        }else if(this.transactionType === 'ALLOC_EXP_PMT_TO_PROL') {
-          this.transactionTypeText = 'Payment to Payroll for Allocated Expenditure'
-        }else if(this.transactionType === 'ALLOC_EXP_PMT_TO_PROL_MEMO') {
-          this.transactionTypeText = 'Payroll Corresponding Memo'
-        }else if(this.transactionType === 'ALLOC_EXP_VOID') {
-          this.transactionTypeText = 'VOID'
+        if (this.transactionType === 'ALLOC_H4_SUM') {
+          this.transactionTypeText = 'H4 Transaction List';
+        } else if (this.transactionType === 'ALLOC_H4_TYPES') {
+          this.transactionTypeText = 'H4 Entry';
+        } else if (this.transactionType === 'ALLOC_EXP') {
+          this.transactionTypeText = 'Allocated Federal / Non-Federal Expenditure';
+        } else if (this.transactionType === 'ALLOC_EXP_CC_PAY') {
+          this.transactionTypeText = 'Credit Card Payment for Allocated Expenditure';
+        } else if (this.transactionType === 'ALLOC_EXP_CC_PAY_MEMO') {
+          this.transactionTypeText = 'Credit Card Corresponding Memo';
+        } else if (this.transactionType === 'ALLOC_EXP_STAF_REIM') {
+          this.transactionTypeText = 'Staff Reimbursement for Allocated Expenditure';
+        } else if (this.transactionType === 'ALLOC_EXP_STAF_REIM_MEMO') {
+          this.transactionTypeText = 'Staff Reimbursement Corresponding Memo';
+        } else if (this.transactionType === 'ALLOC_EXP_PMT_TO_PROL') {
+          this.transactionTypeText = 'Payment to Payroll for Allocated Expenditure';
+        } else if (this.transactionType === 'ALLOC_EXP_PMT_TO_PROL_MEMO') {
+          this.transactionTypeText = 'Payroll Corresponding Memo';
+        } else if (this.transactionType === 'ALLOC_EXP_VOID') {
+          this.transactionTypeText = 'VOID';
         }
 
-        if(this.transactionType === 'ALLOC_H6_SUM') {
-          this.transactionTypeText = 'H6 Transaction List'
-        }else if(this.transactionType === 'ALLOC_H6_TYPES') {
-          this.transactionTypeText = 'H6 Entry'
-        }else if(this.transactionType === 'ALLOC_FEA_DISB') {
-          this.transactionTypeText = 'Allocated FEA Disbursement'
-        }else if(this.transactionType === 'ALLOC_FEA_CC_PAY') {
-          this.transactionTypeText = 'Credit Card Payment for Allocated FEA Payment'
-        }else if(this.transactionType === 'ALLOC_FEA_CC_PAY_MEMO') {
-          this.transactionTypeText = 'Credit Card Corresponding Memo'
-        }else if(this.transactionType === 'ALLOC_FEA_STAF_REIM') {
-          this.transactionTypeText = 'Staff Reimbursement for Allocated FEA Payment'
-        }else if(this.transactionType === 'ALLOC_FEA_STAF_REIM_MEMO') {
-          this.transactionTypeText = 'Staff Reimbursement Corresponding Memo'
-        }else if(this.transactionType === 'ALLOC_FEA_VOID') {
-          this.transactionTypeText = 'VOID'
+        if (this.transactionType === 'ALLOC_H6_SUM') {
+          this.transactionTypeText = 'H6 Transaction List';
+        } else if (this.transactionType === 'ALLOC_H6_TYPES') {
+          this.transactionTypeText = 'H6 Entry';
+        } else if (this.transactionType === 'ALLOC_FEA_DISB') {
+          this.transactionTypeText = 'Allocated FEA Disbursement';
+        } else if (this.transactionType === 'ALLOC_FEA_CC_PAY') {
+          this.transactionTypeText = 'Credit Card Payment for Allocated FEA Payment';
+        } else if (this.transactionType === 'ALLOC_FEA_CC_PAY_MEMO') {
+          this.transactionTypeText = 'Credit Card Corresponding Memo';
+        } else if (this.transactionType === 'ALLOC_FEA_STAF_REIM') {
+          this.transactionTypeText = 'Staff Reimbursement for Allocated FEA Payment';
+        } else if (this.transactionType === 'ALLOC_FEA_STAF_REIM_MEMO') {
+          this.transactionTypeText = 'Staff Reimbursement Corresponding Memo';
+        } else if (this.transactionType === 'ALLOC_FEA_VOID') {
+          this.transactionTypeText = 'VOID';
         }
+        // Levin Account Transaction Types
+        if (this.transactionType === 'LEVIN_INDV_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / Individual Receipt';
+        } else if (this.transactionType === 'LEVIN_ORG_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / Business Receipt';
+        } else if (this.transactionType === 'LEVIN_PARTN_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / Partnership Receipt';
+          //} else if (this.transactionType === 'LEVIN_PARTN_MEMO') {
+          //  this.transactionTypeText = 'Schedule L-A Entry / Partnership Receipt Memo';
+        } else if (this.transactionType === 'LEVIN_PAC_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / PAC Receipt';
+        } else if (this.transactionType === 'LEVIN_NON_FED_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / Non-Federal PAC Receipt';
+        } else if (this.transactionType === 'LEVIN_TRIB_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / Tribal Receipt';
+        } else if (this.transactionType === 'LEVIN_OTH_REC') {
+          this.transactionTypeText = 'Schedule L-A Entry / Other Receipt';
+        } else if (this.transactionType === 'LEVIN_VOTER_REG') {
+          this.transactionTypeText = 'Schedule L-B Entry / Voter Registration';
+        } else if (this.transactionType === 'LEVIN_VOTER_ID') {
+          this.transactionTypeText = 'Schedule L-B Entry / Voter ID';
+        } else if (this.transactionType === 'LEVIN_GEN') {
+          this.transactionTypeText = 'Schedule L-B Entry / Generic Campaign Activity';
+        } else if (this.transactionType === 'LEVIN_OTH_DISB') {
+          this.transactionTypeText = 'Schedule L-B Entry / Other Disbursement';
+        } else if (this.transactionType === 'LEVIN_GOTV') {
+          this.transactionTypeText = 'Schedule L-B Entry / Get out the Vote (GOTV)';
+        }
+      }
+    }
+  }
+
+  private handleReattributionOrRedesignation(e: any) {
+    if (e && e.transactionDetail && e.transactionDetail.transactionModel) {
+      const transactionModel: TransactionModel = e.transactionDetail.transactionModel;
+      e.transactionTypeText = transactionModel.type;
+      e.transactionType = transactionModel.transactionTypeIdentifier;
+
+      let reattributionId: string = null;
+      let redesignationId: string = null;
+      let maxAmount = transactionModel.amount;
+      if(this.scheduleAction === ScheduleActions.edit){
+        maxAmount = transactionModel.originalAmount;
+      }
+      if (transactionModel.isReattribution) {
+        if (this.scheduleAction === ScheduleActions.add) {
+          reattributionId = transactionModel.reattribution_id;
+        } else if (this.scheduleAction === ScheduleActions.edit) {
+          reattributionId = transactionModel.transactionId;
+        }
+
+        this._f3xMessageService.sendPopulateHiddenFieldsMessage({
+          abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
+          reattributionTransactionId: reattributionId,
+          maxAmount: maxAmount, 
+          reattributionTransaction: transactionModel
+        });
+        const fieldArray = [{name:'purpose_description', value:transactionModel.purposeDescription}];
+        this._f3xMessageService.sendPopulateFieldsMessage({abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent, fieldArray});
+      } else if (transactionModel.isRedesignation) {
+        if (this.scheduleAction === ScheduleActions.add) {
+          redesignationId = transactionModel.redesignation_id;
+        } else if (this.scheduleAction === ScheduleActions.edit) {
+          redesignationId = transactionModel.transactionId;
+        }
+        this._f3xMessageService.sendPopulateHiddenFieldsMessage({
+          abstractScheduleComponent: AbstractScheduleParentEnum.schedMainComponent,
+          redesignationTransactionId: redesignationId,
+          maxAmount: maxAmount
+
+        });
       }
     }
   }
@@ -514,10 +673,57 @@ export class F3xComponent implements OnInit {
       e.scheduleType = 'sched_e';
     }
 
-    //default to sched_a ?
+    if (
+      !e.scheduleType &&
+      e.transactionDetail &&
+      e.transactionDetail.transactionModel &&
+      e.transactionDetail.transactionModel.apiCall === '/se/schedE'
+    ) {
+      e.scheduleType = 'sched_e';
+    }
+
+    if (e.scheduleType && e.transactionType) {
+      if (
+        (e.scheduleType === 'sched_f' &&
+          (e.transactionType === 'COEXP_PARTY' ||
+            e.transactionType === 'COEXP_CC_PAY' ||
+            e.transactionType === 'COEXP_STAF_REIM' ||
+            e.transactionType === 'COEXP_PMT_PROL')) ||
+        e.transactionType === 'COEXP_PARTY_VOID' ||
+        e.transactionType === 'COEXP_PMT_PROL_VOID' ||
+        e.transactionType === 'COEXP_CC_PAY_MEMO' ||
+        e.transactionType === 'COEXP_STAF_REIM_MEMO' ||
+        e.transactionType === 'COEXP_PMT_PROL_MEMO'
+      ) {
+        // TODO: Workaround backend must be updated with correct transactionType for Coordinated Party Expenditure Void
+        if (e.transactionType === 'COEXP_PMT_PROL_VOID') {
+          e.transactionType = 'COEXP_PARTY_VOID';
+        }
+        e.scheduleType = 'sched_f_core';
+      }
+    }
+
+    // extract shed_f_core based on transactionTypeIdentifier
+    if (!e.scheduleType && e.transactionDetail && e.transactionDetail.transactionModel) {
+      const tTypeIdentifier = e.transactionDetail.transactionModel.transactionTypeIdentifier;
+      if (
+        tTypeIdentifier === 'COEXP_PARTY' ||
+        tTypeIdentifier === 'COEXP_CC_PAY' ||
+        tTypeIdentifier === 'COEXP_STAF_REIM' ||
+        tTypeIdentifier === 'COEXP_PMT_PROL' ||
+        tTypeIdentifier === 'COEXP_PARTY_VOID' ||
+        tTypeIdentifier === 'COEXP_PMT_PROL_VOID' ||
+        tTypeIdentifier === 'COEXP_CC_PAY_MEMO' ||
+        tTypeIdentifier === 'COEXP_STAF_REIM_MEMO' ||
+        tTypeIdentifier === 'COEXP_PMT_PROL_MEMO'
+      ) {
+        e.scheduleType = 'sched_f_core';
+      }
+    }
+    // default to sched_a ?
     this.scheduleType = e.scheduleType ? e.scheduleType : 'sched_a';
 
- /*    //Schedule H's need to be remapped too
+    /*    //Schedule H's need to be remapped too
      if(e.scheduleType === 'Schedule H3'){
       this.scheduleType = 'sched_h3';
       this.transactionType = 'ALLOC_H3_RATIO';
@@ -533,11 +739,29 @@ export class F3xComponent implements OnInit {
    */
   private _populateFormForEdit(e: any, schedule: AbstractScheduleParentEnum) {
     e.transactionDetail.action = this.scheduleAction;
-    this._f3xMessageService.sendPopulateFormMessage({
+    const emitObject: any = {
       key: 'fullForm',
       abstractScheduleComponent: schedule,
       transactionModel: e.transactionDetail
-    });
+    };
+    // Checking by transaction_type_identifier as a saftey precaution.
+    if (
+      (e.transactionDetail.transactionModel.transactionTypeIdentifier === 'DEBT_TO_VENDOR' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'DEBT_BY_VENDOR' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'OPEXP_DEBT' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'ALLOC_EXP_DEBT' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'ALLOC_FEA_DISB_DEBT' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'OTH_DISB_DEBT' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'FEA_100PCT_DEBT_PAY' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'COEXP_PARTY_DEBT' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'IE' ||
+        e.transactionDetail.transactionModel.transactionTypeIdentifier === 'OTH_REC_DEBT') &&
+      e.returnToDebtSummary
+    ) {
+      emitObject.returnToDebtSummary = true;
+      emitObject.returnToDebtSummaryInfo = e.returnToDebtSummaryInfo;
+    }
+    this._f3xMessageService.sendPopulateFormMessage(emitObject);
   }
 
   /**
@@ -571,11 +795,11 @@ export class F3xComponent implements OnInit {
         this.scheduleCAction = ScheduleActions.loanSummary;
 
         //send message to refresh data for loan summary
-        let msg : any = {};
-        if(transaction.reportId && transaction.reportId !== 'undefined'){
+        let msg: any = {};
+        if (transaction.reportId && transaction.reportId !== 'undefined') {
           msg.reportId = transaction.reportId;
         }
-        this._loanMessageService.sendLoanSummaryRefreshMessage(msg);    
+        this._loanMessageService.sendLoanSummaryRefreshMessage(msg);
       } else if (this.scheduleType === 'sched_c_loan_payment') {
         //this is being done in case loan payment is being accessed from transaction table,
         //a flag is needed to return back to the transaction table's 'disbursement tab'
@@ -600,9 +824,9 @@ export class F3xComponent implements OnInit {
       } else if (this.scheduleType === 'sched_c1') {
         this.forceChangeDetectionC1 = new Date();
       }
-      if(transactionDetail && transactionDetail.transactionModel){
-        this.canContinue(transactionDetail.transactionModel);  
-      }else{
+      if (transactionDetail && transactionDetail.transactionModel) {
+        this.canContinue(transactionDetail.transactionModel);
+      } else {
         this.canContinue();
       }
       finish = true;
@@ -614,7 +838,7 @@ export class F3xComponent implements OnInit {
     return finish;
   }
 
-   /**
+  /**
    * Handle Schedule H forms.
    * @returns true if schedule H and should stop processing
    */
@@ -622,25 +846,61 @@ export class F3xComponent implements OnInit {
     let transactionDetail = transaction.transactionDetail;
     let finish = false;
 
-      if (this.scheduleType === 'Schedule H3') {
-        this.scheduleAction = ScheduleActions.edit;
-        this.transactionType = 'ALLOC_H3_RATIO';
-        this.scheduleType = 'sched_h3';
-        finish = true;
-      }
-      else if(this.scheduleType === 'Schedule H2'){
-        this.scheduleAction = ScheduleActions.edit;
-        this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
-        this.scheduleType = 'sched_h2';
-        finish = true;
-      }
-      
-      this._schedHMessageServce.sendpopulateHFormForEditMessage(transaction);
-      if(transactionDetail && transactionDetail.transactionModel){
-        this.canContinue(transactionDetail.transactionModel);  
-      }else{
-        this.canContinue();
-      }
+    if (this.scheduleType === 'Schedule H1') {
+      this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
+      this.scheduleAction = ScheduleActions.edit;
+      this.scheduleType = 'sched_h1';
+      finish = true; //since h1 is not extending abstract schedule, it is being handled differently
+    } else if (this.scheduleType === 'Schedule H2') {
+      this.scheduleAction = ScheduleActions.edit;
+      this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
+      this.scheduleType = 'sched_h2';
+    } else if (this.scheduleType === 'Schedule H3') {
+      this.scheduleAction = ScheduleActions.edit;
+      this.transactionType = 'ALLOC_H3_RATIO';
+      this.scheduleType = 'sched_h3';
+    } else if (this.scheduleType === 'Schedule H4') {
+      this.scheduleAction = ScheduleActions.edit;
+      this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
+      this.scheduleType = 'sched_h4';
+    } else if (this.scheduleType === 'Schedule H5') {
+      this.scheduleAction = ScheduleActions.edit;
+      this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
+      this.scheduleType = 'sched_h5';
+    } else if (this.scheduleType === 'Schedule H6') {
+      this.scheduleAction = ScheduleActions.edit;
+      this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
+      this.scheduleType = 'sched_h6';
+    }
+
+    this._schedHMessageServce.sendpopulateHFormForEditMessage(transaction);
+    if (transactionDetail && transactionDetail.transactionModel) {
+      this.canContinue(transactionDetail.transactionModel);
+    } else {
+      this.canContinue();
+    }
+
+    return finish;
+  }
+
+  /**
+   * Handle Schedule L forms.
+   * @returns true if schedule L and should stop processing
+   */
+  private _handleScheduleL(transaction: any): boolean {
+    let transactionDetail = transaction.transactionDetail;
+    let finish = false;
+
+    if (this.scheduleType === 'Schedule L-A' || this.scheduleType === 'Schedule L-B') {
+      this.scheduleAction = ScheduleActions.edit;
+      this.transactionType = transactionDetail.transactionModel.transactionTypeIdentifier;
+      this.scheduleType = 'sched_L';
+    }
+    if (transactionDetail && transactionDetail.transactionModel) {
+      this.canContinue(transactionDetail.transactionModel);
+    } else {
+      this.canContinue();
+    }
 
     return finish;
   }
@@ -670,16 +930,26 @@ export class F3xComponent implements OnInit {
     if (this.scheduleType === 'sched_f') {
       if (e.action === ScheduleActions.addSubTransaction) {
         this.scheduleFAction = e.action;
+        this.mainTransactionTypeText = e.mainTransactionTypeText ? e.mainTransactionTypeText : '';
         this.transactionTypeSchedF = e.transactionType ? e.transactionType : '';
         this.transactionTypeTextSchedF = e.transactionTypeText ? e.transactionTypeText : '';
         this.forceChangeDetectionFDebtPayment = new Date();
         if (this.scheduleFAction === ScheduleActions.addSubTransaction) {
           if (e.hasOwnProperty('prePopulateFromSchedD')) {
-            this._f3xMessageService.sendPopulateFormMessage({
+            const emitObject: any = {
               key: 'prePopulateFromSchedD',
               abstractScheduleComponent: AbstractScheduleParentEnum.schedFComponent,
               prePopulateFromSchedD: e.prePopulateFromSchedD
-            });
+            };
+            if (
+              (e.prePopulateFromSchedD.transaction_type_identifier === 'DEBT_TO_VENDOR' ||
+                e.prePopulateFromSchedD.transaction_type_identifier === 'DEBT_BY_VENDOR') &&
+              e.returnToDebtSummary
+            ) {
+              emitObject.returnToDebtSummary = true;
+              emitObject.returnToDebtSummaryInfo = e.returnToDebtSummaryInfo;
+            }
+            this._f3xMessageService.sendPopulateFormMessage(emitObject);
           }
         }
         this.canContinue();
@@ -697,7 +967,12 @@ export class F3xComponent implements OnInit {
    * @param transactionType
    * @param scheduleType
    */
-  private _setTransactionTypeBySchedule(transactionTypeText: string, transactionType: string, scheduleType: string) {
+  private _setTransactionTypeBySchedule(
+    transactionTypeText: string,
+    transactionType: string,
+    mainTransactionTypeText: string,
+    scheduleType: string
+  ) {
     if (!scheduleType) {
       this.transactionType = transactionType;
       this.transactionTypeText = transactionTypeText;
@@ -708,7 +983,11 @@ export class F3xComponent implements OnInit {
       this.transactionTypeText = transactionTypeText;
       return;
     }
-    if (scheduleType.startsWith('sched_f')) {
+    if (scheduleType === 'sched_f_core') {
+      this.transactionTypeSchedFCore = transactionType;
+      this.transactionTypeTextSchedFCore = transactionTypeText;
+      this.scheduleFCoreAction = this.scheduleAction;
+    } else if (scheduleType.startsWith('sched_f') && scheduleType !== 'sched_f_core') {
       // this.transactionTypeSchedF = transactionType;
       // this.transactionTypeTextSchedF = transactionTypeText;
       // this.scheduleFAction = this.scheduleAction;
@@ -716,39 +995,48 @@ export class F3xComponent implements OnInit {
     } else {
       this.transactionType = transactionType;
       this.transactionTypeText = transactionTypeText;
+      this.mainTransactionTypeText = mainTransactionTypeText;
     }
   }
 
   /**
    * Determines ability to continue.
    */
-  public canContinue(transactionModel:any = null): void {
-    let reportId = ''; 
-    if(transactionModel && transactionModel.reportId && transactionModel.reportId !== "0" && transactionModel.reportId !== "undefined"){
+  public canContinue(transactionModel: any = null): void {
+    let reportId = '';
+    if (
+      transactionModel &&
+      transactionModel.reportId &&
+      transactionModel.reportId !== '0' &&
+      transactionModel.reportId !== 'undefined'
+    ) {
       reportId = transactionModel.reportId.toString();
-    }
-    else if(this._activatedRoute.snapshot.queryParams && this._activatedRoute.snapshot.queryParams.reportId){
+    } else if (this._activatedRoute.snapshot.queryParams && this._activatedRoute.snapshot.queryParams.reportId) {
       reportId = this._activatedRoute.snapshot.queryParams.reportId;
     }
     //if not present, only then fall back on localStorage
-    //TODO-local storage is being used throughout the application to retain state and it should be changed as this can cause inconsistencies. 
-    //this is just a temp fix. 
-    else if(localStorage.getItem('reportId') && localStorage.getItem('reportId') !== '0' && localStorage.getItem('reportId') !== 'undefined'){
+    //TODO-local storage is being used throughout the application to retain state and it should be changed as this can cause inconsistencies.
+    //this is just a temp fix.
+    else if (
+      localStorage.getItem('reportId') &&
+      localStorage.getItem('reportId') !== '0' &&
+      localStorage.getItem('reportId') !== 'undefined'
+    ) {
       reportId = localStorage.getItem('reportId');
     }
-    
+
     if (this.frm && this.direction) {
-      if(this._reportId){
+      if (this._reportId) {
         localStorage.setItem(`reportId`, this._reportId);
       }
-      
-      let queryParamsObj :any = {
+
+      let queryParamsObj: any = {
         step: this.step,
         edit: this.editMode,
         transactionCategory: this.transactionCategory
-      }
-      
-      if (reportId){
+      };
+
+      if (reportId) {
         queryParamsObj.reportId = reportId;
       }
 
@@ -756,9 +1044,9 @@ export class F3xComponent implements OnInit {
         if (this.frm.valid) {
           this.step = this._step;
           queryParamsObj.step = this.step;
-          
+          queryParamsObj.showPart2 = this.showPart2;
           if (this._cloned) {
-            queryParamsObj.cloned =  this._cloned;
+            queryParamsObj.cloned = this._cloned;
             this._router.navigate([`/forms/form/${this.formType}`], {
               queryParams: queryParamsObj
             });
@@ -784,5 +1072,30 @@ export class F3xComponent implements OnInit {
         });
       }
     }
+  }
+
+  private _populateFormForView(e: any, schedule: AbstractScheduleParentEnum) {
+    e.transactionDetail.action = this.scheduleAction;
+    const emitObject: any = {
+      key: 'fullForm',
+      abstractScheduleComponent: schedule,
+      transactionModel: e.transactionDetail
+    };
+
+    this._f3xMessageService.sendPopulateFormMessage(emitObject);
+  }
+
+  private _findMainTransactionTypeText(transactionType: string): string {
+    this.transactionCategories.forEach(cat => {
+      cat.options.forEach(subCat => {
+        // subCat.forEach(type)
+        subCat.options.forEach(type => {
+          if (type.value === transactionType) {
+            return cat.text;
+          }
+        });
+      });
+    });
+    return '';
   }
 }

@@ -22,8 +22,10 @@
       <div class="header-content">
         <div class="float-left">
           <h2>
-            Form 3X
-            <ng-container *ngIf="transactionTypeText"> / {{ transactionTypeText }} </ng-container>
+            Form 3X    
+            <ng-container *ngIf="transactionTypeText && mainTransactionTypeText"> / 
+              {{ mainTransactionTypeText }} / {{ transactionTypeText }}
+            </ng-container>
             <ng-container *ngIf="scheduleAction === editScheduleAction"> / Edit </ng-container>
           </h2>
         </div>
@@ -288,42 +290,47 @@
               </tr>
           </thead>
           <tbody>
-            <ng-container *ngFor="let item of schedLsModel | paginate: tableConfig">
+            <ng-container *ngFor="let trx of schedLsModel | paginate: tableConfig">
                 <tr 
-                  [ngStyle]="{'background-color': item.memo_code !=='X' ? '' : '#D9EDF6'}">
+                  [ngStyle]="{'background-color': trx.memo_code !=='X' ? '' : '#D9EDF6'}">
                   <td>
                     <input type="checkbox" (click)="checkForMultiChecked($event)">
                   </td>
-                  <td>
+                  <td> 
                     <div class="row td-arrow">
-                      {{ item.tran_desc }}
+                        {{ trx.tran_desc }}
                     </div>
                   </td> 
                   <td>
                     <div class="row td-arrow">
-                      {{ item.levin_account_name }}
+                      {{ trx.levin_account_name }}
                     </div>
                   </td>
-                  <td>
+
+                  
+
+                  <td [ngClass]="trx.child.length > 0 ? 'parent': ''" 
+                  (click)="trx.child? trx.toggleChild = !trx.toggleChild: ''">
                       <div class="row td-arrow">
-                        {{ item.entity_type == 'IND' ?
-                            item.first_name + ' ' + item.last_name :
-                            item.entity_name
+                        {{ trx.entity_type == 'IND' ?
+                            trx.first_name + ' ' + trx.last_name :
+                            trx.entity_name
                         }}
+                        &nbsp;&nbsp;<div *ngIf="trx.child.length > 0" class="align_right arrow" [ngClass]="trx.toggleChild ? 'arrow-top' : 'arrow-bottom'"></div>
                       <div >
-                        <i *ngIf="item.arrow_dir === 'down'" class="fas fa-angle-down amend-arrow" (click)="clickArrow(item)"></i>
-                        <i *ngIf="item.arrow_dir === 'up'" class="fas fa-angle-up amend-arrow" (click)="clickArrow(item)"></i>
+                        <i *ngIf="trx.arrow_dir === 'down'" class="fas fa-angle-down amend-arrow" (click)="clickArrow(trx)"></i>
+                        <i *ngIf="trx.arrow_dir === 'up'" class="fas fa-angle-up amend-arrow" (click)="clickArrow(trx)"></i>
                       </div>
                     </div>
                   </td>
                   <td>
-                      {{ transactionType == 'LA_SUM' ? (item.contribution_date | date: 'MM/dd/yyyy') : (item.expenditure_date | date: 'MM/dd/yyyy')}}
+                      {{ transactionType == 'LA_SUM' ? (trx.contribution_date | date: 'MM/dd/yyyy') : (trx.expenditure_date | date: 'MM/dd/yyyy')}}
                   </td>
-                  <td>{{ transactionType == 'LA_SUM' ? (item.contribution_amount | currency:'USD':'symbol-narrow':'1.2-2') : 
-                      (item.expenditure_amount | currency:'USD':'symbol-narrow':'1.2-2')}}</td>
+                  <td>{{ transactionType == 'LA_SUM' ? (trx.contribution_amount | currency:'USD':'symbol-narrow':'1.2-2') : 
+                      (trx.expenditure_amount | currency:'USD':'symbol-narrow':'1.2-2')}}</td>
                   <td>
-                      <div *ngIf="item.memo_code == 'X'"><input type="checkbox" checked onclick="return false;">Memo</div>
-                      <div *ngIf="item.memo_code != 'X'"><input type="checkbox" onclick="return false;">Memo</div>                            
+                      <div *ngIf="trx.memo_code == 'X'"><input type="checkbox" checked onclick="return false;">Memo</div>
+                      <div *ngIf="trx.memo_code != 'X'"><input type="checkbox" onclick="return false;">Memo</div>                            
                   </td>
 
                   <td class="bulk_action" >
@@ -334,20 +341,74 @@
                           </button>
 
                           <div id="sched-h4__dropdown-action" class="dropdown-menu" ngbDropdownMenu>
-                              <button class="dropdown-item" (click)="editTransaction(item)">
+                              <button class="dropdown-item" (click)="editTransaction(trx)">
                                   <i class="fas fa-edit"></i> Edit
                               </button>
-                              <button class="dropdown-item">
+                              <button class="dropdown-item" (click)="printTransaction(trx)">
                                   <i class="fas fa-print"></i> Print
                               </button>
-                              <button class="dropdown-item"><i class="fas fa-copy"></i> Clone</button>
-                              <button class="dropdown-item">
-                                  <i class="fas fa-trash"></i> Trash
-                              </button>
+                              <button class="dropdown-item" (click)="cloneTransaction(trx)"><i class="fas fa-copy"></i> Clone</button>
+                              <button *ngIf="checkIfTrashable(trx)" class="dropdown-item" (click)="trashTransaction(trx)"><i class="fas fa-trash" ></i> Trash</button>
                           </div>
                       </div>
                   </td>
                   
+              </tr>
+              <tr [ngbCollapse]="trx.child.length > 0? !trx.toggleChild: ''" *ngFor="let trxChild of trx.child;" class="child-bg">
+                <td>
+                  <input type="checkbox" (click)="checkForMultiChecked($event)">
+                </td>
+                <td>
+                  <div class="row td-arrow">
+                    {{ trxChild.tran_desc }}
+                  </div>
+                </td> 
+                <td>
+                  <div class="row td-arrow">
+                    {{ trxChild.levin_account_name }}
+                  </div>
+                </td>
+                <td>
+                    <div class="row td-arrow">
+                      {{ trxChild.entity_type == 'IND' ?
+                      trxChild.first_name + ' ' + trxChild.last_name :
+                      trxChild.entity_name
+                      }}
+                    <div >
+                      <i *ngIf="trxChild.arrow_dir === 'down'" class="fas fa-angle-down amend-arrow" (click)="clickArrow(trxChild)"></i>
+                      <i *ngIf="trxChild.arrow_dir === 'up'" class="fas fa-angle-up amend-arrow" (click)="clickArrow(trxChild)"></i>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                    {{ transactionType == 'LA_SUM' ? (trxChild.contribution_date | date: 'MM/dd/yyyy') : (trxChild.expenditure_date | date: 'MM/dd/yyyy')}}
+                </td>
+                <td>{{ transactionType == 'LA_SUM' ? (trxChild.contribution_amount | currency:'USD':'symbol-narrow':'1.2-2') : 
+                    (trxChild.expenditure_amount | currency:'USD':'symbol-narrow':'1.2-2')}}</td>
+                <td>
+                    <div *ngIf="trxChild.memo_code == 'X'"><input type="checkbox" checked onclick="return false;">Memo</div>
+                    <div *ngIf="trxChild.memo_code != 'X'"><input type="checkbox" onclick="return false;">Memo</div>                            
+                </td>
+
+                <td class="bulk_action" >
+                    <div [@fadeInOut] class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
+
+                        <button class="btn btn-sm btn-primary" ngbDropdownToggle>
+                            <i class="ellipsis-icon"></i>
+                        </button>
+
+                        <div id="sched-h4__dropdown-action" class="dropdown-menu" ngbDropdownMenu>
+                            <button class="dropdown-item" (click)="editTransaction(trxChild)">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="dropdown-item">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                            <button class="dropdown-item" (click)="cloneTransaction(trxChild)"><i class="fas fa-copy"></i> Clone</button>
+                            <button *ngIf="checkIfTrashable(trxChild)" class="dropdown-item" (click)="trashTransaction(trxChild)"><i class="fas fa-trash" ></i> Trash</button>
+                        </div>
+                    </div>
+                </td>
               </tr>
             </ng-container>
         </tbody>
@@ -355,9 +416,7 @@
         </table>
         </ng-container>
     </section>
-    
-    <div class="financial-summary-container">
-      <section *ngIf="transactionType === 'L_SUM'">
+    <section *ngIf="lSum && transactionType === 'L_SUM'">
         <div class="financial-summary-content">
           <div class="row">
             <div class="tab-container" [ngSwitch]="viewMode">
@@ -365,18 +424,38 @@
           <!--<ng-container>-->
                 <table class="summary_table_text">
                   <tbody class="summary_text">
-                      <tr>
-                        <td width=50%>
+                    <tr>
+                      <td colspan="3">
+                        <div class="row">
+                          <div class="grid-col">
+                            <b>Levin Account:&nbsp;&nbsp;</b>
+                            <ng-select #levinAccountSelect 
+                              [items]="levinAccounts" 
+                              class="forms__select" 
+                              bindValue="levin_account_id" 
+                              bindLabel="levin_account_name" 
+                              (change)="getSummaryByLevinAccount($event)"
+                              placeholder="Select Account"
+                              [selectOnTab]="true"
+                              [ngStyle]= "{ 'width': '450px' }">
+                            </ng-select>
+                          </div>
+                        </div>
+                        <p></p>
+                      </td>
+                    </tr>  
+                    <tr>
+                        <td width=60%>
                           <div class="summary_text_level_1" >
                             1. RECEIPTS
                           </div>
                         </td>
-                        <td width=25%>
+                        <td width=20%>
                           <div class="summary_text_amt_level_1" >
                             Current Period
                           </div>
                         </td>
-                        <td width=25%>
+                        <td width=20%>
                           <div class="summary_text_amt_level_1" >
                             Calendar Year-to-Date
                           </div>
@@ -384,7 +463,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               1a. Itemized Receipts From Persons
                           </div>
                         </td>
@@ -401,7 +480,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               1b. Unitemized Receipts From Persons
                           </div>
                         </td>
@@ -418,18 +497,18 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               1c. Total Receipts From Persons
                           </div>
                         </td>
                         <td>
                           <div class="summary_text_amt_level_3" >
-                            {{ lSum.total_receipt_amount | currency:'USD':'symbol-narrow':'1.2-2'}}
+                            {{ lSum.itemized_non_itemized_combined | currency:'USD':'symbol-narrow':'1.2-2'}}
                           </div>
                         </td>  
                         <td>
                           <div class="summary_text_amt_level_3" >
-                              {{ lSum.total_receipt_amount_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
+                              {{ lSum.itemized_non_itemized_combined_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
                           </div>
                         </td>  
                       </tr>
@@ -486,7 +565,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               4(a) Voter Registration DISBURSEMENTS
                           </div>
                         </td>
@@ -503,7 +582,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               4(b) Voter ID DISBURSEMENTS
                           </div>
                         </td>
@@ -520,7 +599,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               4(c). GOTV DISBURSEMENTS
                           </div>
                         </td>
@@ -537,7 +616,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               4(d). Generic Campaign DISBURSEMENTS
                           </div>
                         </td>
@@ -560,12 +639,12 @@
                         </td>
                         <td>
                           <div class="summary_text_amt_level_1" >
-                            {{ lSum.total_disbursement_amount | currency:'USD':'symbol-narrow':'1.2-2'}}
+                            {{ lSum.line4_subtotal | currency:'USD':'symbol-narrow':'1.2-2'}}
                           </div>
                         </td>  
                         <td>
                           <div class="summary_text_amt_level_1" >
-                              {{ lSum.total_disbursement_amount_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
+                              {{ lSum.line4_subtotal_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
                           </div>
                         </td>  
                       </tr>
@@ -588,7 +667,24 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_1" >
+                              6. TOTAL DISBURSEMENTS
+                          </div>
+                        </td>
+                        <td>
+                          <div class="summary_text_amt_level_1" >
+                            {{ lSum.total_disbursement_amount | currency:'USD':'symbol-narrow':'1.2-2'}}
+                          </div>
+                        </td>  
+                        <td>
+                          <div class="summary_text_amt_level_1" >
+                              {{ lSum.total_disbursement_amount_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
+                          </div>
+                        </td>  
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="summary_text_level_3 summary_level_3" >
                               7. CASH ON HAND (Beginning)
                           </div>
                         </td>
@@ -605,7 +701,7 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               8. RECEIPTS
                           </div>
                         </td>
@@ -622,24 +718,24 @@
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               9. SUBTOTAL
                           </div>
                         </td>
                         <td>
                           <div class="summary_text_amt_level_3" >
-                            {{ lSum.line4_subtotal | currency:'USD':'symbol-narrow':'1.2-2'}}
+                            {{ lSum.subtotal_report | currency:'USD':'symbol-narrow':'1.2-2'}}
                           </div>
                         </td>  
                         <td>
                           <div class="summary_text_amt_level_3" >
-                              {{ lSum.line4_subtotal_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
+                              {{ lSum.subtotal_ytd | currency:'USD':'symbol-narrow':'1.2-2'}}
                           </div>
                         </td>  
                       </tr>
                       <tr>
                         <td>
-                          <div class="summary_text_level_3" >
+                          <div class="summary_text_level_3 summary_level_3" >
                               10. DISBURSEMENTS
                           </div>
                         </td>
@@ -678,8 +774,10 @@
           </div>
         </div>
       <!--</ng-container>-->
-    </section>
-  </div>
+    
+  </section>
+
+  
     
   </form>
 </div>

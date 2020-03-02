@@ -1,3 +1,4 @@
+import { ReportTypeService } from './../../form-3x/report-type/report-type.service';
 import { TransactionsService } from './../../transactions/service/transactions.service';
 import { Component, Input, OnInit, ViewEncapsulation, ViewChild, OnDestroy, Output, EventEmitter, SimpleChanges } from '@angular/core';
 import { style, animate, transition, trigger } from '@angular/animations';
@@ -143,7 +144,8 @@ export class LoanSummaryComponent implements OnInit, OnDestroy {
     private _tableService: TableService,
     private _utilService: UtilService,
     private _dialogService: DialogService,
-    private _transactionService: TransactionsService
+    private _transactionService: TransactionsService, 
+    private _reportTypeService: ReportTypeService
   ) {
     this.showPinColumnsSubscription = this._LoanMessageService.getShowPinColumnMessage()
       .subscribe(
@@ -277,13 +279,33 @@ export class LoanSummaryComponent implements OnInit, OnDestroy {
 
         //TODO - ZS -- this is temporary fix to map fields to the right attributes until service response is fixed
         res.forEach(element => {
+          //set name
           if (element.entity_type === 'IND') {
             element.name = `${element.last_name}, ${element.first_name}`;
           }
           else if (element.entity_type === 'ORG') {
             element.name = element.entity_name;
           }
+
+          //add endorser and c1 check flags to decide whether to show or not in expansion accordion. 
+          if(element.child && element.child.length > 0){
+            let c1childArray = element.child.filter(cElement => {
+              return cElement.transaction_type_identifier === 'SC1';
+            });
+            if(c1childArray.length > 0){
+              element.hasC1 = true;
+            }
+
+            let c2childArray = element.child.filter(cElement => {
+              return cElement.transaction_type_identifier === 'SC2';
+            });
+            if(c2childArray.length > 0){
+              element.hasC2 = true;
+            }
+          }
         });
+
+
         this._LoanService.addUIFileds(res);
         this._LoanService.mockApplyFilters(res);
         const LoanModelL = this._LoanService.mapFromServerFields(res);
@@ -369,7 +391,7 @@ export class LoanSummaryComponent implements OnInit, OnDestroy {
           this._transactionService.trashOrRestoreTransactions('3X','trash',payment.report_id,[payment]).subscribe(res => {
             this.getPage(this.config.currentPage);
             this._dialogService.confirm(
-              'Transaction has been successfully deleted. ' + payment.transactionId,
+              'Transaction has been successfully deleted. ' + payment.transaction_id,
               ConfirmModalComponent,
               'Success!',
               false,
@@ -583,6 +605,10 @@ export class LoanSummaryComponent implements OnInit, OnDestroy {
     return false;
   }
 
+  public printLoan(loan){
+    this._reportTypeService.printPreview('transaction_table_screen', '3X', loan.transaction_id);
+  }
+
 
   /**
    * View all Loan selected by the user.
@@ -628,7 +654,7 @@ export class LoanSummaryComponent implements OnInit, OnDestroy {
           this._LoanService.deleteLoan(loan).subscribe(res => {
             this.getPage(this.config.currentPage);
             this._dialogService.confirm(
-              'Transaction has been successfully deleted. ' + loan.transactionId,
+              'Transaction has been successfully deleted. ' + loan.transaction_id,
               ConfirmModalComponent,
               'Success!',
               false,

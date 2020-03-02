@@ -23,7 +23,10 @@
         <div class="float-left">
           <h2>
             Form 3X
-            <ng-container *ngIf="transactionTypeText"> / {{ transactionTypeText }} </ng-container>
+            <ng-container *ngIf="transactionTypeText && !mainTransactionTypeText">/ Other / {{ transactionTypeText }} </ng-container>
+            <ng-container *ngIf="transactionTypeText && mainTransactionTypeText"> / 
+              {{ mainTransactionTypeText }} / {{ transactionTypeText }}
+            </ng-container>
             <ng-container *ngIf="scheduleAction === editScheduleAction"> / Edit </ng-container>
           </h2>
         </div>
@@ -157,12 +160,15 @@
                             (click)="changeSortDirection('non_federal_percent')">Levin
                             <i class="fa fa-sort" aria-hidden="false"></i>
                         </th>
+                        <th [@fadeInOut]
+                            (click)="changeSortDirection('memo_code')">Memo
+                            <i class="fa fa-sort" aria-hidden="false"></i>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     <ng-container *ngFor="let item of schedH6sModel | paginate: tableConfig">
-                        <tr *ngIf="item.memo_code !=='X' || item.arrow_dir ==='show'"
-                         [ngStyle]="{'background-color': item.memo_code !=='X' ? '' : '#D9EDF6'}">
+                        <tr>
                         <td>
                             <input type="checkbox" (click)="checkForMultiChecked($event)">
                         </td>
@@ -188,11 +194,7 @@
                         <td>{{ item.expenditure_purpose }}</td>
                         <td>{{ item.fed_share_amount | currency:'USD':'symbol-narrow':'1.2-2' }}</td>
                         <td>{{ item.levin_share | currency:'USD':'symbol-narrow':'1.2-2' }}</td>
-                        <td>
-                            <div *ngIf="item.memo_code == 'X'"><input type="checkbox" checked onclick="return false;">Memo</div>
-                            <div *ngIf="item.memo_code != 'X'"><input type="checkbox" onclick="return false;">Memo</div>                            
-                        </td>
-
+                        <td>{{ item.memo_code }}</td>
                         <td class="bulk_action" >
                             <div [@fadeInOut] class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
         
@@ -204,11 +206,59 @@
                                     <button class="dropdown-item" (click)="editTransaction(item)">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
-                                    <button class="dropdown-item">
+                                    <button class="dropdown-item" (click)="printTransaction(item)">
                                         <i class="fas fa-print"></i> Print
                                     </button>
                                     <button class="dropdown-item" (click)="cloneTransaction(item)"><i class="fas fa-copy"></i> Clone</button>
                                     <button class="dropdown-item" (click)="trashTransaction(item)"><i class="fas fa-trash" ></i> Trash</button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr [ngStyle]="{'background-color': '#D9EDF6'}" *ngFor="let itemChild of item.child;">
+                        <td>
+                            <input type="checkbox" (click)="checkForMultiChecked($event)">
+                        </td>
+                        <td>
+                            <div class="row td-arrow">
+                              {{ itemChild.entity_type == 'IND' ?
+                                itemChild.first_name + ' ' + item.last_name :
+                                itemChild.entity_name
+                              }}
+                              <div >
+                                  <i *ngIf="itemChild.arrow_dir === 'down'" class="fas fa-angle-down amend-arrow" (click)="clickArrow(item)"></i>
+                                  <i *ngIf="itemChild.arrow_dir === 'up'" class="fas fa-angle-up amend-arrow" (click)="clickArrow(item)"></i>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div *ngIf="itemChild.activity_event_type == 'GC'">Generic Campaign</div>
+                            <div *ngIf="itemChild.activity_event_type == 'GO'">GOTV</div>
+                            <div *ngIf="itemChild.activity_event_type == 'VI'">Voter ID</div>
+                            <div *ngIf="itemChild.activity_event_type == 'VR'">Voter Registration</div>
+                          </td>
+                        <td>{{ itemChild.expenditure_date | date: 'MM/dd/yyyy' }}</td>
+                        <td>{{ itemChild.expenditure_purpose }}</td>
+                        <td>{{ itemChild.fed_share_amount | currency:'USD':'symbol-narrow':'1.2-2' }}</td>
+                        <td>{{ itemChild.levin_share | currency:'USD':'symbol-narrow':'1.2-2' }}</td>
+                        <td>{{ itemChild.memo_code }}</td>
+                        <td class="bulk_action" >
+                            <div [@fadeInOut] class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
+
+                                <button class="btn btn-sm btn-primary" ngbDropdownToggle>
+                                    <i class="ellipsis-icon"></i>
+                                </button>
+
+                                <div id="sched-h6__dropdown-action" class="dropdown-menu" ngbDropdownMenu>
+                                    <button class="dropdown-item" (click)="editTransaction(itemChild)">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="dropdown-item" (click)="printTransaction(itemChild)">
+                                        <i class="fas fa-print"></i> Print
+                                    </button>
+                                    <button class="dropdown-item" (click)="cloneTransaction(itemChild)"><i class="fas fa-copy"></i> Clone</button>
+                                    <button class="dropdown-item" (click)="trashTransaction(itemChild)"><i class="fas fa-trash" ></i> Trash</button>
                                 </div>
                             </div>
                         </td>

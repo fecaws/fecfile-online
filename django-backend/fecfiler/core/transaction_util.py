@@ -8,6 +8,34 @@ import datetime
 logger = logging.getLogger(__name__)
 
 
+def validate_new_election_year(cmte_id, report_id):
+    """
+    helper function for checking a report a NEW election year:
+    checking cvg_start_date month = 1 and day = 1 
+    """
+
+    _sql = """
+    SELECT extract(day from cvg_start_date) as d, 
+    extract(month from cvg_start_date) as m 
+    FROM public.reports
+    WHERE report_id = %s and cmte_id = %s
+    and delete_ind is distinct from 'Y'
+    """
+    try:
+        with connection.cursor() as cursor:
+            # cursor.execute(count_sql, (report_id, cmte_id, report_id, cmte_id))
+            # if cursor.rowcount == 0:
+            cursor.execute(_sql, (report_id, cmte_id))
+            if cursor.rowcount:
+                _res = cursor.fetchone()
+                if int(_res[0]) == 1 and int(_res[1] == 1):
+                    logger.debug("new election year report identified.")
+                    return True
+        return False
+    except:
+        raise
+
+
 def delete_child_transaction(table, cmte_id, transaction_id):
     """
     delete sql transaction
@@ -76,14 +104,12 @@ def update_sched_c_parent(cmte_id, transaction_id, new_payment, old_payment=0):
                 payment_amount = 0
             balance_at_close = data[1]
             logger.debug("loan current payment amt:{}".format(payment_amount))
-            logger.debug(
-                "loan current payment amt:{}".format(balance_at_close))
+            logger.debug("loan current payment amt:{}".format(balance_at_close))
             new_payment_amount = (
                 float(payment_amount) + float(new_payment) - float(old_payment)
             )
             new_balance_at_close = (
-                float(balance_at_close) -
-                float(new_payment) + float(old_payment)
+                float(balance_at_close) - float(new_payment) + float(old_payment)
             )
         logger.debug(
             "update parent with new payment {}, new balance {}".format(
@@ -146,8 +172,7 @@ def update_sched_d_parent(cmte_id, transaction_id, new_payment, old_payment=0):
                 float(payment_amount) + float(new_payment) - float(old_payment)
             )
             new_balance_at_close = (
-                float(balance_at_close) -
-                float(new_payment) + float(old_payment)
+                float(balance_at_close) - float(new_payment) + float(old_payment)
             )
         logger.debug(
             "update parent with payment {}, close_b {}".format(
@@ -175,35 +200,38 @@ def do_transaction(sql, values):
     try:
         with connection.cursor() as cursor:
             cursor.execute(sql, values)
-            logger.debug(
-                "transaction done with rowcount:{}".format(cursor.rowcount))
+            logger.debug("transaction done with rowcount:{}".format(cursor.rowcount))
             # if cursor.rowcount == 0:
             #     raise Exception("The sql transaction: {} failed...".format(sql))
     except Exception:
         raise
 
 
-def update_parent_purpose(data):
+def update_earmark_parent_purpose(data):
     """
     for earmark transaction only:
-    when a earmark child transactions is added or updated,
-    the child entity_name should be update in parents 
+    when an earmark child transaction is added or updated,
+    the child entity_name should be updated in parent transaction 
     'purpose_description' field
+
+    update: part of the description like 'Earmarked for' and 'Earmarked through'
+    is defined in dynamic forms and we only need to update entity name here
     """
     desc_start = {
-        "EAR_REC_CONVEN_ACC_MEMO": "Earmarked for Convention Account ",
-        "EAR_REC_HQ_ACC_MEMO": "Earmarked for Headquarters Account ",
-        "EAR_REC_RECNT_ACC_MEMO": "Earmarked for Recount Account ",
+        # "EAR_REC_CONVEN_ACC_MEMO": "Earmarked for Convention Account ",
+        # "EAR_REC_HQ_ACC_MEMO": "Earmarked for Headquarters Account ",
+        # "EAR_REC_RECNT_ACC_MEMO": "Earmarked for Recount Account ",
     }
     parent_tran_id = data.get("back_ref_transaction_id")
     cmte_id = data.get("cmte_id")
     report_id = data.get("report_id")
     entity_name = data.get("entity_name")
     tran_type = data.get("transaction_type_identifier")
-    if tran_type in desc_start:
-        purpose = desc_start.get(tran_type) + entity_name
-    else:
-        purpose = "Earmarked for " + entity_name
+    # if tran_type in desc_start:
+    #     purpose = desc_start.get(tran_type) + entity_name
+    # else:
+    #     purpose = entity_name
+    purpose = entity_name
     _sql = """
     UPDATE public.sched_a 
     SET purpose_description = %s 
@@ -215,8 +243,7 @@ def update_parent_purpose(data):
             # Insert data into schedA table
             logger.debug("update parent purpose with sql:{}".format(_sql))
             logger.debug(
-                "update parent {} with purpose:{}".format(
-                    parent_tran_id, purpose)
+                "update parent {} with purpose:{}".format(parent_tran_id, purpose)
             )
             # print(report_id, cmte_id)
             cursor.execute(_sql, [purpose, parent_tran_id, report_id, cmte_id])
@@ -275,8 +302,7 @@ def populate_transaction_types():
             cursor.execute(_sql)
 
             if cursor.rowcount == 0:
-                raise Exception(
-                    "bummer, no transaction_types found in the database.")
+                raise Exception("bummer, no transaction_types found in the database.")
             for row in cursor.fetchall():
                 tran_dic[row[0]] = (row[1], row[2])
         return tran_dic
@@ -304,8 +330,7 @@ def get_transaction_type_descriptions():
         with connection.cursor() as cursor:
             cursor.execute(_sql)
             if cursor.rowcount == 0:
-                raise Exception(
-                    "bummer, no transaction_types found in the database.")
+                raise Exception("bummer, no transaction_types found in the database.")
             for row in cursor.fetchall():
                 tran_dic[row[0]] = row[1]
         # logger.debug("transaction desc loaded:{}".format(tran_dic))
@@ -405,6 +430,52 @@ def get_sched_a_transactions(
 
             return post_process_it(cursor, cmte_id)
     except Exception:
+        raise
+
+
+def get_sched_e_child_transactions(report_id, cmte_id, transaction_id):
+    """
+    load child transactions for sched_e
+    """
+    _sql = """
+        SELECT
+            cmte_id,
+            report_id,
+            transaction_type_identifier,
+            transaction_id,
+            back_ref_transaction_id,
+            back_ref_sched_name,
+            payee_entity_id,
+            election_code,
+            election_other_desc,
+            expenditure_amount,
+            COALESCE(dissemination_date, disbursement_date) as expenditure_date,
+            calendar_ytd_amount,
+            purpose,
+            category_code,
+            payee_cmte_id,
+            support_oppose_code,
+            completing_entity_id,
+            date_signed,
+            memo_code,
+            memo_text,
+            line_number,
+            create_date, 
+            last_update_date
+            FROM public.sched_e
+            WHERE report_id = %s 
+            AND cmte_id = %s 
+            AND back_ref_transaction_id = %s 
+            AND delete_ind is distinct from 'Y'
+            """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT json_agg(t) FROM (""" + _sql + """) t""",
+                [report_id, cmte_id, transaction_id],
+            )
+            return post_process_it(cursor, cmte_id)
+    except:
         raise
 
 
@@ -535,6 +606,14 @@ def get_sched_h6_child_transactions(report_id, cmte_id, transaction_id):
             expenditure_purpose,
             category_code,
             activity_event_type,
+            (
+                CASE
+                WHEN activity_event_type = 'VR' THEN 'Voter Registration'
+                WHEN activity_event_type = 'GO' THEN 'GOTV'
+                WHEN activity_event_type = 'VI' THEN 'Voter ID'
+                WHEN activity_event_type = 'GC' THEN 'Generic Campaign' 
+                ELSE ''::text
+                END) AS activity_event_identifier, 
             memo_code,
             memo_text, 
             create_date
@@ -804,7 +883,7 @@ def get_sched_c2_child(cmte_id, transaction_id):
 
 
 def get_sched_b_transactions(
-    report_id, cmte_id, transaction_id=None, back_ref_transaction_id=None
+    report_id, cmte_id, include_deleted_trans_flag = False, transaction_id=None, back_ref_transaction_id=None
 ):
 
     """
@@ -815,28 +894,54 @@ def get_sched_b_transactions(
         with connection.cursor() as cursor:
             # GET child rows from schedB table
             if transaction_id:
-                query_string = """
-                SELECT cmte_id, report_id, line_number, transaction_type, 
-                                        transaction_id, back_ref_transaction_id, back_ref_sched_name, 
-                                        entity_id, expenditure_date, expenditure_amount, 
-                                        semi_annual_refund_bundled_amount, expenditure_purpose, 
-                                        category_code, memo_code, memo_text, election_code, 
-                                        election_other_description, beneficiary_cmte_id, 
-                                        other_name, other_street_1, 
-                                        other_street_2, other_city, other_state, other_zip, 
-                                        nc_soft_account, transaction_type_identifier, 
-                                        beneficiary_cmte_name,
-                                        beneficiary_cand_entity_id,
-                                        levin_account_id,
-                                        aggregate_amt,
-                                        create_date
-                FROM public.sched_b WHERE report_id in ('{}')
-                AND cmte_id = %s 
-                AND transaction_id = %s 
-                AND delete_ind is distinct from 'Y'
-                """.format(
-                    "', '".join(report_list)
-                )
+                if not include_deleted_trans_flag:
+                    query_string = """
+                    SELECT cmte_id, report_id, line_number, transaction_type, 
+                                            transaction_id, back_ref_transaction_id, back_ref_sched_name, 
+                                            entity_id, expenditure_date, expenditure_amount, 
+                                            semi_annual_refund_bundled_amount, expenditure_purpose, 
+                                            category_code, memo_code, memo_text, election_code, 
+                                            election_other_description, beneficiary_cmte_id, 
+                                            other_name, other_street_1, 
+                                            other_street_2, other_city, other_state, other_zip, 
+                                            nc_soft_account, transaction_type_identifier, 
+                                            beneficiary_cmte_name,
+                                            beneficiary_cand_entity_id,
+                                            levin_account_id,
+                                            aggregate_amt,
+                                            create_date,
+                                            redesignation_id, redesignation_ind
+                    FROM public.sched_b WHERE report_id in ('{}')
+                    AND cmte_id = %s 
+                    AND transaction_id = %s 
+                    AND delete_ind is distinct from 'Y'
+                    """.format(
+                        "', '".join(report_list)
+                    )
+                else:
+                    query_string = """
+                    SELECT cmte_id, report_id, line_number, transaction_type, 
+                                            transaction_id, back_ref_transaction_id, back_ref_sched_name, 
+                                            entity_id, expenditure_date, expenditure_amount, 
+                                            semi_annual_refund_bundled_amount, expenditure_purpose, 
+                                            category_code, memo_code, memo_text, election_code, 
+                                            election_other_description, beneficiary_cmte_id, 
+                                            other_name, other_street_1, 
+                                            other_street_2, other_city, other_state, other_zip, 
+                                            nc_soft_account, transaction_type_identifier, 
+                                            beneficiary_cmte_name,
+                                            beneficiary_cand_entity_id,
+                                            levin_account_id,
+                                            aggregate_amt,
+                                            create_date,
+                                            redesignation_id, redesignation_ind
+                    FROM public.sched_b WHERE report_id in ('{}')
+                    AND cmte_id = %s 
+                    AND transaction_id = %s 
+                    """.format(
+                        "', '".join(report_list)
+                    )
+
                 cursor.execute(
                     """SELECT json_agg(t) FROM (""" + query_string + """) t""",
                     [cmte_id, transaction_id],
@@ -900,11 +1005,9 @@ def candify_it(cand_json):
     candify_item = {}
     for _f in cand_json:
         if _f == "entity_id":
-            candify_item["beneficiary_cand_entity_id"] = cand_json.get(
-                "entity_id")
+            candify_item["beneficiary_cand_entity_id"] = cand_json.get("entity_id")
         elif _f == "ref_cand_cmte_id":
-            candify_item["beneficiary_cand_id"] = cand_json.get(
-                "ref_cand_cmte_id")
+            candify_item["beneficiary_cand_id"] = cand_json.get("ref_cand_cmte_id")
             candify_item["cand_id"] = cand_json.get("ref_cand_cmte_id")
         elif _f in ["occupation", "employer"]:
             continue

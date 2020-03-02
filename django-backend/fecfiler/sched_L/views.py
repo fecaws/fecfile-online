@@ -29,18 +29,24 @@ from fecfiler.core.views import (
     remove_entities,
     undo_delete_entities,
 )
-from fecfiler.core.transaction_util import get_sched_a_transactions
-from fecfiler.sched_A.views import get_next_transaction_id
-from fecfiler.sched_D.views import do_transaction
+
+from fecfiler.core.transaction_util import (
+    get_sched_a_transactions,
+    get_transaction_type_descriptions,
+    do_transaction,
+)
+
+# from fecfiler.sched_A.views import get_next_transaction_id
+# from fecfiler.sched_D.views import do_transaction
+
 
 # Create your views here.
 logger = logging.getLogger(__name__)
 
-MANDATORY_FIELDS_SCHED_L = ["cmte_id",
-                            "report_id", "transaction_id", "record_id"]
+MANDATORY_FIELDS_SCHED_L = ["cmte_id", "report_id", "transaction_id", "record_id"]
 
 LA_TRANSACTIONS = [
-    "LEVIN_OTHER_REC",
+    "LEVIN_OTH_REC",
     "LEVIN_PARTN_MEMO",
     "LEVIN_PARTN_REC",
     "LEVIN_TRIB_REC",
@@ -57,6 +63,23 @@ LB_TRANSACTIONS = [
     "LEVIN_OTH_DISB",
     "LEVIN_VOTER_REG",
 ]
+
+API_CALL_LA = {"api_call": "/sa/schedA"}
+API_CALL_LB = {"api_call": "/sb/schedB"}
+
+
+def get_next_transaction_id(trans_char):
+    """get next transaction_id with seeding letter, like 'SA' """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT public.get_next_transaction_id(%s)""", [trans_char]
+            )
+            transaction_id = cursor.fetchone()[0]
+            # transaction_id = transaction_ids[0]
+        return transaction_id
+    except Exception:
+        raise
 
 
 def check_transaction_id(transaction_id):
@@ -92,7 +115,10 @@ def schedL_sql_dict(data):
     filter out valid fileds for sched_L
 
     """
+    # print(data)
     valid_fields = [
+        "cmte_id",
+        "report_id",
         "transaction_type_identifier",
         "line_number",
         "record_id",
@@ -101,7 +127,7 @@ def schedL_sql_dict(data):
         "cvg_end_date",
         "item_receipts",
         "unitem_receipts",
-        "ttl_receipts",
+        "total_c_receipts",
         "other_receipts",
         "total_receipts",
         "voter_reg_disb_amount",
@@ -118,7 +144,7 @@ def schedL_sql_dict(data):
         "coh_cop",
         "item_receipts_ytd",
         "unitem_receipts_ytd",
-        "total_reciepts_ytd",
+        "total_c_receipts_ytd",
         "other_receipts_ytd",
         "total_receipts_ytd",
         "voter_reg_disb_amount_ytd",
@@ -136,6 +162,8 @@ def schedL_sql_dict(data):
     ]
     try:
         valid_data = {k: v for k, v in data.items() if k in valid_fields}
+
+        # print(valid_data)
         # if 'levin_account_id' in data:
         #     valid_data['record_id'] = data.get('levin_account_id')
         #     levin_account = get_levin_account(data.get)
@@ -153,8 +181,10 @@ def put_schedL(data):
         check_mandatory_fields_SL(data)
         # check_transaction_id(data.get('transaction_id'))
         try:
+            logger.debug("update sl record with {}".format(data))
             put_sql_schedL(data)
         except Exception as e:
+            # print(e)
             raise Exception(
                 "The put_sql_schedL function is throwing an error: " + str(e)
             )
@@ -166,7 +196,6 @@ def put_schedL(data):
 def put_sql_schedL(data):
     """
     update a schedule_L item                    
-
     """
     _sql = """UPDATE public.sched_l
               SET transaction_type_identifier = %s, 
@@ -177,7 +206,7 @@ def put_sql_schedL(data):
                   cvg_end_date = %s,
                   item_receipts = %s,
                   unitem_receipts = %s,
-                  ttl_receipts = %s,
+                  total_c_receipts = %s,
                   other_receipts = %s,
                   total_receipts = %s,
                   voter_reg_disb_amount = %s,
@@ -194,7 +223,7 @@ def put_sql_schedL(data):
                   coh_cop = %s,
                   item_receipts_ytd = %s,
                   unitem_receipts_ytd = %s,
-                  total_reciepts_ytd = %s,
+                  total_c_receipts_ytd = %s,
                   other_receipts_ytd = %s,
                   total_receipts_ytd = %s,
                   voter_reg_disb_amount_ytd = %s,
@@ -223,7 +252,7 @@ def put_sql_schedL(data):
         data.get("cvg_end_date"),
         data.get("item_receipts"),
         data.get("unitem_receipts"),
-        data.get("ttl_receipts"),
+        data.get("total_c_receipts"),
         data.get("other_receipts"),
         data.get("total_receipts"),
         data.get("voter_reg_disb_amount"),
@@ -240,7 +269,7 @@ def put_sql_schedL(data):
         data.get("coh_cop"),
         data.get("item_receipts_ytd"),
         data.get("unitem_receipts_ytd"),
-        data.get("total_reciepts_ytd"),
+        data.get("total_c_receipts_ytd"),
         data.get("other_receipts_ytd"),
         data.get("total_receipts_ytd"),
         data.get("voter_reg_disb_amount_ytd"),
@@ -352,8 +381,8 @@ def post_sql_schedL(data):
             data.get("transaction_type_identifier"),
             data.get("line_number"),
             data.get("transaction_id"),
-            data.get("record_id", ""),
-            data.get("account_name", ""),
+            data.get("record_id"),
+            data.get("account_name"),
             data.get("cvg_from_date"),
             data.get("cvg_end_date"),
             data.get("item_receipts"),
@@ -573,8 +602,7 @@ def delete_schedL(data):
     try:
 
         delete_sql_schedL(
-            data.get("cmte_id"), data.get(
-                "report_id"), data.get("transaction_id")
+            data.get("cmte_id"), data.get("report_id"), data.get("transaction_id")
         )
     except Exception as e:
         raise
@@ -606,8 +634,7 @@ def schedL(request):
                 datum["record_id"] = levin_acct_id
                 levin_account = get_levin_account(cmte_id, levin_acct_id)
                 if levin_account:
-                    datum["account_name"] = levin_account[0].get(
-                        "levin_account_name")
+                    datum["account_name"] = levin_account[0].get("levin_account_name")
             if "transaction_id" in request.data and check_null_value(
                 request.data.get("transaction_id")
             ):
@@ -666,8 +693,7 @@ def schedL(request):
             if "report_id" in request.data and check_null_value(
                 request.data.get("report_id")
             ):
-                data["report_id"] = check_report_id(
-                    request.data.get("report_id"))
+                data["report_id"] = check_report_id(request.data.get("report_id"))
             else:
                 raise Exception("Missing Input: report_id is mandatory")
             if "transaction_id" in request.data and check_null_value(
@@ -716,8 +742,7 @@ def schedL(request):
                 datum["record_id"] = levin_acct_id
                 levin_account = get_levin_account(cmte_id, levin_acct_id)
                 if levin_account:
-                    datum["account_name"] = levin_account[0].get(
-                        "levin_account_name")
+                    datum["account_name"] = levin_account[0].get("levin_account_name")
             # if 'entity_id' in request.data and check_null_value(request.data.get('entity_id')):
             #     datum['entity_id'] = request.data.get('entity_id')
             # if request.data.get('transaction_type') in CHILD_SCHED_B_TYPES:
@@ -739,6 +764,420 @@ def schedL(request):
 
 
 def load_ytd_disbursements_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
+    """
+    load year_to_date disbursement amount
+    """
+    result = {}
+    result["voter_reg_disb_amount_ytd"] = 0
+    result["voter_id_disb_amount_ytd"] = 0
+    result["gotv_disb_amount_ytd"] = 0
+    result["generic_campaign_disb_amount_ytd"] = 0
+    result["other_disb_ytd"] = 0
+    if levin_account_id:
+        _sql = """
+            SELECT t1.transaction_type_identifier, COALESCE(sum(t1.expenditure_amount),0) as total_amt
+            FROM public.sched_b t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.expenditure_date BETWEEN %s and %s
+            AND t1.levin_account_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substr(t1.transaction_type_identifier,1,6) = 'LEVIN_'
+            GROUP BY t1.transaction_type_identifier 
+        """
+    else:
+        _sql = """
+            SELECT t1.transaction_type_identifier, COALESCE(sum(t1.expenditure_amount),0) as total_amt
+            FROM public.sched_b t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.expenditure_date BETWEEN %s and %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substr(t1.transaction_type_identifier,1,6) = 'LEVIN_'
+            GROUP BY t1.transaction_type_identifier 
+        """
+    try:
+        logger.debug("loading LB ytd...")
+        with connection.cursor() as cursor:
+            # cursor.execute("SELECT line_number, contribution_amount FROM public.sched_a WHERE cmte_id = %s AND report_id = %s AND delete_ind is distinct from 'Y'", [cmte_id, report_id])
+            if levin_account_id:
+                cursor.execute(_sql, (cmte_id, start_dt, end_dt, levin_account_id))
+            else:
+                cursor.execute(_sql, (cmte_id, start_dt, end_dt))
+            # rows = cursor.fetchall()
+            if cursor.rowcount:
+                for row in cursor.fetchall():
+                    if row[0] == "LEVIN_VOTER_REG":
+                        result["voter_reg_disb_amount_ytd"] = row[1]
+                    elif row[0] == "LEVIN_VOTER_ID":
+                        result["voter_id_disb_amount_ytd"] = row[1]
+                    elif row[0] == "LEVIN_GOTV":
+                        result["gotv_disb_amount_ytd"] = row[1]
+                    elif row[0] == "LEVIN_GEN":
+                        result["generic_campaign_disb_amount_ytd"] = row[1]
+                    elif row[0] == "LEVIN_OTH_DISB":
+                        result["other_disb_ytd"] = row[1]
+                    else:
+                        pass
+            result["total_disb_sub_ytd"] = (
+                float(result["voter_reg_disb_amount_ytd"])
+                + float(result["voter_id_disb_amount_ytd"])
+                + float(result["gotv_disb_amount_ytd"])
+                + float(result["generic_campaign_disb_amount_ytd"])
+            )
+            result["total_disb_ytd"] = float(result["other_disb_ytd"]) + float(
+                result["total_disb_sub_ytd"]
+            )
+    except Exception as e:
+        raise Exception(
+            "Error happens when query and calcualte dsibursements:" + str(e)
+        )
+    # print('dsibursement ytd:{}'.format(result))
+    logger.debug("LB ytd data:{}".format(result))
+    return result
+
+
+def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
+    """
+    load year_to_date receipt aggregation amount
+    """
+    result = {}
+    result["item_receipts_ytd"] = 0
+    result["unitem_receipts_ytd"] = 0
+    result["other_receipts_ytd"] = 0
+
+    if levin_account_id:
+        _sql1 = """
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.contribution_date BETWEEN %s AND %s
+            AND t1.levin_account_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substr(t1.transaction_type_identifier,1,5) = 'LEVIN'
+            AND t1.transaction_type_identifier != 'LEVIN_OTH_REC'
+            GROUP BY item_ind
+        """
+
+        _sql2 = """
+            SELECT COALESCE(sum(contribution_amount),0)
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.contribution_date BETWEEN %s AND %s
+            AND t1.levin_account_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND transaction_type_identifier = 'LEVIN_OTH_REC'
+        """
+
+    else:
+        _sql1 = """
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.contribution_date BETWEEN %s AND %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substr(t1.transaction_type_identifier,1,5) = 'LEVIN'
+            AND t1.transaction_type_identifier != 'LEVIN_OTH_REC'
+            GROUP BY item_ind
+        """
+
+        _sql2 = """
+            SELECT COALESCE(sum(contribution_amount),0)
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.contribution_date BETWEEN %s AND %s 
+            AND t1.delete_ind is distinct from 'Y' 
+            AND transaction_type_identifier = 'LEVIN_OTH_REC'
+        """
+
+    try:
+        logger.debug("loading LA ytd...")
+        with connection.cursor() as cursor:
+            # cursor.execute("SELECT line_number, contribution_amount FROM public.sched_a WHERE cmte_id = %s AND report_id = %s AND delete_ind is distinct from 'Y'", [cmte_id, report_id])
+            if levin_account_id:
+                cursor.execute(_sql1, (cmte_id, start_dt, end_dt, levin_account_id))
+            else:
+                cursor.execute(_sql1, (cmte_id, start_dt, end_dt))
+            # print(cursor.rowcount)
+            if cursor.rowcount:
+                rows = cursor.fetchall()
+                for row in rows:
+                    if row[0] == "Y":
+                        result["item_receipts_ytd"] = row[1]
+                    elif row[0] == "N":
+                        result["unitem_receipts_ytd"] = row[1]
+                    else:
+                        pass
+            result["total_c_receipts_ytd"] = float(result["item_receipts_ytd"]) + float(
+                result["unitem_receipts_ytd"]
+            )
+
+            if levin_account_id:
+                cursor.execute(_sql2, (cmte_id, start_dt, end_dt, levin_account_id))
+            else:
+                cursor.execute(_sql2, (cmte_id, start_dt, end_dt))
+            # print(cursor.rowcount)
+            if cursor.rowcount:
+                result["other_receipts_ytd"] = cursor.fetchone()[0]
+
+            result["total_receipts_ytd"] = float(
+                result["total_c_receipts_ytd"]
+            ) + float(result["other_receipts_ytd"])
+
+    except Exception as e:
+        raise Exception("Error happens when query ytd receipts amount:" + str(e))
+    # print(result)
+    logger.debug("LA ytd data:{}".format(result))
+    return result
+
+
+def load_report_disbursements_sumamry(cmte_id, report_id, levin_account_id=None):
+    """
+    query db for report-wise disbursement data
+    """
+    result = {}
+    result["voter_reg_disb_amount"] = 0
+    result["voter_id_disb_amount"] = 0
+    result["gotv_disb_amount"] = 0
+    result["generic_campaign_disb_amount"] = 0
+    result["other_disb"] = 0
+    if not levin_account_id:
+        _sql = """
+            SELECT t1.transaction_type_identifier, COALESCE(sum(t1.expenditure_amount),0) as total_amt
+            FROM public.sched_b t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.report_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substring(t1.transaction_type_identifier,1,6) = 'LEVIN_'
+            GROUP BY t1.transaction_type_identifier
+        """
+    else:
+        _sql = """
+            SELECT t1.transaction_type_identifier, COALESCE(sum(t1.expenditure_amount),0) as total_amt
+            FROM public.sched_b t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.report_id = %s
+            AND t1.levin_account_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substring(t1.transaction_type_identifier,1,6) = 'LEVIN_'
+            GROUP BY t1.transaction_type_identifier
+        """
+
+    try:
+        logger.debug("loading LB data...")
+        with connection.cursor() as cursor:
+            # cursor.execute("SELECT line_number, contribution_amount FROM public.sched_a WHERE cmte_id = %s AND report_id = %s AND delete_ind is distinct from 'Y'", [cmte_id, report_id])
+            if levin_account_id:
+                cursor.execute(_sql, (cmte_id, report_id, levin_account_id))
+            else:
+                cursor.execute(_sql, (cmte_id, report_id))
+            # rows = cursor.fetchall()isbursm
+            # print('disbursement rowcount: {}'.format(cursor.rowcount))
+            # print(result)
+            if cursor.rowcount:
+                for row in cursor.fetchall():
+                    if row[0] == "LEVIN_VOTER_REG":
+                        result["voter_reg_disb_amount"] = row[1]
+                    elif row[0] == "LEVIN_VOTER_ID":
+                        result["voter_id_disb_amount"] = row[1]
+                    elif row[0] == "LEVIN_GOTV":
+                        result["gotv_disb_amount"] = row[1]
+                    elif row[0] == "LEVIN_GEN":
+                        result["generic_campaign_disb_amount"] = row[1]
+                    elif row[0] == "LEVIN_OTH_DISB":
+                        result["other_disb"] = row[1]
+                    else:
+                        pass
+            result["total_disb_sub"] = (
+                float(result["voter_reg_disb_amount"])
+                + float(result["voter_id_disb_amount"])
+                + float(result["gotv_disb_amount"])
+                + float(result["generic_campaign_disb_amount"])
+            )
+            result["total_disb"] = float(result["other_disb"]) + float(
+                result["total_disb_sub"]
+            )
+    except Exception as e:
+        raise Exception(
+            "Error happens when query and calcualte disbursements:" + str(e)
+        )
+    # print(result)
+    logger.debug("LB result:{}".format(result))
+    return result
+
+
+def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
+    """
+    query db and caculcate the summary data for receipts:
+    1. itemized receipts: line_number = 11AI
+    2. non-itemized receipts: line_number = 11AII
+    3. 1and2_total: itemized + non-itemized
+    4. other receipts
+    5. all_total: 3 + other 
+    """
+    if not levin_account_id:
+        _sql1 = """
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.report_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substring(transaction_type_identifier, 1, 6) = 'LEVIN_'
+            AND t1.transaction_type_identifier != 'LEVIN_OTH_REC'
+            GROUP BY item_ind
+        """
+        _sql2 = """
+            SELECT COALESCE(sum(contribution_amount),0)
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.report_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND t1.transaction_type_identifier = 'LEVIN_OTH_REC'
+        """
+    else:
+        _sql1 = """
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.report_id = %s
+            AND t1.levin_account_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND substring(transaction_type_identifier, 1, 6) = 'LEVIN_'
+            AND t1.transaction_type_identifier != 'LEVIN_OTH_REC' 
+            GROUP BY item_ind
+        """
+        _sql2 = """
+            SELECT COALESCE(sum(contribution_amount),0)
+            FROM public.sched_a t1 
+            WHERE t1.memo_code IS NULL 
+            AND t1.cmte_id = %s
+            AND t1.report_id = %s
+            AND t1.levin_account_id = %s
+            AND t1.delete_ind is distinct from 'Y' 
+            AND t1.transaction_type_identifier = 'LEVIN_OTH_REC'
+        """
+
+    logger.debug(
+        "loading receipts summary: cmte_id {}, report_id {}".format(cmte_id, report_id)
+    )
+    result = {}
+    result["item_receipts"] = 0
+    result["unitem_receipts"] = 0
+    try:
+        with connection.cursor() as cursor:
+            # cursor.execute("SELECT line_number, contribution_amount FROM public.sched_a WHERE cmte_id = %s AND report_id = %s AND delete_ind is distinct from 'Y'", [cmte_id, report_id])
+            if levin_account_id:
+                cursor.execute(_sql1, (cmte_id, report_id, levin_account_id))
+            else:
+                cursor.execute(_sql1, (cmte_id, report_id))
+            logger.debug("rows retrieved:{}".format(cursor.rowcount))
+            if cursor.rowcount:
+
+                rows = cursor.fetchall()
+                for row in rows:
+                    # print(row)
+                    if row[0] == "Y":
+                        result["item_receipts"] = row[1]
+                    elif row[0] == "N":
+                        result["unitem_receipts"] = row[1]
+                    else:
+                        pass
+                # else:
+                #     result["itemized_receipt_amount"] = 0
+                #     result["non-itemized_receipt_amount"] = 0
+
+            result["total_c_receipts"] = float(result["item_receipts"]) + float(
+                result["unitem_receipts"]
+            )
+
+            logger.debug("loading other la transactions:")
+            if levin_account_id:
+                cursor.execute(_sql2, (cmte_id, report_id, levin_account_id))
+            else:
+                cursor.execute(_sql2, (cmte_id, report_id))
+            # print(cursor.rowcount)
+            if cursor.rowcount:
+                result["other_receipts"] = cursor.fetchone()[0]
+            else:
+                result["other_receipts"] = 0
+            result["total_receipts"] = float(result["total_c_receipts"]) + float(
+                result["other_receipts"]
+            )
+            logger.debug("receipts summary:{}".format(result))
+    except Exception as e:
+        raise Exception(
+            "Error happens when query and calcualte receipts amount:" + str(e)
+        )
+    return result
+
+
+def get_cash_on_hand_cop(report_id, cmte_id, prev_yr, levin_account_id=None):
+    try:
+        logger.debug("****loading coh beginning data...")
+        # if levin_account_id:
+        # levin_account_id = str(levin)
+        cvg_start_date, cvg_end_date = get_cvg_dates(report_id, cmte_id)
+        if prev_yr:
+            prev_cvg_year = cvg_start_date.year - 1
+            prev_cvg_end_dt = datetime.date(prev_cvg_year, 12, 31)
+        else:
+            prev_cvg_end_dt = cvg_start_date - datetime.timedelta(days=1)
+            # print(prev_cvg_end_dt)
+        with connection.cursor() as cursor:
+            if levin_account_id:
+                cursor.execute(
+                    """
+                    SELECT COALESCE(coh_cop, 0) 
+                    FROM public.sched_l 
+                    WHERE cmte_id = %s 
+                    AND cvg_end_date = %s 
+                    AND record_id = %s::varchar(9)
+                    AND delete_ind is distinct from 'Y'
+                    """,
+                    [cmte_id, prev_cvg_end_dt, levin_account_id],
+                )
+
+            else:
+                cursor.execute(
+                    """
+                    SELECT SUM(COALESCE(coh_cop, 0))
+                    FROM public.sched_l 
+                    WHERE cmte_id = %s 
+                    AND cvg_end_date = %s 
+                    AND delete_ind is distinct from 'Y'
+                    """,
+                    [cmte_id, prev_cvg_end_dt],
+                )
+            if cursor.rowcount == 0:
+                coh_cop = 0
+            else:
+                result = cursor.fetchone()
+                coh_cop = result[0]
+                if not coh_cop:
+                    coh_cop = 0
+        logger.debug("coh result:{}".format(coh_cop))
+        return float(coh_cop)
+    except Exception as e:
+        raise Exception(
+            "The prev_cash_on_hand_cop function is throwing an error: " + str(e)
+        )
+
+
+#############
+
+
+def load_ytd_disbursements_summary_api(
+    cmte_id, start_dt, end_dt, levin_account_id=None
+):
     """
     load year_to_date disbursement amount
     """
@@ -775,8 +1214,7 @@ def load_ytd_disbursements_summary(cmte_id, start_dt, end_dt, levin_account_id=N
         with connection.cursor() as cursor:
             # cursor.execute("SELECT line_number, contribution_amount FROM public.sched_a WHERE cmte_id = %s AND report_id = %s AND delete_ind is distinct from 'Y'", [cmte_id, report_id])
             if levin_account_id:
-                cursor.execute(
-                    _sql, (cmte_id, start_dt, end_dt, levin_account_id))
+                cursor.execute(_sql, (cmte_id, start_dt, end_dt, levin_account_id))
             else:
                 cursor.execute(_sql, (cmte_id, start_dt, end_dt))
             # rows = cursor.fetchall()
@@ -811,7 +1249,7 @@ def load_ytd_disbursements_summary(cmte_id, start_dt, end_dt, levin_account_id=N
     return result
 
 
-def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
+def load_ytd_receipts_summary_api(cmte_id, start_dt, end_dt, levin_account_id=None):
     """
     load year_to_date receipt aggregation amount
     """
@@ -822,7 +1260,7 @@ def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
 
     if levin_account_id:
         _sql1 = """
-            SELECT (CASE WHEN contribution_amount >= 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
             FROM public.sched_a t1 
             WHERE t1.memo_code IS NULL 
             AND t1.cmte_id = %s
@@ -847,7 +1285,7 @@ def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
 
     else:
         _sql1 = """
-            SELECT (CASE WHEN contribution_amount >= 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
             FROM public.sched_a t1 
             WHERE t1.memo_code IS NULL 
             AND t1.cmte_id = %s
@@ -872,8 +1310,7 @@ def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
         with connection.cursor() as cursor:
             # cursor.execute("SELECT line_number, contribution_amount FROM public.sched_a WHERE cmte_id = %s AND report_id = %s AND delete_ind is distinct from 'Y'", [cmte_id, report_id])
             if levin_account_id:
-                cursor.execute(_sql1, (cmte_id, start_dt,
-                                       end_dt, levin_account_id))
+                cursor.execute(_sql1, (cmte_id, start_dt, end_dt, levin_account_id))
             else:
                 cursor.execute(_sql1, (cmte_id, start_dt, end_dt))
             # print(cursor.rowcount)
@@ -891,8 +1328,7 @@ def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
             ) + float(result["non_itemized_receipt_amount_ytd"])
 
             if levin_account_id:
-                cursor.execute(_sql2, (cmte_id, start_dt,
-                                       end_dt, levin_account_id))
+                cursor.execute(_sql2, (cmte_id, start_dt, end_dt, levin_account_id))
             else:
                 cursor.execute(_sql2, (cmte_id, start_dt, end_dt))
             # print(cursor.rowcount)
@@ -904,13 +1340,12 @@ def load_ytd_receipts_summary(cmte_id, start_dt, end_dt, levin_account_id=None):
             ) + float(result["other_sl_receipt_amount_ytd"])
 
     except Exception as e:
-        raise Exception(
-            "Error happens when query ytd receipts amount:" + str(e))
+        raise Exception("Error happens when query ytd receipts amount:" + str(e))
     # print(result)
     return result
 
 
-def load_report_disbursements_sumamry(cmte_id, report_id, levin_account_id=None):
+def load_report_disbursements_sumamry_api(cmte_id, report_id, levin_account_id=None):
     """
     query db for report-wise disbursement data
     """
@@ -984,7 +1419,7 @@ def load_report_disbursements_sumamry(cmte_id, report_id, levin_account_id=None)
     return result
 
 
-def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
+def load_report_receipts_summary_api(cmte_id, report_id, levin_account_id=None):
     """
     query db and caculcate the summary data for receipts:
     1. itemized receipts: line_number = 11AI
@@ -995,14 +1430,15 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
     """
     if not levin_account_id:
         _sql1 = """
-            SELECT line_number, COALESCE(sum(contribution_amount),0) as total_amt
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
             FROM public.sched_a t1 
             WHERE t1.memo_code IS NULL 
             AND t1.cmte_id = %s
             AND t1.report_id = %s
             AND t1.delete_ind is distinct from 'Y' 
             AND substring(transaction_type_identifier, 1, 6) = 'LEVIN_'
-            GROUP BY line_number
+            AND t1.transaction_type_identifier != 'LEVIN_OTH_REC'
+            GROUP BY item_ind
         """
         _sql2 = """
             SELECT COALESCE(sum(contribution_amount),0)
@@ -1015,7 +1451,7 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
         """
     else:
         _sql1 = """
-            SELECT line_number, COALESCE(sum(contribution_amount),0) as total_amt
+            SELECT (CASE WHEN t1.aggregate_amt > 200 THEN 'Y' ELSE 'N' END) as item_ind, COALESCE(sum(contribution_amount),0) as total_amt
             FROM public.sched_a t1 
             WHERE t1.memo_code IS NULL 
             AND t1.cmte_id = %s
@@ -1023,7 +1459,8 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
             AND t1.levin_account_id = %s
             AND t1.delete_ind is distinct from 'Y' 
             AND substring(transaction_type_identifier, 1, 6) = 'LEVIN_'
-            GROUP BY line_number
+            AND t1.transaction_type_identifier != 'LEVIN_OTH_REC' 
+            GROUP BY item_ind
         """
         _sql2 = """
             SELECT COALESCE(sum(contribution_amount),0)
@@ -1037,7 +1474,8 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
         """
 
     logger.debug(
-        'loading receipts summary: cmte_id {}, report_id {}'.format(cmte_id, report_id))
+        "loading receipts summary: cmte_id {}, report_id {}".format(cmte_id, report_id)
+    )
     result = {}
     result["itemized_receipt_amount"] = 0
     result["non_itemized_receipt_amount"] = 0
@@ -1048,14 +1486,15 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
                 cursor.execute(_sql1, (cmte_id, report_id, levin_account_id))
             else:
                 cursor.execute(_sql1, (cmte_id, report_id))
-            logger.debug('rows retrieved:{}'.format(cursor.rowcount))
+            logger.debug("rows retrieved:{}".format(cursor.rowcount))
             if cursor.rowcount:
+
                 rows = cursor.fetchall()
                 for row in rows:
                     # print(row)
-                    if row[0] == "1A":
+                    if row[0] == "Y":
                         result["itemized_receipt_amount"] = row[1]
-                    elif row[0] == "11AII":
+                    elif row[0] == "N":
                         result["non_itemized_receipt_amount"] = row[1]
                     else:
                         pass
@@ -1067,7 +1506,7 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
                 result["itemized_receipt_amount"]
             ) + float(result["non_itemized_receipt_amount"])
 
-            logger.debug('loading other la transactions:')
+            logger.debug("loading other la transactions:")
             if levin_account_id:
                 cursor.execute(_sql2, (cmte_id, report_id, levin_account_id))
             else:
@@ -1080,7 +1519,7 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
             result["total_receipt_amount"] = float(
                 result["itemized_non_itemized_combined"]
             ) + float(result["other_sl_receipt_amount"])
-            logger.debug('receipts summary:{}'.format(result))
+            logger.debug("receipts summary:{}".format(result))
     except Exception as e:
         raise Exception(
             "Error happens when query and calcualte receipts amount:" + str(e)
@@ -1088,51 +1527,7 @@ def load_report_receipts_summary(cmte_id, report_id, levin_account_id=None):
     return result
 
 
-def get_cash_on_hand_cop(report_id, cmte_id, prev_yr, levin_account_id=None):
-    try:
-        cvg_start_date, cvg_end_date = get_cvg_dates(report_id, cmte_id)
-        if prev_yr:
-            prev_cvg_year = cvg_start_date.year - 1
-            prev_cvg_end_dt = datetime.date(prev_cvg_year, 12, 31)
-        else:
-            prev_cvg_end_dt = cvg_start_date - datetime.timedelta(days=1)
-        with connection.cursor() as cursor:
-            if levin_account_id:
-                cursor.execute(
-                    """
-                    SELECT COALESCE(coh_cop, 0) 
-                    FROM public.sched_l 
-                    WHERE cmte_id = %s 
-                    AND cvg_end_date = %s 
-                    AND record_id = %s
-                    AND delete_ind is distinct from 'Y'
-                    """,
-                    [cmte_id, prev_cvg_end_dt, levin_account_id],
-                )
-
-            else:
-                cursor.execute(
-                    """
-                    SELECT COALESCE(coh_cop, 0) 
-                    FROM public.sched_l 
-                    WHERE cmte_id = %s 
-                    AND cvg_end_date = %s 
-                    AND delete_ind is distinct from 'Y'
-                    """,
-                    [cmte_id, prev_cvg_end_dt],
-                )
-            if cursor.rowcount == 0:
-                coh_cop = 0
-            else:
-                result = cursor.fetchone()
-                coh_cop = result[0]
-
-        return coh_cop
-    except Exception as e:
-        raise Exception(
-            "The prev_cash_on_hand_cop function is throwing an error: " +
-            str(e)
-        )
+############
 
 
 @api_view(["GET"])
@@ -1141,8 +1536,8 @@ def get_sl_summary_table(request):
     report-based summary:
     values to be calculated:
     Receipts
-    1. itemized receipts: line_number = 11AI
-    2. non-itemized receipts: line_number = 11AII
+    1. itemized receipts: line_number = 1A, amt > 200
+    2. non-itemized receipts: line_number = 1A, amt <= 200
     3. 1and2_total: itemized + non-itemized
     4. other receipts
     5. all_total: 3 + other
@@ -1180,38 +1575,51 @@ def get_sl_summary_table(request):
             raise Exception("Missing Input: calendar_year is mandatory")
 
         report_id = check_report_id(request.query_params.get("report_id"))
-        calendar_year = check_calendar_year(
-            request.query_params.get("calendar_year"))
+        calendar_year = check_calendar_year(request.query_params.get("calendar_year"))
 
         # period_args = [
         cal_start = (datetime.date(int(calendar_year), 1, 1),)
-        cal_end = (datetime.date(int(calendar_year), 12, 31),)
+        # cal_end = (datetime.date(int(calendar_year), 12, 31),)
+        cvg_start_date, cvg_end_date = get_cvg_dates(report_id, cmte_id)
+        cal_end = cvg_end_date
+
         # cmte_id,
         # report_id,
         # ]
         # query and calculate receipt amount for current report
-        levin_account_id = request.query_params.get('levin_account_id')
+        levin_account_id = request.query_params.get("levin_account_id")
         if levin_account_id:
-            response.update(load_report_receipts_summary(
-                cmte_id, report_id, levin_account_id))
-            response.update(load_report_disbursements_sumamry(
-                cmte_id, report_id, levin_account_id))
-            response.update(load_ytd_receipts_summary(
-                cmte_id, cal_start, cal_end, levin_account_id))
-            response.update(load_ytd_disbursements_summary(
-                cmte_id, cal_start, cal_end, levin_account_id))
-            coh_bop_report = get_cash_on_hand_cop(
-                report_id, cmte_id, False, levin_account_id)
-            coh_bop_ytd = get_cash_on_hand_cop(
-                report_id, cmte_id, True, levin_account_id)
-        else:
-            response.update(load_report_receipts_summary(cmte_id, report_id))
             response.update(
-                load_report_disbursements_sumamry(cmte_id, report_id))
-            response.update(load_ytd_receipts_summary(
-                cmte_id, cal_start, cal_end))
-            response.update(load_ytd_disbursements_summary(
-                cmte_id, cal_start, cal_end))
+                load_report_receipts_summary_api(cmte_id, report_id, levin_account_id)
+            )
+            response.update(
+                load_report_disbursements_sumamry_api(
+                    cmte_id, report_id, levin_account_id
+                )
+            )
+            response.update(
+                load_ytd_receipts_summary_api(
+                    cmte_id, cal_start, cal_end, levin_account_id
+                )
+            )
+            response.update(
+                load_ytd_disbursements_summary_api(
+                    cmte_id, cal_start, cal_end, levin_account_id
+                )
+            )
+            coh_bop_report = get_cash_on_hand_cop(
+                report_id, cmte_id, False, levin_account_id
+            )
+            coh_bop_ytd = get_cash_on_hand_cop(
+                report_id, cmte_id, True, levin_account_id
+            )
+        else:
+            response.update(load_report_receipts_summary_api(cmte_id, report_id))
+            response.update(load_report_disbursements_sumamry_api(cmte_id, report_id))
+            response.update(load_ytd_receipts_summary_api(cmte_id, cal_start, cal_end))
+            response.update(
+                load_ytd_disbursements_summary_api(cmte_id, cal_start, cal_end)
+            )
             coh_bop_report = get_cash_on_hand_cop(report_id, cmte_id, False)
             coh_bop_ytd = get_cash_on_hand_cop(report_id, cmte_id, True)
 
@@ -1236,7 +1644,7 @@ def get_sl_summary_table(request):
         coh_cop_ytd = (
             coh_bop_ytd
             + response.get("total_receipt_amount_ytd")
-            + response.get("total_disbursement_amount_ytd")
+            - response.get("total_disbursement_amount_ytd")
         )
         cash_summary = {
             "coh_bop_report": coh_bop_report,
@@ -1245,6 +1653,16 @@ def get_sl_summary_table(request):
             "coh_cop_ytd": coh_cop_ytd,
         }
         response.update(cash_summary)
+        subtotal_report = float(response.get("coh_bop_report")) + float(
+            response.get("total_receipt_amount")
+        )
+        subtotal_ytd = float(response.get("coh_bop_ytd")) + float(
+            response.get("total_receipt_amount_ytd")
+        )
+        # adding subtotal numbers
+        response.update(
+            {"subtotal_report": subtotal_report, "subtotal_ytd": subtotal_ytd}
+        )
 
         """
         calendar_args = [cmte_id, date(int(calendar_year), 1, 1), date(int(calendar_year), 12, 31)]
@@ -1275,6 +1693,218 @@ def get_sl_summary_table(request):
             "The get_sl_summary_table API is throwing an error: " + str(e),
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+def get_sl_transaction_id(cmte_id, report_id, levin_account_id):
+    """
+    helper function for loading existing transaction_id if exist
+    """
+    try:
+        _sql = """
+        SELECT transaction_id
+        FROM public.sched_l sl
+        WHERE sl.cmte_id = %s
+        AND sl.report_id = %s
+        AND sl.record_id = %s::varchar(9)
+        AND sl.delete_ind is distinct from 'Y'
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(_sql, [cmte_id, report_id, levin_account_id])
+            if cursor.rowcount:
+                return cursor.fetchone()[0]
+            else:
+                return None
+    except:
+        raise
+
+
+def update_sl_summary(data):
+    """
+    report-based summary:
+    values to be calculated:
+    Receipts
+    1. itemized receipts: line_number = 1A, amt > 200
+    2. non-itemized receipts: line_number = 1A, amt <= 200
+    3. 1and2_total: itemized + non-itemized
+    4. other receipts
+    5. all_total: 3 + other
+
+    disbursements: transfer to federal acct or aalocation acct
+    1. voter registration
+    2. voter id;
+    3. GOTV
+    4. generic_campaign
+    5. 1_2_3_4_total
+
+    cash_on_hand:
+    1. COH at the beginning
+    2. receipts total
+    3. sub_total: 1+2
+    4. dsibursements total
+    5. ending COH
+
+    we also need a copy of YTD calculation for the same fields
+    """
+    logger.debug("update levin summary ...")
+    logger.debug("with data:{}".format(data))
+    sl_data = {}
+    try:
+        cmte_id = data.get("cmte_id")
+        report_id = data.get("report_id")
+        levin_account_id = data.get("levin_account_id")
+
+        # if not (
+        #     "report_id" in request.query_params
+        #     and check_null_value(request.query_params.get("report_id"))
+        # ):
+        #     raise Exception("Missing Input: report_id is mandatory")
+
+        # if not (
+        #     "calendar_year" in request.query_params
+        #     and check_null_value(request.query_params.get("calendar_year"))
+        # ):
+        #     raise Exception("Missing Input: calendar_year is mandatory")
+
+        # report_id = check_report_id(request.query_params.get("report_id"))
+        # calendar_year = check_calendar_year(
+        #     request.query_params.get("calendar_year"))
+
+        # period_args = [
+        # cal_end = (datetime.date(int(calendar_year), 12, 31),)
+        cvg_start_date, cvg_end_date = get_cvg_dates(report_id, cmte_id)
+        calendar_year = cvg_start_date.year
+        cal_start = (datetime.date(int(calendar_year), 1, 1),)
+        cal_end = cvg_end_date
+
+        # create a levin summary recvord if not exist yet
+        # if not sl_record_exist(levin_account_id):
+        dummy_data = {
+            "cmte_id": cmte_id,
+            "report_id": report_id,
+            "record_id": levin_account_id,
+            "account_name": get_levin_account(cmte_id, levin_account_id)[0][
+                "levin_account_name"
+            ],
+            "cvg_from_date": cvg_start_date,
+            "cvg_end_date": cvg_end_date,
+            "transaction_type_identifier": "SCHED_L_SUM",
+        }
+        sl_data.update(dummy_data)
+        # post_schedL(dummy_rec)
+
+        # cmte_id,
+        # report_id,
+        # ]
+        # query and calculate receipt amount for current report
+        # levin_account_id = request.query_params.get('levin_account_id')
+        logger.debug("sl_data {}".format(sl_data))
+        # if levin_account_id:
+        sl_data.update(
+            load_report_receipts_summary(cmte_id, report_id, levin_account_id)
+        )
+        sl_data.update(
+            load_report_disbursements_sumamry(cmte_id, report_id, levin_account_id)
+        )
+        sl_data.update(
+            load_ytd_receipts_summary(cmte_id, cal_start, cal_end, levin_account_id)
+        )
+        sl_data.update(
+            load_ytd_disbursements_summary(
+                cmte_id, cal_start, cal_end, levin_account_id
+            )
+        )
+        coh_bop_report = get_cash_on_hand_cop(
+            report_id, cmte_id, False, levin_account_id
+        )
+        coh_bop_ytd = get_cash_on_hand_cop(report_id, cmte_id, True, levin_account_id)
+        # else:
+        #     response.update(load_report_receipts_summary(cmte_id, report_id))
+        #     response.update(
+        #         load_report_disbursements_sumamry(cmte_id, report_id))
+        #     response.update(load_ytd_receipts_summary(
+        #         cmte_id, cal_start, cal_end))
+        #     response.update(load_ytd_disbursements_summary(
+        #         cmte_id, cal_start, cal_end))
+        #     coh_bop_report = get_cash_on_hand_cop(report_id, cmte_id, False)
+        #     coh_bop_ytd = get_cash_on_hand_cop(report_id, cmte_id, True)
+
+        # # query and calculate disbursement amount for current report
+        # response.update(load_report_disbursements_sumamry(cmte_id, report_id))
+
+        # # query and calcualte YTD receipt amount
+        # response.update(load_ytd_receipts_summary(cmte_id, cal_start, cal_end))
+        # # query and calculate YTD disbursement amount
+        # response.update(load_ytd_disbursements_summary(
+        #     cmte_id, cal_start, cal_end))
+
+        # # calculate cash summary
+        # coh_bop_report = get_cash_on_hand_cop(report_id, cmte_id, False)
+        # coh_bop_ytd = get_cash_on_hand_cop(report_id, cmte_id, True)
+        # print(response)
+        coh_cop_report = (
+            coh_bop_report
+            + float(sl_data.get("total_receipts"))
+            - float(sl_data.get("total_disb"))
+        )
+        logger.debug("coh_cop_report:{}".format(coh_cop_report))
+        coh_cop_ytd = (
+            coh_bop_ytd
+            + float(sl_data.get("total_receipts_ytd"))
+            - float(sl_data.get("total_disb_ytd"))
+        )
+        logger.debug("coh_cop_ytd:{}".format(coh_cop_ytd))
+        cash_summary = {
+            "coh_bop": coh_bop_report,
+            "coh_coy": coh_bop_ytd,
+            "coh_cop": coh_cop_report,
+            "coh_cop_ytd": coh_cop_ytd,
+        }
+        sl_data.update(cash_summary)
+        logger.debug("sl_data after calculation:{}".format(sl_data))
+        sl_data = schedL_sql_dict(sl_data)
+        logger.debug("sl data after screening:{}".format(sl_data))
+        transaction_id = get_sl_transaction_id(cmte_id, report_id, levin_account_id)
+        # print(transaction_id)
+        if not transaction_id:
+            logger.debug("no transaction_id found. Saving a new record.")
+            post_schedL(sl_data)
+        else:
+            logger.debug("sl transaction_id identified:{}".format(transaction_id))
+            sl_data["transaction_id"] = transaction_id
+            put_schedL(sl_data)
+            # sl_data.update({'transaction_id':})
+        logger.debug("update sl done.")
+
+        """
+        calendar_args = [cmte_id, date(int(calendar_year), 1, 1), date(int(calendar_year), 12, 31)]
+        calendar_receipt = summary_receipts(calendar_args)
+        calendar_disbursement = summary_disbursements(calendar_args)
+        """
+        # coh_bop_ytd = prev_cash_on_hand_cop(report_id, cmte_id, True)
+        # coh_bop = prev_cash_on_hand_cop(report_id, cmte_id, False)
+        # coh_cop = COH_cop(coh_bop, period_receipt, period_disbursement)
+
+        # cash_summary = {
+        #     "COH AS OF JANUARY 1": coh_bop_ytd,
+        #     "BEGINNING CASH ON HAND": coh_bop,
+        #     "ENDING CASH ON HAND": coh_cop,
+        #     "DEBTS/LOANS OWED TO COMMITTEE": 0,
+        #     "DEBTS/LOANS OWED BY COMMITTEE": 0,
+        # }
+
+        # forms_obj = {
+        #     "Total Raised": {"period_receipts": period_receipt},
+        #     "Total Spent": {"period_disbursements": period_disbursement},
+        #     "Cash summary": cash_summary,
+        # }
+        # forms_obj = {"dev_status": "partial"}
+        # return Response(response, status=status.HTTP_200_OK)
+    except:
+        raise
+        # return Response(
+        #     "The get_sl_summary_table API is throwing an error: " + str(e),
+        #     status=status.HTTP_400_BAD_REQUEST,
+        # )
 
 
 def get_la_memos(cmte_id, report_id, transaction_id):
@@ -1342,11 +1972,12 @@ def get_sla_summary_table(request):
         #     raise Exception("Missing Input: calendar_year is mandatory")
 
         report_id = check_report_id(request.query_params.get("report_id"))
-        transaction_tps = ["'" + tp +
-                           "'" for tp in LA_TRANSACTIONS if "MEMO" not in tp]
+        transaction_tps = ["'" + tp + "'" for tp in LA_TRANSACTIONS if "MEMO" not in tp]
         tps_str = ",".join(transaction_tps)
         logger.debug("cmte_id:{}, report_id:{}".format(cmte_id, report_id))
         logger.debug("transaction_types:{}".format(tps_str))
+
+        tran_desc_dic = get_transaction_type_descriptions()
         with connection.cursor() as cursor:
             cursor.execute(_sql_p1 + tps_str + _sql_p2, [cmte_id, report_id])
             result = cursor.fetchone()[0]
@@ -1354,12 +1985,25 @@ def get_sla_summary_table(request):
             # adding memo child transactions
             if result:
                 for obj in result:
+                    obj.update(API_CALL_LA)
                     if obj.get("transaction_type_identifier") == "LEVIN_PARTN_REC":
                         memo_objs = get_la_memos(
-                            cmte_id, obj.get("report_id"), obj.get(
-                                "transaction_id")
+                            cmte_id, obj.get("report_id"), obj.get("transaction_id")
                         )
+                        # print("..")
+                        # print(memo_objs)
                         if memo_objs:
+                            for m_obj in memo_objs:
+                                levin_account_id, levin_account_name = load_levin_account_data(
+                                    m_obj.get("transaction_id")
+                                )
+                                m_obj["levin_account_id"] = levin_account_id
+                                m_obj["levin_account_name"] = levin_account_name
+                                m_obj["tran_desc"] = tran_desc_dic.get(
+                                    "LEVIN_PARTN_MEMO"
+                                )
+                                m_obj.update(API_CALL_LA)
+
                             obj["child"] = memo_objs
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
@@ -1367,6 +2011,26 @@ def get_sla_summary_table(request):
             "The get_sla_summary_table API is throwing an error: " + str(e),
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+def load_levin_account_data(transaction_id):
+    """
+    helper function for loading levin_acct info
+    """
+    _sql = """
+    SELECT sa.levin_account_id, la.levin_account_name
+    FROM public.sched_a sa, public.levin_account la
+    WHERE sa.levin_account_id = la.levin_account_id
+    and sa.transaction_id = %s
+    and sa.delete_ind is distinct from 'Y'
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_sql, [transaction_id])
+        if cursor.rowcount:
+            _levin = cursor.fetchone()
+            return _levin[0], _levin[1]
+        else:
+            raise Exception("Error loading levin account.")
 
 
 @api_view(["GET"])
@@ -1409,8 +2073,7 @@ def get_slb_summary_table(request):
         #     raise Exception("Missing Input: calendar_year is mandatory")
 
         report_id = check_report_id(request.query_params.get("report_id"))
-        transaction_tps = ["'" + tp +
-                           "'" for tp in LB_TRANSACTIONS if "MEMO" not in tp]
+        transaction_tps = ["'" + tp + "'" for tp in LB_TRANSACTIONS if "MEMO" not in tp]
         tps_str = ",".join(transaction_tps)
         logger.debug("cmte_id:{}, report_id:{}".format(cmte_id, report_id))
         logger.debug("transaction_types:{}".format(tps_str))
@@ -1419,14 +2082,15 @@ def get_slb_summary_table(request):
             result = cursor.fetchone()[0]
             # print(result)
             # adding memo child transactions
-            # if result:
-            #     for obj in result:
-            #         if obj.get("transaction_type_identifier") == "LEVIN_PARTN_REC":
-            #             memo_objs = get_la_memos(
-            #                 cmte_id, obj.get("report_id"), obj.get("transaction_id")
-            #             )
-            #             if memo_objs:
-            #                 obj["child"] = memo_objs
+            if result:
+                for obj in result:
+                    obj.update(API_CALL_LB)
+                    # if obj.get("transaction_type_identifier") == "LEVIN_PARTN_REC":
+                    #     memo_objs = get_la_memos(
+                    #         cmte_id, obj.get("report_id"), obj.get("transaction_id")
+                    #     )
+                    #     if memo_objs:
+                    #         obj["child"] = memo_objs
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
         return Response(

@@ -1,35 +1,21 @@
-import {
-  Component,
-  EventEmitter,
-  ElementRef,
-  Input,
-  OnInit,
-  Output,
-  ViewEncapsulation,
-  ViewChild,
-  OnDestroy
-} from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { FormBuilder, FormGroup, FormControl, NgForm, Validators } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ViewEncapsulation } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { NgbTooltipConfig, NgbTypeaheadSelectItemEvent } from '@ng-bootstrap/ng-bootstrap';
-import { environment } from '../../../environments/environment';
-import { FormsService } from '../../shared/services/FormsService/forms.service';
-import { UtilService } from '../../shared/utils/util.service';
-import { MessageService } from '../../shared/services/MessageService/message.service';
-import { ContactsService } from '../service/contacts.service';
-import { f3xTransactionTypes } from '../../shared/interfaces/FormsService/FormsService';
-import { alphaNumeric } from '../../shared/utils/forms/validation/alpha-numeric.validator';
-import { floatingPoint } from '../../shared/utils/forms/validation/floating-point.validator';
-import { ReportTypeService } from '../../forms/form-3x/report-type/report-type.service';
-import { Observable, Subscription } from 'rxjs';
+import { Observable, Subscription, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { ConfirmModalComponent } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
 import { TypeaheadService } from 'src/app/shared/partials/typeahead/typeahead.service';
 import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
-import { ConfirmModalComponent } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
-import { ContactsMessageService } from '../service/contacts-message.service';
+import { FormsService } from '../../shared/services/FormsService/forms.service';
+import { MessageService } from '../../shared/services/MessageService/message.service';
+import { alphaNumeric } from '../../shared/utils/forms/validation/alpha-numeric.validator';
+import { UtilService } from '../../shared/utils/util.service';
 import { ContactModel } from '../model/contacts.model';
+import { ContactsMessageService } from '../service/contacts-message.service';
+import { ContactsService } from '../service/contacts.service';
 
 export enum ContactActions {
   add = 'add',
@@ -49,22 +35,15 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
   @Input() formOptionsVisible: boolean = false;
   @Input() transactionTypeText = '';
   @Input() transactionType = '';
-  //@Input() scheduleAction: ContactActions = null;
   @Input() scheduleAction: ContactActions = ContactActions.add;
   @Input() transactionToEdit: ContactModel;
 
-  /**
-   * Subscription for pre-populating the form for view or edit.
-   */
-  private _populateFormSubscription: Subscription;
-  private _loadFormFieldsSubscription: Subscription;
 
   public checkBoxVal: boolean = false;
   public frmContact: FormGroup;
   public formFields: any = [];
   public formVisible: boolean = false;
   public hiddenFields: any = [];
-  //public memoCode: boolean = false;
   public testForm: FormGroup;
   public titles: any = [];
   public states: any = [];
@@ -91,6 +70,7 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
   private _contactToEdit: ContactModel;
   private _loading: boolean = false;
   private _selectedChangeWarn: any;
+  private onDestroy$ = new Subject();
 
   constructor(
     private _http: HttpClient,
@@ -109,41 +89,28 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     this._config.placement = 'right';
     this._config.triggers = 'click';
 
-    this._populateFormSubscription = this._contactsMessageService.getPopulateFormMessage().subscribe(message => {
+    this._contactsMessageService.getPopulateFormMessage().takeUntil(this.onDestroy$)
+    .subscribe(message => {
       this.populateFormForEditOrView(message);
-      //this.getFormFields();
     });
 
-    this._loadFormFieldsSubscription = this._contactsMessageService.getLoadFormFieldsMessage().subscribe(message => {
-      //this.getFormFields();
+    this._contactsMessageService.getLoadFormFieldsMessage().takeUntil(this.onDestroy$)
+    .subscribe(message => {
     });
   }
 
   ngOnInit(): void {
     this._selectedEntity = null;
     this._contactToEdit = null;
-    /*this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
-    localStorage.setItem(`form_${this._formType}_saved`, JSON.stringify({ saved: true }));
-    localStorage.setItem('Receipts_Entry_Screen', 'Yes');*/
     
     localStorage.removeItem('contactsaved');
     
     this._messageService.clearMessage();
 
-    /*this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type`));
-
-    if (this._reportType === null || typeof this._reportType === 'undefined') {
-      this._reportType = JSON.parse(localStorage.getItem(`form_${this._formType}_report_type_backup`));
-    }*/
 
     this.getFormFields();
 
     this._entityType = 'IND';
-    //this.loadDynamiceFormFields();
-    //this.formFields = this.individualFormFields;
-    //console.log(" this.formFields",  this.formFields);
-
-    //this._setForm(this.formFields);
     this.frmContact = this._fb.group({});
     if (this.selectedOptions) {
       if (this.selectedOptions.length >= 1) {
@@ -154,56 +121,37 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
 
   // tslint:disable-next-line:use-life-cycle-interface
   public ngDoCheck(): void {
-    if (this.frmContact.touched || this.frmContact.dirty) {
+    if (this.frmContact.dirty) {
       if (this.frmContact.valid) {
-        const isSaved = localStorage.getItem('contactsaved');
-        console.log('isSaved' + isSaved);
-        if (!isSaved) {
-          this.frmContact.markAsDirty();
-          this.frmContact.markAsTouched();
-        } else {
-          this.frmContact.markAsUntouched();
-          this.frmContact.markAsPristine();
+        const isSaved = JSON.parse(localStorage.getItem('contactsaved'));
+        if(isSaved) {
+          if (!isSaved.saved) {
+            this.frmContact.markAsDirty();
+            this.frmContact.markAsTouched();
+          } else {
+            this.frmContact.markAsUntouched();
+            this.frmContact.markAsPristine();
+          }
         }
-        } else {
+      } else {
         this.frmContact.markAsTouched();
-        this.frmContact.markAsDirty();
         localStorage.setItem('contactsaved', JSON.stringify({ saved: false }));
       }
+    } else {
+      this.frmContact.markAsPristine();
+      this.frmContact.markAsUntouched();
     }
   }
 
   public ngOnDestroy(): void {
     this._messageService.clearMessage();
-    this._populateFormSubscription.unsubscribe();
-    //localStorage.removeItem('contactsaved');
+    this.onDestroy$.next(true);
   }
 
   public debug(obj: any): void {
     console.log('obj: ', obj);
   }
 
-  /**
-   * Generates the dynamic form after all the form fields are retrived.
-   *
-   * @param      {Array}  fields  The fields
-   */
-  /*private _setForm(fields: any): void {
-    const formGroup: any = [];
-    fields.forEach(el => {
-      if (el.hasOwnProperty('cols')) {
-        el.cols.forEach(e => {
-          formGroup[e.name] = new FormControl(e.value || null, this._mapValidators(e.validation, e.name));
-        });
-      }
-    });
-
-    this.frmContact = new FormGroup(formGroup);
-
-    // get form data API is passing X for memo code value.
-    // Set it to null here until it is checked by user where it will be set to X.
-    //this.frmContact.controls['memo_code'].setValue(null);
-  }*/
 
   private _setForm(fields: any): void {
     const formGroup: any = [];
@@ -572,6 +520,16 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     } else {
       this.loadDynamiceFormFields();
       this.frmContact.patchValue({ entity_type: entityOption.code }, { onlySelf: true });
+
+      if(this.scheduleAction === ContactActions.edit) {
+        if((this.transactionToEdit.entity_type === 'IND' || this.transactionToEdit.entity_type === 'CAN')
+          && (entityOption.code === 'COM' || entityOption.code === 'ORG')) {
+          this.frmContact.patchValue({ entity_name: '' }, { onlySelf: true });
+        }else if((this.transactionToEdit.entity_type === 'COM' || this.transactionToEdit.entity_type === 'ORG')
+          && (entityOption.code === 'IND' || entityOption.code === 'CAN')) {
+          this.frmContact.patchValue({ last_name: '' }, { onlySelf: true });
+        }
+      }
     }
   }
 
@@ -763,6 +721,8 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
     this.frmContact.patchValue({ first_name: contact.first_name }, { onlySelf: true });
     this.frmContact.patchValue({ middle_name: contact.middle_name }, { onlySelf: true });
     this.frmContact.patchValue({ prefix: contact.prefix }, { onlySelf: true });
+    // TODO: Workaround backend column-name typo. Should be removed later FNE-1974
+    this.frmContact.patchValue({ prefix: contact.preffix }, { onlySelf: true });
     this.frmContact.patchValue({ suffix: contact.suffix }, { onlySelf: true });
     this.frmContact.patchValue({ street_1: contact.street_1 }, { onlySelf: true });
     this.frmContact.patchValue({ street_2: contact.street_2 }, { onlySelf: true });
@@ -1317,12 +1277,11 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
 
 
   public viewContacts(): void {
-
-    if (this.frmContact.dirty || this.frmContact.touched) {
+    if (this.frmContact.dirty) {
       this.doValidateContact('viewContacts');
-      // localStorage.setItem('contactsaved', JSON.stringify({ saved: false }));
-    }
+    } else {
     this._router.navigate([`/contacts`]);
+    }
   }
 
   public saveAndAddMore(): void {
@@ -1421,14 +1380,19 @@ export class AddNewContactComponent implements OnInit, OnDestroy {
           if(this.scheduleAction === ContactActions.edit) {
             this.status.emit({
               editView: false
-            })
+            });
           }
-        }
+          if (callFrom === 'viewContacts') {
+            this._router.navigate([`/contacts`]);
+          }}
       });
     } else {
       this.frmContact.markAsDirty();
       this.frmContact.markAsTouched();
       localStorage.setItem('contactsaved', JSON.stringify({ saved: false }));
+      if (callFrom === 'viewContacts') {
+        this._router.navigate([`/contacts`]);
+      }
       window.scrollTo(0, 0);
     }
   }

@@ -54,6 +54,7 @@ import {
   ]
 })
 export class SchedH6Component extends AbstractSchedule implements OnInit, OnDestroy, OnChanges {
+  @Input() mainTransactionTypeText: string;
   @Input() transactionTypeText: string;
   @Input() transactionType: string;
   @Input() scheduleAction: ScheduleActions;
@@ -77,6 +78,9 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
   public schedH6sModelL: Array<SchedH6Model>;
 
   private clonedTransaction: any;
+
+  public restoreSubscription: Subscription;
+  public trashSubscription: Subscription;
 
   constructor(
     _http: HttpClient,
@@ -135,6 +139,26 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
     _tranService;
     _rt;
     _dlService;
+
+    this.restoreSubscription = this._tranMessageService
+        .getRestoreTransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H6') {
+              this.getH6Sum(this._individualReceiptService.getReportIdFromStorage(this.formType));
+            }
+          }
+        )
+
+    this.trashSubscription = this._tranMessageService
+        .getRemoveHTransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H6') {
+              this.getH6Sum(this._individualReceiptService.getReportIdFromStorage(this.formType));
+            }
+          }
+        )
   }
 
 
@@ -180,6 +204,8 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
   }
 
   public ngOnDestroy(): void {
+    this.restoreSubscription.unsubscribe();
+    this.trashSubscription.unsubscribe();
     super.ngOnDestroy();
   }
 
@@ -215,7 +241,6 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
 
   public selectTypeChange(e) {    
     this.transactionType = e.currentTarget.value;
-    console.log('99: ', this.transactionType);
   }
  
   public getH6Sum(reportId: string) {
@@ -229,7 +254,9 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
           this.schedH6sModel = this.mapFromServerFields(res);
           this.setArrow(this.schedH6sModel);
 
-          this.schedH6sModel = this.schedH6sModel .filter(obj => obj.memo_code !== 'X');
+          //this.schedH6sModel = this.schedH6sModel .filter(obj => obj.memo_code !== 'X');
+          this.schedH6sModel = this.schedH6sModel .filter(obj => obj.back_ref_transaction_id === null);
+
           this.tableConfig.totalItems = this.schedH6sModel.length;
         }
       });        
@@ -260,12 +287,14 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
   public clickArrow(item: SchedH6Model) {
     if(item.arrow_dir === 'down') {
       let indexRep = this.schedH6sModel.indexOf(item);
+      this.schedH6sModel[indexRep].child = [];
       if (indexRep > -1) {
         let tmp: Array<SchedH6Model> = this.schedH6sModelL.filter(obj => obj.back_ref_transaction_id === item.transaction_id);
         for(let entry of tmp) {
           entry.arrow_dir = 'show';
-          this.schedH6sModel.splice(indexRep + 1, 0, entry);
-          indexRep++;
+          //this.schedH6sModel.splice(indexRep + 1, 0, entry);
+          this.schedH6sModel[indexRep].child.push(entry);
+          //indexRep++;
         }
         this.tableConfig.totalItems = this.schedH6sModel.length;
       }
@@ -274,8 +303,12 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
       
     }else if(item.arrow_dir === 'up') {
       //this.schedH6sModel = this.schedH6sModel.filter(obj => obj.memo_code !== 'X');
-      this.schedH6sModel = this.schedH6sModel.filter(obj => obj.back_ref_transaction_id !== item.transaction_id);
-      this.tableConfig.totalItems = this.schedH6sModel.length;
+      //this.schedH6sModel = this.schedH6sModel.filter(obj => obj.back_ref_transaction_id !== item.transaction_id);
+      //this.tableConfig.totalItems = this.schedH6sModel.length;
+
+      let indexRep = this.schedH6sModel.indexOf(item);
+      this.schedH6sModel[indexRep].child = [];
+
 
       this.schedH6sModel.find(function(obj) { return obj.transaction_id === item.transaction_id}).arrow_dir = 'down';
     }
@@ -364,6 +397,22 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
     trx.report_id = this._individualReceiptService.getReportIdFromStorage(this.formType);
     trx.transactionId = trx.transaction_id;
 
+    if(this.hasChildTransaction(trx)) {
+      const msg = "There are child transactions associated with this transaction. This action will delete all child transactions as well. Are you sure you want to continue?";
+      this._dlService
+        .confirm(msg, ConfirmModalComponent, 'Warning!')
+        .then(res => {
+          if (res === 'okay') {
+            this.transhAction(trx);
+          } else if (res === 'cancel') {
+          }
+        });
+    }else {
+      this.transhAction(trx);
+    }
+  }
+
+  private transhAction(trx: any): void {
     this._dlService
       .confirm('You are about to delete this transaction ' + trx.transaction_id + '.', ConfirmModalComponent, 'Caution!')
       .then(res => {
@@ -383,7 +432,18 @@ export class SchedH6Component extends AbstractSchedule implements OnInit, OnDest
             });
         } else if (res === 'cancel') {
         }
-      });
+      })
+  }
+
+  public hasChildTransaction(item: any): boolean {
+    if(this.schedH6sModelL.filter(obj => obj.back_ref_transaction_id === item.transaction_id).length !== 0) {
+      return true;
+    }
+    return false;
+  }
+
+  public printTransaction(trx: any): void {
+    this._reportTypeService.printPreview('transaction_table_screen', '3X', trx.transaction_id);
   }
   
 }

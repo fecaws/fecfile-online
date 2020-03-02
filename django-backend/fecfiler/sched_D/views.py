@@ -18,6 +18,7 @@ from fecfiler.core.transaction_util import (
     get_line_number_trans_type,
     get_sched_a_transactions,
     get_sched_b_transactions,
+    get_sched_e_child_transactions,
     get_sched_f_child_transactions,
     get_sched_h4_child_transactions,
     get_sched_h6_child_transactions,
@@ -38,6 +39,7 @@ from fecfiler.core.views import (
     undo_delete_entities,
 )
 from fecfiler.sched_A.views import get_next_transaction_id
+from fecfiler.core.report_helper import new_report_date
 
 # from fecfiler.sched_B.views import (delete_parent_child_link_sql_schedB,
 #                                     delete_schedB, get_list_child_schedB,
@@ -349,6 +351,7 @@ def valid_transaction_amounts(data):
     ) == float(balance_at_close)
 
 
+@new_report_date
 def put_schedD(datum):
     """update sched_d item
     here we are assuming creditor_entoty_id are always referencing something already in our DB
@@ -552,6 +555,7 @@ def validate_sd_data(data):
     # validate_transaction_type(data)
 
 
+@new_report_date
 def post_schedD(datum):
     """save sched_d item and the associated entities."""
     try:
@@ -720,13 +724,15 @@ def get_child_transactions(report_id, cmte_id, transaction_id):
         report_id, cmte_id, back_ref_transaction_id=transaction_id
     )
     # TODO: will add all other transactions later on
+    sched_e_list = get_sched_e_child_transactions(
+        report_id, cmte_id, transaction_id)
     sched_f_list = get_sched_f_child_transactions(
         report_id, cmte_id, transaction_id)
     sched_h4_list = get_sched_h4_child_transactions(
         report_id, cmte_id, transaction_id)
     sched_h6_list = get_sched_h6_child_transactions(
         report_id, cmte_id, transaction_id)
-    return sched_a_list + sched_b_list + sched_f_list + sched_h4_list + sched_h6_list
+    return sched_a_list + sched_b_list + sched_e_list + sched_f_list + sched_h4_list + sched_h6_list
 
     #     childA_forms_obj = get_list_child_schedA(
     #     report_id, cmte_id, transaction_id)

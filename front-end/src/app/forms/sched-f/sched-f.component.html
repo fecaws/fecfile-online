@@ -23,7 +23,10 @@
           <div class="float-left">
             <h2>
               Form 3X
-              <ng-container *ngIf="transactionTypeText"> / {{ transactionTypeText }} </ng-container>
+              <ng-container *ngIf="transactionTypeText && !mainTransactionTypeText"> / {{ transactionTypeText }} </ng-container>
+              <ng-container *ngIf="transactionTypeText && mainTransactionTypeText"> / 
+                {{ mainTransactionTypeText }} / {{ transactionTypeText }}
+              </ng-container>
               <ng-container *ngIf="scheduleAction === editScheduleAction"> / Edit </ng-container>
             </h2>
           </div>
@@ -69,6 +72,7 @@
                     type="radio"
                     formControlName="coordinated_exp_ind"
                     value="Y"
+                    (change)="onFilerChange('Y')"
                   />
                   Yes
                 </label>
@@ -86,6 +90,7 @@
                     type="radio"
                     formControlName="coordinated_exp_ind"
                     value="N"
+                    (change)="onFilerChange('N')"
                   />
                   No
                 </label>
@@ -113,7 +118,7 @@
                   [style.height]="'30px'"
                   [maxlength]="'9'"
                   [ngClass]="
-                    frmIndividualReceipt.get('designating_cmte_id')?.invalid &&
+                    frmIndividualReceipt.get('designating_cmte_id')?.invalid && isDesignatedFiler &&
                     (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
                       ? 'input-field-error'
                       : ''
@@ -141,7 +146,7 @@
                   [style.height]="'30px'"
                   [maxlength]="'200'"
                   [ngClass]="
-                    frmIndividualReceipt.get('designating_cmte_name')?.invalid &&
+                    frmIndividualReceipt.get('designating_cmte_name')?.invalid && isDesignatedFiler &&
                     (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
                       ? 'input-field-error'
                       : ''
@@ -170,12 +175,6 @@
                   [style.width]="'45%'" 
                   [style.height]="'30px'"
                   [maxlength]="'9'"
-                  [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_id')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'input-field-error'
-                      : ''
-                  "                            
                 />
               </div>
             </div>
@@ -198,12 +197,6 @@
                   [resultTemplate]="rtCommitteeName" 
                   [inputFormatter]="formatterCommitteeName"
                   (selectItem)="handleSelectedSFCommittee($event, 'subordinate_cmte_name')"
-                  [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_name')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'input-field-error'
-                      : ''
-                  "              
                 />
               </div>
             </div>        
@@ -222,12 +215,6 @@
                   id="subordinate_cmte_street_1"
                   [style.height]="'30px'"
                   [maxlength]="'34'"
-                  [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_street_1')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'input-field-error'
-                      : ''
-                  "                
                 />
               </div>
             </div>
@@ -244,13 +231,7 @@
                   [style.height]="'30px'"
                   id="subordinate_cmte_street_2"
                   [maxlength]="'34'"
-                  [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_street_2')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'input-field-error'
-                      : ''
-                  "                
-                />
+                       />
               </div>
             </div>        
           </div>
@@ -268,12 +249,6 @@
                   [style.width]="'66%'" 
                   [style.height]="'30px'"
                   [maxlength]="'30'"
-                  [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_city')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'input-field-error'
-                      : ''
-                  "                
                 />
               </div>
             </div>
@@ -290,12 +265,7 @@
                   bindValue="code" 
                   bindLabel="code" 
                   [selectOnTab]="true"
-                    [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_state')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'forms__select-error'
-                      : ''
-                  ">
+                   >
                   <ng-template ng-option-tmp let-item="item" let-search="searchTerm" let-index="index">
                     <span>{{ item.code + ' - ' + item.name }}</span>
                   </ng-template>
@@ -315,12 +285,6 @@
                   [style.width]="'33%'" 
                   [style.height]="'30px'"
                   [maxlength]="'10'"
-                  [ngClass]="
-                    frmIndividualReceipt.get('subordinate_cmte_zip')?.invalid &&
-                    (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
-                      ? 'input-field-error'
-                      : ''
-                  "                
                 />
                 <div class="error-text" *ngIf="
                   (frmIndividualReceipt.touched || frmIndividualReceipt.dirty) &&
@@ -481,6 +445,20 @@
                           [resultTemplate]="rtPayeeCommitteeId"
                           [inputFormatter]="formatterPayeeCommitteeId"
                           (selectItem)="handleSelectedCandidate($event, col)" (keyup)="handleFormFieldKeyup($event, col)" />
+                        <input *ngIf="isFieldName(col?.name, 'beneficiary_cand_id')" class="form-control"
+                          [style.width]="col?.width" [style.height]="col?.height" [attr.type]="col?.type"
+                          [attr.name]="col?.name" [attr.value]="col?.value" [maxlength]="col?.validation?.max"
+                          [formControlName]="col?.name" [ngClass]="
+                              frmIndividualReceipt.get(col?.name)?.invalid &&
+                              (frmIndividualReceipt.touched || frmIndividualReceipt.dirty)
+                                ? 'input-field-error'
+                                : ''
+                            " id="typeahead-template-ben-cand-id" 
+                          [ngbTypeahead]="searchCandidateId" 
+                          [focusFirst]=false
+                          [resultTemplate]="rtCandidate" 
+                          [inputFormatter]="formatterCandidateId"
+                          (selectItem)="handleSelectedOrg($event, col)" (keyup)="handleFormFieldKeyup($event, col)" />                          
                         <input *ngIf="isFieldName(col?.name, 'donor_cmte_name') ||
                                   isFieldName(col?.name, 'beneficiary_cmte_name')" class="form-control"
                           [style.width]="col?.width" [style.height]="col?.height" [attr.type]="col?.type"
@@ -532,6 +510,12 @@
                             should fall within {{ cvgStartDate }} and {{ cvgEndDate }} (Coverage Dates of Report). If you
                             need to add a transaction with a date that falls outside of the coverage period for this report,
                             you will need to check the memo code box.
+                          </div>
+                        </ng-container>
+                        <ng-container *ngIf="frmIndividualReceipt.get(col?.name).errors">
+                          <div class="text-error text-left"
+                            *ngIf="frmIndividualReceipt.get(col?.name).errors?.amountExceeded">
+                            Expenditure amount exceeds outstanding debt amount
                           </div>
                         </ng-container>
                       </div>
@@ -702,22 +686,54 @@
           <div class="grid-row">
             <div class="grid-row__col grid-row__col--12">
               <div class="forms__btn-container">
-                <button class="btn btn-previous btn-left" type="button" 
-                  (click)="clearFormValues(); returnToParent(editScheduleAction)">
-                  Cancel
-                </button>
-                <button *ngIf="!showPart2" class="btn btn-secondary btn-right" (click)="next()">
-                  Next
-                </button>
-                <button *ngIf="showPart2" class="btn btn-secondary btn-right" (click)="back()">
-                  Back
-                </button>              
-                <!-- <a class="btn btn-primary btn-right" (click)="saveAndReturnToParentDebt()">
-                  Return to Debt to Vendor
-                </a> -->
-                <a *ngIf="showPart2" class="btn btn-primary btn-right" (click)="saveAndReturnToParentDebt()">
-                  Save &amp; View Expenditure
-                </a>   
+                <!-- <div *ngIf="scheduleAction === editScheduleAction; else createActions">
+                  <button class="btn btn-previous btn-left" type="button" 
+                    (click)="clearFormValues(); returnToParent(editScheduleAction)">
+                    Cancel
+                  </button>
+                  <button *ngIf="!showPart2" class="btn btn-secondary btn-right" (click)="next()">
+                    Next
+                  </button>
+                  <button *ngIf="showPart2" class="btn btn-secondary btn-right" (click)="back()">
+                    Back
+                  </button>                  
+                </div> -->
+                <!-- <ng-template #createActions> -->
+                  <ng-container *ngIf="!showPart2">
+                    <button class="btn btn-previous btn-left" type="button" 
+                      (click)="clearFormValues(); returnToParent(editScheduleAction)">
+                      Cancel
+                    </button>
+                    <button class="btn btn-secondary btn-right" (click)="next()">
+                      Next
+                    </button>                                        
+                  </ng-container>
+                  <ng-container *ngIf="showPart2">
+                    <button class="btn btn-previous btn-left" (click)="back()">
+                      Previous
+                    </button>
+                    <ng-container *ngIf="scheduleAction === addSubScheduleAction">
+                      <button class="btn btn-secondary btn-right" 
+                        (click)="saveOnly()">
+                        Save &amp; Add Transaction
+                      </button>
+                      <button class="btn btn-primary btn-right"
+                        (click)="saveAndReturnToParentDebt()">
+                        Save &amp; Return to {{ subTransactionInfo.transactionTypeDescription }}
+                      </button>                        
+                    </ng-container>  
+                    <ng-container *ngIf="scheduleAction === editScheduleAction">
+                      <button class="btn btn-secondary btn-right" 
+                        (click)="updateOnly()">
+                        Save
+                      </button>
+                      <button class="btn btn-primary btn-right"
+                        (click)="saveAndReturnToParentDebt()">
+                        Return to {{ subTransactionInfo.transactionTypeDescription }}
+                      </button>
+                    </ng-container>
+                  </ng-container> 
+                <!-- </ng-template>               -->
               </div>
             </div>
           </div>
@@ -725,4 +741,3 @@
       </footer>
     </form>
   </div>
-  

@@ -88,6 +88,11 @@ export class TransactionsComponent implements OnInit, OnDestroy {
    * Subscription for showing the TransactionsEditComponent.
    */
   private editTransactionSubscription: Subscription;
+
+  /**
+   * Subscription for transactions to return to Debt Summary
+   */
+  private editDebtSummaryTransactionSubscription: Subscription;
   
   private removeFiltersSubscription: Subscription;
 
@@ -101,6 +106,10 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   private filters: TransactionFilterModel = new TransactionFilterModel();
   private readonly filtersLSK = 'transactions.filters';
   removeTagsSubscription: any;
+
+  private viewTransactionSubscription: Subscription;
+  private getReattributeTransactionSubscription: Subscription;
+  private getRedesignateTransactionSubscription: Subscription;
 
   constructor(
     private _activatedRoute: ActivatedRoute,
@@ -125,16 +134,40 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         }
       });
 
-     this.removeTagsSubscription = this._transactionsMessageService.getRemoveTagMessage()
-    .subscribe((message: any) => {
-      this.removeTagArrayItem(message.type);
-    }); 
+    this.removeTagsSubscription = this._transactionsMessageService.getRemoveTagMessage()
+      .subscribe((message: any) => {
+        this.removeTagArrayItem(message.type);
+      });
 
     this.editTransactionSubscription = this._transactionsMessageService
       .getEditTransactionMessage()
       .subscribe((trx: TransactionModel) => {
         this.transactionToEdit = trx;
+        console.log(trx.transactionTypeIdentifier + 'identifier for edit');
         this.showEdit();
+      });
+
+    this.getReattributeTransactionSubscription = this._transactionsMessageService
+    .getReattributeTransactionMessage()
+    .subscribe((trx: TransactionModel) => {
+      this.transactionToEdit = trx;
+      console.log(trx.transactionTypeIdentifier + 'identifier for edit');
+      this.showReattribute();
+    });
+
+    this.getRedesignateTransactionSubscription = this._transactionsMessageService
+    .getRedesignateTransactionMessage()
+    .subscribe((trx: TransactionModel) => {
+      this.transactionToEdit = trx;
+      console.log(trx.transactionTypeIdentifier + 'identifier for edit');
+      this.showRedesignate();
+    });
+
+    this.editDebtSummaryTransactionSubscription = this._transactionsMessageService
+      .getEditDebtSummaryTransactionMessage()
+      .subscribe((message: any) => {
+        this.transactionToEdit = message.trx;
+        this.showEdit(message.debtSummary);
       });
 
     this.showTransactionsSubscription = this._transactionsMessageService
@@ -146,6 +179,14 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       _activatedRoute.queryParams.subscribe(p => {
         this.transactionCategory = p.transactionCategory;
       });
+
+    this.viewTransactionSubscription = this._transactionsMessageService
+      .getViewTransactionMessage()
+      .subscribe((trx: TransactionModel) => {
+        this.transactionToEdit = trx;
+        this.showView();
+      });
+
     }
 
   private removeFilterAndTag(message: any) {
@@ -232,7 +273,11 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.applyFiltersSubscription.unsubscribe();
     this.removeTagsSubscription.unsubscribe();
     this.editTransactionSubscription.unsubscribe();
+    this.editDebtSummaryTransactionSubscription.unsubscribe();
     this.showTransactionsSubscription.unsubscribe();
+    this.viewTransactionSubscription.unsubscribe();
+    this.getRedesignateTransactionSubscription.unsubscribe();
+    this.getReattributeTransactionSubscription.unsubscribe();
   }
 
   public goToPreviousStep(): void {
@@ -869,11 +914,67 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Show reattribute for a single transaction.
+   */
+  public showReattribute(debtSummary?: any) {
+    const emptyValidForm = this._fb.group({});
+
+    this.transactionToEdit.isReattribution = true;
+    this.transactionToEdit.reattribution_id = this.transactionToEdit.transactionId;
+    const emitObj: any = {
+      form: emptyValidForm,
+      direction: 'next',
+      step: 'step_3',
+      previousStep: 'transactions',
+      action: ScheduleActions.add,
+      transactionCategory: this.transactionCategory,
+      scheduleType: this.transactionToEdit.scheduleType,
+      transactionDetail: {
+        transactionModel: this.transactionToEdit
+      }
+    };
+    if (debtSummary) {
+      if (debtSummary.returnToDebtSummary) {
+        emitObj.returnToDebtSummary = debtSummary.returnToDebtSummary;
+        emitObj.returnToDebtSummaryInfo = debtSummary.returnToDebtSummaryInfo;
+      }
+    }
+    this.showTransaction.emit(emitObj);
+
+    this.showCategories();
+  }
+
+    /**
+   * Show redesignate for a single transaction.
+   */
+  public showRedesignate(debtSummary?: any) {
+    const emptyValidForm = this._fb.group({});
+
+    this.transactionToEdit.isRedesignation = true;
+    this.transactionToEdit.redesignation_id = this.transactionToEdit.transactionId;
+    const emitObj: any = {
+      form: emptyValidForm,
+      direction: 'next',
+      step: 'step_3',
+      previousStep: 'transactions',
+      action: ScheduleActions.add,
+      transactionCategory: this.transactionCategory,
+      scheduleType: this.transactionToEdit.scheduleType,
+      transactionDetail: {
+        transactionModel: this.transactionToEdit
+      }
+    };
+    this.showTransaction.emit(emitObj);
+    this.showCategories();
+  }
+
+  /**
    * Show edit for a single transaction.
    */
-  public showEdit() {
+  public showEdit(debtSummary?: any) {
     const emptyValidForm = this._fb.group({});
-    this.showTransaction.emit({
+
+    const emitObj: any = {
       form: emptyValidForm,
       direction: 'next',
       step: 'step_3',
@@ -884,7 +985,15 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       transactionDetail: {
         transactionModel: this.transactionToEdit
       }
-    });
+    };
+    if (debtSummary) {
+      if (debtSummary.returnToDebtSummary) {
+        emitObj.returnToDebtSummary = debtSummary.returnToDebtSummary;
+        emitObj.returnToDebtSummaryInfo = debtSummary.returnToDebtSummaryInfo;
+        emitObj.mainTransactionTypeText = 'Loans and Debts';
+      }
+    }
+    this.showTransaction.emit(emitObj);
 
     this.showCategories();
 
@@ -994,5 +1103,26 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     else{
       return input !== null && input !== undefined;
     }
+  }
+
+  public showView() {
+    const emptyValidForm = this._fb.group({});
+
+    const emitObj: any = {
+      form: emptyValidForm,
+      direction: 'next',
+      step: 'step_3',
+      previousStep: 'transactions',
+      action: ScheduleActions.view,
+      transactionCategory: this.transactionCategory,
+      scheduleType: this.transactionToEdit.scheduleType,
+      transactionDetail: {
+        transactionModel: this.transactionToEdit
+      }
+    };
+
+    this.showTransaction.emit(emitObj);
+
+    this.showCategories();
   }
 }
