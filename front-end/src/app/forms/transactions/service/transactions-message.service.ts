@@ -16,6 +16,7 @@ export class TransactionsMessageService {
   private applyFiltersSubject = new Subject<any>();
   private doKeywordFilterSearchSubject = new Subject<any>();
   private editTransactionSubject = new Subject<any>();
+  private editDebtSummaryTransactionSubject = new Subject<any>();
   private showTransactionsSubject = new Subject<any>();
   private removeFilterSubject = new Subject<any>();
   private switchFilterViewSubject = new Subject<any>();
@@ -23,6 +24,12 @@ export class TransactionsMessageService {
   private removeTagSubject = new Subject<any>();
   private loadDefaultTab = new Subject<any>();
   private clearAllFiltersSubject = new Subject<any>();
+  private removeH1TransactionsSubject = new Subject<any>();
+  private viewTransactionSubject = new Subject<any>();
+  private restoreTransactionsSubject = new Subject<any>();
+  private removeHTransactionsSubject = new Subject<any>();
+  private reattributeTransactionSubject = new Subject<any>();
+  private redesignateTransactionSubject = new Subject<any>();
 
   /**
    * A publisher uses this method to send a message to subscribers
@@ -167,6 +174,43 @@ export class TransactionsMessageService {
     return this.editTransactionSubject.asObservable();
   }
 
+  public sendReattributeTransactionMessage(message: any) {
+    this.reattributeTransactionSubject.next(message);
+  }
+
+  public clearReattributeTransactionMessage() {
+    this.reattributeTransactionSubject.next();
+  }
+
+  public getReattributeTransactionMessage(): Observable<any> {
+    return this.reattributeTransactionSubject.asObservable();
+  }
+  
+  public sendRedesignateTransactionMessage(message: any) {
+    this.redesignateTransactionSubject.next(message);
+  }
+
+  public clearRedesignateTransactionMessage() {
+    this.redesignateTransactionSubject.next();
+  }
+
+  public getRedesignateTransactionMessage(): Observable<any> {
+    return this.redesignateTransactionSubject.asObservable();
+  }
+  
+
+  public sendEditDebtSummaryTransactionMessage(message: any) {
+    this.editDebtSummaryTransactionSubject.next(message);
+  }
+
+  public clearEditDebtSummaryTransactionMessage() {
+    this.editDebtSummaryTransactionSubject.next();
+  }
+
+  public getEditDebtSummaryTransactionMessage(): Observable<any> {
+    return this.editDebtSummaryTransactionSubject.asObservable();
+  }
+
   public sendShowTransactionsMessage(message: any) {
     this.showTransactionsSubject.next(message);
   }
@@ -240,4 +284,53 @@ export class TransactionsMessageService {
   public getLoadTransactionsMessage(): Observable<any> {
     return this.loadTransactionsSubject.asObservable();
   }
+
+  public sendRemoveH1TransactionsMessage(message: any) {
+    this.removeH1TransactionsSubject.next(message);
+  }
+
+  public clearRemoveH1TransactionsMessage() {
+    this.removeH1TransactionsSubject.next();
+  }
+
+  public getRemoveH1TransactionsMessage(): Observable<any> {
+    return this.removeH1TransactionsSubject.asObservable();
+  }
+
+  public sendViewTransactionMessage(message: any) {
+    this.viewTransactionSubject.next(message);
+  }
+
+  public clearViewTransactionMessage() {
+    this.viewTransactionSubject.next();
+  }
+
+  public getViewTransactionMessage(): Observable<any> {
+    return this.viewTransactionSubject.asObservable();
+  }
+
+  public sendRestoreTransactionsMessage(message: any) {
+    this.restoreTransactionsSubject.next(message);
+  }
+
+  public clearRestoreTransactionsMessage() {
+    this.restoreTransactionsSubject.next();
+  }
+
+  public getRestoreTransactionsMessage(): Observable<any> {
+    return this.restoreTransactionsSubject.asObservable();
+  }
+
+  public sendRemoveHTransactionsMessage(message: any) {
+    this.removeHTransactionsSubject.next(message);
+  }
+
+  public clearRemoveHTransactionsMessage() {
+    this.removeHTransactionsSubject.next();
+  }
+
+  public getRemoveHTransactionsMessage(): Observable<any> {
+    return this.removeHTransactionsSubject.asObservable();
+  }
+
 }

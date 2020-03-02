@@ -1,37 +1,32 @@
-import { Component, OnInit, OnDestroy, OnChanges, Output, EventEmitter, Input, SimpleChanges, ViewEncapsulation } from '@angular/core';
-import { IndividualReceiptComponent } from '../form-3x/individual-receipt/individual-receipt.component';
-import { FormBuilder, FormGroup, FormControl, NgForm, Validators } from '@angular/forms';
-import { FormsService } from 'src/app/shared/services/FormsService/forms.service';
-import { IndividualReceiptService } from '../form-3x/individual-receipt/individual-receipt.service';
-import { ContactsService } from 'src/app/contacts/service/contacts.service';
+import { animate, style, transition, trigger } from '@angular/animations';
+import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
-import { UtilService } from 'src/app/shared/utils/util.service';
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { ReportTypeService } from '../form-3x/report-type/report-type.service';
+import { Subject, Subscription, Observable } from 'rxjs';
+import { ContactsService } from 'src/app/contacts/service/contacts.service';
+import { ReportsService } from 'src/app/reports/service/report.service';
+import { ConfirmModalComponent, ModalHeaderClassEnum } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
 import { TypeaheadService } from 'src/app/shared/partials/typeahead/typeahead.service';
 import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
-import { F3xMessageService } from '../form-3x/service/f3x-message.service';
-import { TransactionsMessageService } from '../transactions/service/transactions-message.service';
-import { ContributionDateValidator } from 'src/app/shared/utils/forms/validation/contribution-date.validator';
-import { TransactionsService, GetTransactionsResponse } from '../transactions/service/transactions.service';
-import { HttpClient } from '@angular/common/http';
+import { FormsService } from 'src/app/shared/services/FormsService/forms.service';
 import { MessageService } from 'src/app/shared/services/MessageService/message.service';
-import { ScheduleActions } from '../form-3x/individual-receipt/schedule-actions.enum';
+import { ContributionDateValidator } from 'src/app/shared/utils/forms/validation/contribution-date.validator';
+import { UtilService } from 'src/app/shared/utils/util.service';
 import { AbstractSchedule } from '../form-3x/individual-receipt/abstract-schedule';
-import { ReportsService } from 'src/app/reports/service/report.service';
-import { TransactionModel } from '../transactions/model/transaction.model';
-import { Observable, Subscription } from 'rxjs';
-import { SchedH3Service } from './sched-h3.service';
-import { style, animate, transition, trigger } from '@angular/animations';
 import { AbstractScheduleParentEnum } from '../form-3x/individual-receipt/abstract-schedule-parent.enum';
-import { isNumeric } from 'rxjs/util/isNumeric';
+import { IndividualReceiptService } from '../form-3x/individual-receipt/individual-receipt.service';
+import { ScheduleActions } from '../form-3x/individual-receipt/schedule-actions.enum';
+import { ReportTypeService } from '../form-3x/report-type/report-type.service';
+import { F3xMessageService } from '../form-3x/service/f3x-message.service';
 import { SchedHMessageServiceService } from '../sched-h-service/sched-h-message-service.service';
 import { SchedHServiceService } from '../sched-h-service/sched-h-service.service';
-import {
-  ConfirmModalComponent,
-  ModalHeaderClassEnum
-} from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
+import { TransactionsMessageService } from '../transactions/service/transactions-message.service';
+import { GetTransactionsResponse, TransactionsService } from '../transactions/service/transactions.service';
+import { SchedH3Service } from './sched-h3.service';
+import { debounceTime, distinctUntilChanged, switchMap, delay, pairwise } from 'rxjs/operators';
 
 @Component({
   selector: 'app-sched-h3',
@@ -99,6 +94,16 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
   public aggregate_amount_edit = 0;
   public activity_event_name_edit: string;
 
+  public saveAndAddDisabled = false;
+
+  private _h3OnDestroy$ = new Subject();
+
+  public getH1H2ExistSubscription: Subscription;
+
+  public restoreSubscription: Subscription;
+  public trashSubscription: Subscription;
+
+
   constructor(
     _http: HttpClient,
     _fb: FormBuilder,
@@ -130,7 +135,9 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
     private _schedHService: SchedHServiceService,
     private _tranService: TransactionsService,
     private _dlService: DialogService,
-  ) {
+    private _changeDet: ChangeDetectorRef,
+    private _tranMessageService: TransactionsMessageService,
+    ) {
     super(
       _http,
       _fb,
@@ -160,8 +167,9 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
     _decPipe;
     _tranService;
     _dlService;
+    _tranMessageService;
 
-    this.populateFormForEdit = this._schedHMessageServiceService.getpopulateHFormForEditMessage()
+    this._schedHMessageServiceService.getpopulateHFormForEditMessage().takeUntil(this._h3OnDestroy$)
     .subscribe(p => {
       if(p.scheduleType === 'Schedule H3'){
         let res = this._schedHService.getSchedule(p.transactionDetail.transactionModel).subscribe(res => {
@@ -170,7 +178,27 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
           }
         });
       }
-    })
+    });
+
+    this.restoreSubscription = this._tranMessageService
+        .getRestoreTransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H3') {
+              this.setH3Sum();
+            }
+          }
+        )
+
+    this.trashSubscription = this._tranMessageService
+        .getRemoveHTransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H3') {
+              this.setH3Sum();
+            }
+          }
+        )
   }
 
   public ngOnInit() {
@@ -227,6 +255,10 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
     this.formType = '3X';
     this.showPart2 = false;
 
+    if(this.transactionType === 'ALLOC_H3_RATIO' && this.scheduleAction !== ScheduleActions.edit){
+      this.setH3();
+    }
+
     if(this.transactionType === 'ALLOC_H3_SUM') {
       this.setH3Sum();
     }
@@ -237,13 +269,16 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
   }
 
   ngDoCheck() {
+    //TODO -- memory check
     this.status.emit({
       otherSchedHTransactionType: this.transactionType
     });
   }
 
   public ngOnDestroy(): void {
-    this.populateFormForEdit.unsubscribe();
+    this._h3OnDestroy$.next(true);
+    this.restoreSubscription.unsubscribe();
+    this.trashSubscription.unsubscribe();
     super.ngOnDestroy();
   }
 
@@ -326,6 +361,23 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
       }
     ]
 
+    if(this.isPac()) {
+      this.categories =  this.categories.filter(obj => obj.id !== 'EA');
+    }
+
+  }
+
+  isPac() {
+
+    let ispac = false;
+    if (localStorage.getItem('committee_details') !== null) {
+      let cmteDetails: any = JSON.parse(localStorage.getItem(`committee_details`));
+      if (cmteDetails.cmte_type_category === 'PAC') {
+        ispac = true;
+      }
+    }
+
+    return ispac;
   }
   
   public setActivityOrEventIdentifier(category: string) {
@@ -457,6 +509,10 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
 
     this.changeTotalAndAggrAmount();
 
+    if(e.target.value !== '') {
+      this._noH1H2Popup(e.target.value)
+    }
+
   }
 
   public selectActivityOrEventChange(e) {
@@ -510,13 +566,15 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
   
   public setH3Sum() {
 
+    this.h3Sum = [];
+
     const reportId = this._individualReceiptService.getReportIdFromStorage(this.formType);
     
     //this.h3Subscription = this._schedH3Service.getSummary(this.getReportId()).subscribe(res =>
     this.h3Subscription = this._schedH3Service.getSummary(reportId).subscribe(res =>
       {        
         if(res) {
-          this.h3Sum = [];
+          //this.h3Sum = [];
           this.h3Sum =  res;         
           this.h3TableConfig.totalItems = res.length;
         }
@@ -623,7 +681,15 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
 
       const formObj = this.schedH3.getRawValue();
 
-      const accountName = this.schedH3.get('account_name').value;
+      let accountName = '';
+      if(typeof this.schedH3.get('account_name').value === 'object') {
+        accountName = this.schedH3.get('account_name').value.account_name;
+      }else {
+        accountName = this.schedH3.get('account_name').value;
+      }
+
+      formObj.account_name = accountName;
+
       const receipt_date = this.schedH3.get('receipt_date').value;
       
       //const total_amount_transferred = Number(this.schedH3.get('total_amount_transferred').value) 
@@ -709,12 +775,14 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
   }
 
   public saveAndGetSummary(ratio: any, scheduleAction: any) {
+    //this.h3Sum = [];
 
     const reportId = this._individualReceiptService.getReportIdFromStorage(this.formType);
 
     this._schedH3Service.saveAndGetSummary(ratio, reportId, scheduleAction).subscribe(res => {
       if (res) {
         //this.saveHRes = res;
+        this.h3Sum = [];
         this.h3Entries = [];
         this.h3Sum =  res;
         this.h3TableConfig.totalItems = res.length;
@@ -1109,6 +1177,83 @@ export class SchedH3Component extends AbstractSchedule implements OnInit, OnDest
     }else {
       this.returnToSum();
     }
+  }
+
+  private _noH1H2Popup(category: string) {
+
+    let activityEventScheduleType = '';
+    if(category === 'DC' || category === 'DF') {
+      activityEventScheduleType = 'sched_h2'
+    }else {
+      activityEventScheduleType = 'sched_h1'
+    }
+
+    const report_id = this._individualReceiptService.getReportIdFromStorage(this.formType);
+
+    this._schedH3Service.getH1H2ExistStatus(report_id, category)
+    .takeUntil(this._h3OnDestroy$)
+    .subscribe(res =>
+      {
+        if(res) {
+          if(res.count === 0) {
+
+            this.saveAndAddDisabled = true;
+
+            const scheduleName = activityEventScheduleType === 'sched_h1' ? 'H1' : 'H2';
+            const scheduleType = activityEventScheduleType;
+
+            const message =
+              `Please add Schedule ${scheduleName} before proceeding with adding the ` +
+              `amount.  Schedule ${scheduleName} is required to correctly allocate the federal and non-federal portions of the transaction.`;
+            this._dlService.confirm(message, ConfirmModalComponent, 'Warning!', false).then(res => {
+              if (res === 'okay') {
+                const emitObj: any = {
+                  form: this.frmIndividualReceipt,
+                  direction: 'next',
+                  step: 'step_3',
+                  previousStep: 'step_2',
+                  scheduleType: scheduleType,
+                  action: ScheduleActions.add
+                };
+                if (scheduleType === 'sched_h2') {
+                  emitObj.transactionType = 'ALLOC_H2_RATIO';
+                  emitObj.transactionTypeText = 'Allocation Ratios';
+                }
+                this.status.emit(emitObj);
+              } else if (res === 'cancel') {
+              }
+            });
+          }else {
+            this.saveAndAddDisabled = false;
+          }
+        }
+      }
+    )
+  }
+
+  searchAccountName = (text$: Observable<string>) =>
+    text$.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(searchText => {
+        if (searchText) {
+          return this._schedH3Service.getH3AccountNames(this._individualReceiptService.getReportIdFromStorage(this.formType))
+        } else {
+          return Observable.of([]);
+        }
+      })
+    );
+
+  formatterAccountName = (x: { account_name: string }) => {
+      if (typeof x !== 'string') {
+        return x.account_name;
+      } else {
+        return x;
+      }
+    };
+
+  public printTransaction(trx: any): void {
+    this._reportTypeService.printPreview('transaction_table_screen', '3X', trx.transaction_id);
   }
 
 }

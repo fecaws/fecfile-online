@@ -1,30 +1,17 @@
-import {
-  Component,
-  EventEmitter,
-  Input,
-  OnInit,
-  Output,
-  ViewEncapsulation,
-  SimpleChanges,
-  ViewChild
-} from '@angular/core';
-import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { NgbPanelChangeEvent, NgbAccordion } from '@ng-bootstrap/ng-bootstrap';
-import { NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
-import { form3x_data } from '../../../shared/interfaces/FormsService/FormsService';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild, ViewEncapsulation } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { NgbAccordion, NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
+import { Subject } from 'rxjs';
+import 'rxjs/add/operator/takeUntil';
+import { ConfirmModalComponent, ModalHeaderClassEnum } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
+import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
+import { ReportTypeService } from '../../../forms/form-3x/report-type/report-type.service';
 import { FormsService } from '../../../shared/services/FormsService/forms.service';
 import { MessageService } from '../../../shared/services/MessageService/message.service';
-import { TransactionTypeService } from './transaction-type.service';
-import { ReportTypeService } from '../../../forms/form-3x/report-type/report-type.service';
-import { F3xMessageService } from '../service/f3x-message.service';
 import { ScheduleActions } from '../individual-receipt/schedule-actions.enum';
-import {
-  ConfirmModalComponent,
-  ModalHeaderClassEnum
-} from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
-import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
+import { F3xMessageService } from '../service/f3x-message.service';
+import { TransactionTypeService } from './transaction-type.service';
 
 @Component({
   selector: 'f3x-transaction-type',
@@ -33,7 +20,8 @@ import { DialogService } from 'src/app/shared/services/DialogService/dialog.serv
   providers: [NgbTooltipConfig],
   encapsulation: ViewEncapsulation.None
 })
-export class TransactionTypeComponent implements OnInit {
+export class TransactionTypeComponent implements OnInit, OnDestroy {
+
   @ViewChild('acc') accordion: NgbAccordion;
   @Output() status: EventEmitter<any> = new EventEmitter<any>();
   @Input() selectedOptions: any = {};
@@ -56,8 +44,11 @@ export class TransactionTypeComponent implements OnInit {
 
   private _formType: string = '';
   private _mainTransactionCategory: any = [];
+  private _mainTransactionTypeText: string;
   private _transactionCategory: string = '';
   private _transactionCategories: any = [];
+
+  private onDestroy$ = new Subject();
 
   constructor(
     private _fb: FormBuilder,
@@ -73,22 +64,10 @@ export class TransactionTypeComponent implements OnInit {
   ) {
     this._config.placement = 'right';
     this._config.triggers = 'click';
-    // _activatedRoute.queryParams.subscribe(p => {
-    //   const setTargetVal = { target: { value: null, placeholder: null } };
-    //   this.frmOption = this._fb.group({
-    //     secondaryOption: ['', Validators.required]
-    //   });
-    //   if (this._activatedRoute.snapshot.queryParams.transactionSubCategory) {
-    //     setTargetVal.target.value = this._activatedRoute.snapshot.queryParams.transactionSubCategory;
-    //     setTargetVal.target.placeholder = this._activatedRoute.snapshot.queryParams.transactionSubCategoryText;
-    //     this._toggle(this._activatedRoute.snapshot.queryParams.transactionSubCategoryType);
-    //     // this.updateTypeSelected(setTargetVal);
-    //     // this.childOptionsListClick(setTargetVal.target.value);
-    //     // this.doValidateOption();
-    //   }
-    // });
 
-    _activatedRoute.queryParams.subscribe(p => {
+    let routeSubscription = _activatedRoute.queryParams;
+    routeSubscription.takeUntil(this.onDestroy$).subscribe(p => {
+	
       const setTargetVal = { value: null, placeholder: null, text: null };
       this.frmOption = this._fb.group({
         secondaryOption: ['', Validators.required]
@@ -114,7 +93,12 @@ export class TransactionTypeComponent implements OnInit {
       secondaryOption: ['', Validators.required]
     });
   }
+  
+  ngOnDestroy(): void {
+    this.onDestroy$.next(true);
+  }
 
+  
   ngDoCheck(): void {
     if (this.transactionCategory) {
       this.transactionCategorySelected = false;
@@ -210,10 +194,12 @@ export class TransactionTypeComponent implements OnInit {
         step: 'step_3',
         previousStep: 'step_2',
         action: ScheduleActions.add,
+        mainTransactionTypeText: this._mainTransactionTypeText,
         transactionTypeText: this.transactionTypeText,
         transactionType: this.transactionType,
         transactionCategory: this._transactionCategory,
-        scheduleType: this.scheduleType
+        scheduleType: this.scheduleType,
+        showPart2: false
       });
 
       return 1;
@@ -282,165 +268,26 @@ export class TransactionTypeComponent implements OnInit {
    */
   private _setSecondaryTransactionCategories(): void {
     this._mainTransactionCategory = this.transactionCategories.filter(el => el.value === this.transactionCategory);
-    const mainTransactionTypeText: string = this._mainTransactionCategory[0].text;
-    const mainTransactionTypeValue: string = this._mainTransactionCategory[0].value;
-    const transactionObj: any = {
-      mainTransactionTypeText,
-      mainTransactionTypeValue,
-      transactionType: '',
-      childTransactionType: ''
-    };
-
-    localStorage.setItem(`form_${this._formType}_temp_transaction_type`, JSON.stringify(transactionObj));
-
-    this.secondaryOptions = this._mainTransactionCategory[0].options;
-
-    /*if (this._mainTransactionCategory[0].options[0].value === 'schedule-h1') {
-      this.secondaryOptions[0].options = [
-        {
-          info: "Funds received from the committee's non-federal bank account",
-          infoIcon: 'TRUE',
-          name: 'schedule-h1',
-          scheduleType: 'sched_h1',
-          text: 'Allocation Ratios',
-          type: 'radio',
-          // value: ""
-          value: 'ALLOC_H1'
-        }
-
-      ];
-    }
-
-    const committeeDetails: any = JSON.parse(localStorage.getItem('committee_details'));
-    if (committeeDetails.cmte_type_category === 'PTY' && this._mainTransactionCategory[0].options[1].value === 'schedule-h2') {
-      this.secondaryOptions[1].options = [
-        {
-          info: "Funds received from the committee's non-federal bank account",
-          infoIcon: 'TRUE',
-          name: 'schedule-h3',
-          scheduleType: 'sched_h2',
-          text: 'Allocation Ratios',
-          type: 'radio',
-          value: 'ALLOC_H2_RATIO'
-        },
-        {
-          info: "Funds received from the committee's non-federal bank account",
-          infoIcon: 'TRUE',
-          name: 'schedule-h3',
-          scheduleType: 'sched_h2',
-          text: 'Allocation Ratios Summary',
-          type: 'radio',
-          value: 'ALLOC_H2_SUM'
-        }
-      ];
-    }
-
-    //for h3
-    if (this._mainTransactionCategory[0].options[2].value === 'schedule-h3') {
-      this.secondaryOptions[2].options = [
-        {
-          info: 'Transfers from Nonfederal Accounts for Allocated Federal-Nonfederal Activity',
-          infoIcon: 'TRUE',
-          name: 'schedule-h3',
-          scheduleType: 'sched_h3',
-          text: 'Transfers from Nonfederal Accounts for Allocated Federal-Nonfederal Activity',
-          type: 'radio',
-          value: 'ALLOC_H3_RATIO'
-        },
-        {
-          info: 'Transfers from Nonfederal Accounts for Allocated Federal-Nonfederal - Summary',
-          infoIcon: 'TRUE',
-          name: 'schedule-h3',
-          scheduleType: 'sched_h3',
-          text: 'Transfers from Nonfederal Accounts for Allocated Federal-Nonfederal - Summary',
-          type: 'radio',
-          value: 'ALLOC_H3_SUM'
-        },
-        {
-          info: 'Transfers from Nonfederal Accounts for Allocated Federal-Nonfederal - Period Totals',
-          infoIcon: 'TRUE',
-          name: 'schedule-h3',
-          scheduleType: 'sched_h3',
-          text: 'Transfers from Nonfederal Accounts for Allocated Federal-Nonfederal - Period Totals',
-          type: 'radio',
-          value: 'ALLOC_H3_SUM_P'
-        }
-      ];
-    }
-
-    //for h4
-    if (this._mainTransactionCategory[0].options[3].value === 'schedule-h4') {
-      this.secondaryOptions[3].options = [
-        {
-          info: 'Disbursements Types',
-          infoIcon: 'TRUE',
-          name: 'schedule-h4',
-          scheduleType: 'sched_h4',
-          text: 'Disbursements Types',
-          type: 'radio',
-          value: 'ALLOC_H4_TYPES'
-        },
-        {
-          info: 'Disbursements from Allocated Federal / Nonfederal Activity',
-          infoIcon: 'TRUE',
-          name: 'schedule-h4',
-          scheduleType: 'sched_h4',
-          text: 'Disbursements from Allocated Federal / Nonfederal Activity',
-          type: 'radio',
-          value: 'ALLOC_EXP_DEBT'
-        },
-        {
-          info: 'Disbursements for Allocated Federal/Nonfederal Activity Summary',
-          infoIcon: 'TRUE',
-          name: 'schedule-h4',
-          scheduleType: 'sched_h4',
-          text: 'Disbursements for Allocated Federal/Nonfederal Activity Summary',
-          type: 'radio',
-          value: 'ALLOC_H4_SUM'
-        }
-      ];
-    }
-
-    if (this._mainTransactionCategory[0].options[4].value === 'schedule-h5') {
-      this.secondaryOptions[4].options = [
-        {
-          info: 'Transfers of Levin Funds Received for Allocated Federal Election Activity',
-          infoIcon: 'TRUE',
-          name: 'schedule-h5',
-          scheduleType: 'sched_h5',
-          text: 'Transfers of Levin Funds Received for Allocated Federal Election Activity',
-          type: 'radio',
-          value: 'ALLOC_H5_RATIO'
-        },
-        {
-          info: 'Transfers from Levin Funds for Allocated Federal Election Activity',
-          infoIcon: 'TRUE',
-          name: 'schedule-h5',
-          scheduleType: 'sched_h5',
-          text: 'Transfers from Levin Funds for Allocated Federal Election Activity',
-          type: 'radio',
-          value: 'ALLOC_H5_SUM'
-        },
-        {
-          info: 'Total For Breakdown of Transfers Received - Levin Funds',
-          infoIcon: 'TRUE',
-          name: 'schedule-h5',
-          scheduleType: 'sched_h5',
-          text: 'Total For Breakdown of Transfers Received - Levin Funds',
-          type: 'radio',
-          value: 'ALLOC_H5_SUM_P'
-        }
-      ];
-    } */
-
-    this.transactionCategorySelected = true;
-
-    this.transactionTypeFailed = false;
-
-    if (this.transactionCategory) {
-      this.tranasctionCategoryVal = this.transactionCategory;
-
-      this.transactionCategory = '';
+    if(this._mainTransactionCategory && this._mainTransactionCategory.length > 0){
+      const mainTransactionTypeText: string = this._mainTransactionCategory[0].text;
+      const mainTransactionTypeValue: string = this._mainTransactionCategory[0].value;
+      this._mainTransactionTypeText = mainTransactionTypeText;
+      const transactionObj: any = {
+        mainTransactionTypeText,
+        mainTransactionTypeValue,
+        transactionType: '',
+        childTransactionType: ''
+      };
+  
+      localStorage.setItem(`form_${this._formType}_temp_transaction_type`, JSON.stringify(transactionObj));
+      this.secondaryOptions = this._mainTransactionCategory[0].options;
+      this.transactionCategorySelected = true;
+      this.transactionTypeFailed = false;
+      if (this.transactionCategory) {
+        this.tranasctionCategoryVal = this.transactionCategory;
+  
+        this.transactionCategory = '';
+      }
     }
   }
 

@@ -56,7 +56,8 @@ export class SchedLService {
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
     let params = new HttpParams();
     params = params.append('report_id', reportId);
-    params = params.append('calendar_year', '2019');
+    params = params.append('levin_account_id', levinAccountId);
+    params = params.append('calendar_year', new Date().getFullYear().toString());
     return this._http
       .get(
         `${environment.apiUrl}${url}`,
@@ -75,29 +76,27 @@ export class SchedLService {
       );
   }
 
-  /*public saveH4Ratio(ratio: any): Observable<any> {
+  public cloneTransaction(transactionId: string) {
+
     const token: string = JSON.parse(this._cookieService.get('user'));
-    let httpOptions =  new HttpHeaders();
-    const url = '/sh4/schedH4';
+    let httpOptions = new HttpHeaders();
+    const url = '/core/clone_a_transaction';
 
     httpOptions = httpOptions.append('Content-Type', 'application/json');
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
 
     return this._http
-      .post(
-        `${environment.apiUrl}${url}`, ratio,    
-        {
-          headers: httpOptions
-        }
-      )
-      .pipe(map(res => {
+      .post(`${environment.apiUrl}${url}`, { transaction_id: transactionId }, {
+        headers: httpOptions
+      })
+      .pipe(
+        map(res => {
           if (res) {
-            console.log('Save H4Ratio res: ', res);
             return res;
           }
           return false;
-      })
+        })
       );
-  }*/
-    
+  }
+
 }

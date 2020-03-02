@@ -1,6 +1,6 @@
 import { ReportTypeService } from './../form-3x/report-type/report-type.service';
 import { LoanService } from './../sched-c/service/loan.service';
-import { Component, OnInit, Input, Output, EventEmitter, SimpleChanges, OnChanges } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, SimpleChanges, OnChanges, ViewEncapsulation } from '@angular/core';
 import { FormGroup, FormBuilder, FormControl, Validators } from '@angular/forms';
 import { ScheduleActions } from '../form-3x/individual-receipt/schedule-actions.enum';
 import { ContactsService } from 'src/app/contacts/service/contacts.service';
@@ -18,7 +18,8 @@ import { validateAmount } from '../../shared/utils/forms/validation/amount.valid
 @Component({
   selector: 'app-sched-c1',
   templateUrl: './sched-c1.component.html',
-  styleUrls: ['./sched-c1.component.scss']
+  styleUrls: ['./sched-c1.component.scss'],
+  encapsulation: ViewEncapsulation.None
 })
 export class SchedC1Component implements OnInit, OnChanges {
   @Input() formType: string;
@@ -82,7 +83,7 @@ export class SchedC1Component implements OnInit, OnChanges {
       this.c1Form.patchValue({ state: res.state });
       this.c1Form.patchValue({ zip: res.zip_code });
       this.c1Form.patchValue({ loan_amount: this._decimalPipe.transform(res.loan_amount_original, '.2-2') });
-      this.c1Form.patchValue({ loan_intrest_rate: res.loan_intrest_rate });
+      this.c1Form.patchValue({ loan_intrest_rate: this._decimalPipe.transform(res.loan_intrest_rate, '.2-2')});
       this.c1Form.patchValue({ loan_incurred_date: res.loan_incurred_date });
       this.c1Form.patchValue({ loan_due_date: res.loan_due_date });
 
@@ -294,6 +295,10 @@ export class SchedC1Component implements OnInit, OnChanges {
       default:
       // this.sectionType = Sections.initialSection;
     }
+  }
+
+  public cancel(){
+    this._goToLoan();
   }
 
   private _checkSectionValid(): boolean {
@@ -590,6 +595,17 @@ export class SchedC1Component implements OnInit, OnChanges {
       scheduleType: 'sched_c_ls',
     };
     this.status.emit(loanRepaymentEmitObj);
+  }
+
+  private _goToLoan() {
+    const loanEmitObj: any = {
+      form: {},
+      direction: 'next',
+      step: 'step_3',
+      previousStep: 'step_2',
+      scheduleType: 'sched_c',
+    };
+    this.status.emit(loanEmitObj);
   }
 
   private _prepareFormDataForApi(formData: any) {

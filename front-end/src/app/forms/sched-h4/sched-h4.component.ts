@@ -53,6 +53,7 @@ import {
   ]
 })
 export class SchedH4Component extends AbstractSchedule implements OnInit, OnDestroy, OnChanges {
+  @Input() mainTransactionTypeText: string;
   @Input() transactionTypeText: string;
   @Input() transactionType: string;
   @Input() scheduleAction: ScheduleActions;
@@ -76,7 +77,10 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
   public schedH4sModelL: Array<SchedH4Model>;
 
   private clonedTransaction: any;
-   
+
+  public restoreSubscription: Subscription;
+  public trashSubscription: Subscription;
+
   constructor(
     _http: HttpClient,
     _fb: FormBuilder,
@@ -134,6 +138,26 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
     _tranService;
     _rt;
     _dlService;
+
+    this.restoreSubscription = this._tranMessageService
+        .getRestoreTransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H4') {
+              this.getH4Sum(this._individualReceiptService.getReportIdFromStorage(this.formType));
+            }
+          }
+        )
+
+    this.trashSubscription = this._tranMessageService
+        .getRemoveHTransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H4') {
+              this.getH4Sum(this._individualReceiptService.getReportIdFromStorage(this.formType));
+            }
+          }
+        )
   }
 
 
@@ -191,6 +215,8 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
   }
 
   public ngOnDestroy(): void {
+    this.restoreSubscription.unsubscribe();
+    this.trashSubscription.unsubscribe();
     super.ngOnDestroy();
   }
 
@@ -239,7 +265,9 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
           this.schedH4sModel = this.mapFromServerFields(res);
           this.setArrow(this.schedH4sModel);
 
-          this.schedH4sModel = this.schedH4sModel .filter(obj => obj.memo_code !== 'X');
+          //this.schedH4sModel = this.schedH4sModel .filter(obj => obj.memo_code !== 'X');
+          this.schedH4sModel = this.schedH4sModel .filter(obj => obj.back_ref_transaction_id === null);
+
           this.tableConfig.totalItems = this.schedH4sModel.length;
         }
       });        
@@ -255,7 +283,7 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
     this.transactionType = "ALLOC_H4_TYPES"
 
     //this.transactionType = 'ALLOC_EXP_DEBT'; //'ALLOC_H4_RATIO';
-  }1
+  }
 
   public previousStep(): void {
     
@@ -271,21 +299,26 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
   public clickArrow(item: SchedH4Model) {
     if(item.arrow_dir === 'down') {
       let indexRep = this.schedH4sModel.indexOf(item);
+      this.schedH4sModel[indexRep].child = [];
       if (indexRep > -1) {
         let tmp: Array<SchedH4Model> = this.schedH4sModelL.filter(obj => obj.back_ref_transaction_id === item.transaction_id);
         for(let entry of tmp) {
           entry.arrow_dir = 'show';
-          this.schedH4sModel.splice(indexRep + 1, 0, entry);
-          indexRep++;
+          //this.schedH4sModel.splice(indexRep + 1, 0, entry);
+          this.schedH4sModel[indexRep].child.push(entry);
+          //indexRep++;
         }
-        this.tableConfig.totalItems = this.schedH4sModel.length;
+        //this.tableConfig.totalItems = this.schedH4sModel.length;
       }
       this.schedH4sModel.find(function(obj) { return obj.transaction_id === item.transaction_id}).arrow_dir = 'up';
       
     }else if(item.arrow_dir === 'up') {
       //this.schedH4sModel = this.schedH4sModel.filter(obj => obj.memo_code !== 'X');
-      this.schedH4sModel = this.schedH4sModel.filter(obj => obj.back_ref_transaction_id !== item.transaction_id);
-      this.tableConfig.totalItems = this.schedH4sModel.length;
+      //this.schedH4sModel = this.schedH4sModel.filter(obj => obj.back_ref_transaction_id !== item.transaction_id);
+      //this.tableConfig.totalItems = this.schedH4sModel.length;
+
+      let indexRep = this.schedH4sModel.indexOf(item);
+      this.schedH4sModel[indexRep].child = [];
 
       this.schedH4sModel.find(function(obj) { return obj.transaction_id === item.transaction_id}).arrow_dir = 'down';      
     }
@@ -378,6 +411,22 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
     trx.report_id = this._individualReceiptService.getReportIdFromStorage(this.formType);
     trx.transactionId = trx.transaction_id;
 
+    if(this.hasChildTransaction(trx)) {
+      const msg = "There are child transactions associated with this transaction. This action will delete all child transactions as well. Are you sure you want to continue?";
+      this._dlService
+        .confirm(msg, ConfirmModalComponent, 'Warning!')
+        .then(res => {
+          if (res === 'okay') {
+            this.transhAction(trx);
+          } else if (res === 'cancel') {
+          }
+        });
+    }else {
+      this.transhAction(trx);
+    }
+  }
+
+  private transhAction(trx: any): void {
     this._dlService
       .confirm('You are about to delete this transaction ' + trx.transaction_id + '.', ConfirmModalComponent, 'Caution!')
       .then(res => {
@@ -397,7 +446,18 @@ export class SchedH4Component extends AbstractSchedule implements OnInit, OnDest
             });
         } else if (res === 'cancel') {
         }
-      });
+      })
+  }
+
+  public hasChildTransaction(item: any): boolean {
+    if(this.schedH4sModelL.filter(obj => obj.back_ref_transaction_id === item.transaction_id).length !== 0) {
+      return true;
+    }
+    return false;
+  }
+
+  public printTransaction(trx: any): void {
+    this._reportTypeService.printPreview('transaction_table_screen', '3X', trx.transaction_id);
   }
   
 }

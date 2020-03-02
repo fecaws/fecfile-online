@@ -27,10 +27,10 @@ from fecfiler.core.views import (
     remove_entities,
     undo_delete_entities,
 )
-from fecfiler.core.transaction_util import transaction_exists, update_sched_d_parent
+from fecfiler.core.transaction_util import transaction_exists, update_sched_d_parent, get_line_number_trans_type
 from fecfiler.sched_A.views import get_next_transaction_id
 from fecfiler.sched_D.views import do_transaction
-
+from fecfiler.core.report_helper import new_report_date
 
 # TODO: still need to add line_number and transaction_code to sched_f
 
@@ -167,9 +167,13 @@ def schedF_sql_dict(data):
         output["payee_cand_office"] = data.get("cand_office")
         output["payee_cand_state"] = data.get("cand_office_state")
         output["payee_cand_district"] = data.get("cand_office_district")
+        output["line_number"], output["transaction_type"] = get_line_number_trans_type(
+            data.get("transaction_type_identifier")
+        )
         return output
     except:
         raise Exception("invalid request data.")
+
 
 def get_existing_expenditure_amount(cmte_id, transaction_id):
     """
@@ -190,6 +194,7 @@ def get_existing_expenditure_amount(cmte_id, transaction_id):
         raise
 
 
+@new_report_date
 def put_schedF(data):
     """
     update sched_F item
@@ -215,7 +220,8 @@ def put_schedF(data):
             entity_flag = False
 
         existing_expenditure = get_existing_expenditure_amount(
-            data.get("cmte_id"), data.get("transaction_id"))
+            data.get("cmte_id"), data.get("transaction_id")
+        )
         try:
             entity_id = entity_data.get("entity_id")
             data["payee_entity_id"] = entity_id
@@ -223,7 +229,7 @@ def put_schedF(data):
 
             # if debt payment, need to update debt balance
             if data.get("transaction_type_identifier") == "COEXP_PARTY_DEBT":
-                if float(existing_expenditure) != float(data.get("enpenditure_amount")):
+                if float(existing_expenditure) != float(data.get("expenditure_amount")):
                     update_sched_d_parent(
                         data.get("cmte_id"),
                         data.get("back_ref_transaction_id"),
@@ -248,82 +254,87 @@ def put_schedF(data):
 def put_sql_schedF(data):
     """
     update a schedule_f item                    
-            
     """
+    logger.debug("put_sql_schedF with data {}".format(data))
     _sql = """UPDATE public.sched_f
-              SET transaction_type_identifier= %s, 
-                  back_ref_transaction_id= %s,
-                  back_ref_sched_name= %s,
-                  coordinated_exp_ind= %s,
-                  designating_cmte_id= %s,
-                  designating_cmte_name= %s,
-                  subordinate_cmte_id= %s,
-                  subordinate_cmte_name= %s,
-                  subordinate_cmte_street_1= %s,
-                  subordinate_cmte_street_2= %s,
-                  subordinate_cmte_city= %s,
-                  subordinate_cmte_state= %s,
-                  subordinate_cmte_zip= %s,
-                  payee_entity_id= %s,
-                  expenditure_date= %s,
+              SET transaction_type_identifier = %s, 
+                  back_ref_transaction_id = %s,
+                  back_ref_sched_name = %s,
+                  coordinated_exp_ind = %s,
+                  designating_cmte_id = %s,
+                  designating_cmte_name = %s,
+                  subordinate_cmte_id = %s,
+                  subordinate_cmte_name = %s,
+                  subordinate_cmte_street_1 = %s,
+                  subordinate_cmte_street_2 = %s,
+                  subordinate_cmte_city = %s,
+                  subordinate_cmte_state = %s,
+                  subordinate_cmte_zip = %s,
+                  payee_entity_id = %s,
+                  expenditure_date = %s,
                   expenditure_amount = %s,
-                  aggregate_general_elec_exp= %s,
-                  purpose= %s,
-                  category_code= %s,
-                  payee_cmte_id= %s,
-                  payee_cand_id= %s,
-                  payee_cand_last_name= %s,
-                  payee_cand_fist_name= %s,
-                  payee_cand_middle_name= %s,
-                  payee_cand_prefix= %s,
-                  payee_cand_suffix= %s,
-                  payee_cand_office= %s,
-                  payee_cand_state= %s,
-                  payee_cand_district= %s,
-                  memo_code= %s,
-                  memo_text= %s,
-                  last_update_date= %s
+                  aggregate_general_elec_exp = %s,
+                  line_number = %s,
+                  transaction_type = %s,
+                  purpose = %s,
+                  category_code = %s,
+                  payee_cmte_id = %s,
+                  payee_cand_id = %s,
+                  payee_cand_last_name = %s,
+                  payee_cand_fist_name = %s,
+                  payee_cand_middle_name = %s,
+                  payee_cand_prefix = %s,
+                  payee_cand_suffix = %s,
+                  payee_cand_office = %s,
+                  payee_cand_state = %s,
+                  payee_cand_district = %s,
+                  memo_code = %s,
+                  memo_text = %s,
+                  last_update_date = %s
               WHERE transaction_id = %s AND report_id = %s AND cmte_id = %s 
               AND delete_ind is distinct from 'Y';
         """
     _v = (
-        data.get("transaction_type_identifier", ""),
-        data.get("back_ref_transaction_id", ""),
-        data.get("back_ref_sched_name", ""),
-        data.get("coordinated_exp_ind", ""),
-        data.get("designating_cmte_id", ""),
-        data.get("designating_cmte_name", ""),
-        data.get("subordinate_cmte_id", ""),
-        data.get("subordinate_cmte_name", ""),
-        data.get("subordinate_cmte_street_1", ""),
-        data.get("subordinate_cmte_street_2", ""),
-        data.get("subordinate_cmte_city", ""),
-        data.get("subordinate_cmte_state", ""),
-        data.get("subordinate_cmte_zip", ""),
-        data.get("payee_entity_id", ""),
-        data.get("expenditure_date", None),
-        data.get("expenditure_amount", None),
-        data.get("aggregate_general_elec_exp", None),
-        data.get("purpose", ""),
-        data.get("category_code", ""),
-        data.get("payee_cmte_id", ""),
-        data.get("payee_cand_id", ""),
-        data.get("payee_cand_last_name", ""),
-        data.get("payee_cand_fist_name", ""),
-        data.get("payee_cand_middle_name", ""),
-        data.get("payee_cand_prefix", ""),
-        data.get("payee_cand_suffix", ""),
-        data.get("payee_cand_office", ""),
-        data.get("payee_cand_state", ""),
-        data.get("payee_cand_district", ""),
-        data.get("memo_code", ""),
-        data.get("memo_text", ""),
+        data.get("transaction_type_identifier"),
+        data.get("back_ref_transaction_id"),
+        data.get("back_ref_sched_name"),
+        data.get("coordinated_exp_ind"),
+        data.get("designating_cmte_id"),
+        data.get("designating_cmte_name"),
+        data.get("subordinate_cmte_id"),
+        data.get("subordinate_cmte_name"),
+        data.get("subordinate_cmte_street_1"),
+        data.get("subordinate_cmte_street_2"),
+        data.get("subordinate_cmte_city"),
+        data.get("subordinate_cmte_state"),
+        data.get("subordinate_cmte_zip"),
+        data.get("payee_entity_id"),
+        data.get("expenditure_date"),
+        data.get("expenditure_amount"),
+        data.get("aggregate_general_elec_exp"),
+        data.get("line_number"),
+        data.get("transaction_type"),
+        data.get("purpose"),
+        data.get("category_code"),
+        data.get("payee_cmte_id"),
+        data.get("payee_cand_id"),
+        data.get("payee_cand_last_name"),
+        data.get("payee_cand_fist_name"),
+        data.get("payee_cand_middle_name"),
+        data.get("payee_cand_prefix"),
+        data.get("payee_cand_suffix"),
+        data.get("payee_cand_office"),
+        data.get("payee_cand_state"),
+        data.get("payee_cand_district"),
+        data.get("memo_code"),
+        data.get("memo_text"),
         datetime.datetime.now(),
         data.get("transaction_id"),
         data.get("report_id"),
         data.get("cmte_id"),
     )
     do_transaction(_sql, _v)
+    logger.debug("put_sql_schedF success.")
 
 
 def validate_sF_data(data):
@@ -333,6 +344,7 @@ def validate_sF_data(data):
     check_mandatory_fields_SF(data)
 
 
+@new_report_date
 def post_schedF(data):
     """
     function for handling POST request for sF, need to:
@@ -410,6 +422,8 @@ def post_sql_schedF(data):
             expenditure_date,
             expenditure_amount,
             aggregate_general_elec_exp,
+            line_number, 
+            transaction_type,
             purpose,
             category_code,
             payee_cmte_id,
@@ -427,43 +441,45 @@ def post_sql_schedF(data):
             create_date,
             last_update_date
             )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s); 
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s); 
         """
         _v = (
             data.get("cmte_id"),
             data.get("report_id"),
-            data.get("transaction_type_identifier", ""),
-            data.get("transaction_id", ""),
-            data.get("back_ref_transaction_id", ""),
-            data.get("back_ref_sched_name", ""),
-            data.get("coordinated_exp_ind", ""),
-            data.get("designating_cmte_id", ""),
-            data.get("designating_cmte_name", ""),
-            data.get("subordinate_cmte_id", ""),
-            data.get("subordinate_cmte_name", ""),
-            data.get("subordinate_cmte_street_1", ""),
-            data.get("subordinate_cmte_street_2", ""),
-            data.get("subordinate_cmte_city", ""),
-            data.get("subordinate_cmte_state", ""),
-            data.get("subordinate_cmte_zip", ""),
-            data.get("payee_entity_id", ""),
-            data.get("expenditure_date", None),
-            data.get("expenditure_amount", None),
-            data.get("aggregate_general_elec_exp", None),
-            data.get("purpose", ""),
-            data.get("category_code", ""),
-            data.get("payee_cmte_id", ""),
-            data.get("payee_cand_id", ""),
-            data.get("payee_cand_last_name", ""),
-            data.get("payee_cand_fist_name", ""),
-            data.get("payee_cand_middle_name", ""),
-            data.get("payee_cand_prefix", ""),
-            data.get("payee_cand_suffix", ""),
-            data.get("payee_cand_office", ""),
-            data.get("payee_cand_state", ""),
-            data.get("payee_cand_district", ""),
-            data.get("memo_code", ""),
-            data.get("memo_text", ""),
+            data.get("transaction_type_identifier"),
+            data.get("transaction_id"),
+            data.get("back_ref_transaction_id"),
+            data.get("back_ref_sched_name"),
+            data.get("coordinated_exp_ind"),
+            data.get("designating_cmte_id"),
+            data.get("designating_cmte_name"),
+            data.get("subordinate_cmte_id"),
+            data.get("subordinate_cmte_name"),
+            data.get("subordinate_cmte_street_1"),
+            data.get("subordinate_cmte_street_2"),
+            data.get("subordinate_cmte_city"),
+            data.get("subordinate_cmte_state"),
+            data.get("subordinate_cmte_zip"),
+            data.get("payee_entity_id"),
+            data.get("expenditure_date"),
+            data.get("expenditure_amount"),
+            data.get("aggregate_general_elec_exp"),
+            data.get("line_number"),
+            data.get("transaction_type"),
+            data.get("purpose"),
+            data.get("category_code"),
+            data.get("payee_cmte_id"),
+            data.get("payee_cand_id"),
+            data.get("payee_cand_last_name"),
+            data.get("payee_cand_fist_name"),
+            data.get("payee_cand_middle_name"),
+            data.get("payee_cand_prefix"),
+            data.get("payee_cand_suffix"),
+            data.get("payee_cand_office"),
+            data.get("payee_cand_state"),
+            data.get("payee_cand_district"),
+            data.get("memo_code"),
+            data.get("memo_text"),
             datetime.datetime.now(),
             datetime.datetime.now(),
         )
@@ -486,6 +502,13 @@ def get_schedF(data):
             forms_obj = get_list_schedF(report_id, cmte_id, transaction_id)
         else:
             forms_obj = get_list_all_schedF(report_id, cmte_id)
+        if forms_obj:
+            for obj in forms_obj:
+                child_sf = get_list_schedF(
+                    obj["report_id"], obj["cmte_id"], obj["transaction_id"], True
+                )
+                if child_sf:
+                    obj["child"] = child_sf
         return forms_obj
     except:
         raise
@@ -517,6 +540,8 @@ def get_list_all_schedF(report_id, cmte_id):
             expenditure_date,
             expenditure_amount,
             aggregate_general_elec_exp,
+            line_number,
+            transaction_type,
             purpose,
             category_code,
             payee_cmte_id,
@@ -559,7 +584,7 @@ def get_list_all_schedF(report_id, cmte_id):
         raise
 
 
-def get_list_schedF(report_id, cmte_id, transaction_id):
+def get_list_schedF(report_id, cmte_id, transaction_id, is_back_ref=False):
     try:
         with connection.cursor() as cursor:
             # GET single row from schedA table
@@ -584,6 +609,8 @@ def get_list_schedF(report_id, cmte_id, transaction_id):
             sf.expenditure_date,
             sf.expenditure_amount,
             sf.aggregate_general_elec_exp,
+            sf.line_number,
+            sf.transaction_type,
             sf.purpose,
             sf.category_code,
             sf.payee_cmte_id,
@@ -606,17 +633,24 @@ def get_list_schedF(report_id, cmte_id, transaction_id):
                         AND substr(e.ref_cand_cmte_id,1,1) != 'C' AND e.ref_cand_cmte_id = sf.payee_cand_id AND e.delete_ind is distinct from 'Y'
                         ORDER BY e.ref_cand_cmte_id DESC, e.entity_id DESC) AS beneficiary_cand_entity_id
             FROM public.sched_f sf
-            WHERE sf.report_id = %s AND sf.cmte_id = %s AND sf.transaction_id = %s
-            AND sf.delete_ind is distinct from 'Y') t
+            WHERE sf.report_id = %s AND sf.cmte_id = %s
+            AND sf.delete_ind is distinct from 'Y'
             """
+            if is_back_ref:
+                _sql = _sql + """ AND sf.back_ref_transaction_id = %s) t"""
+            else:
+                _sql = _sql + """ AND sf.transaction_id = %s) t"""
             cursor.execute(_sql, (report_id, cmte_id, transaction_id))
             schedF_list = cursor.fetchone()[0]
             if schedF_list is None:
-                raise NoOPError(
-                    "No sched_f transaction found for transaction_id {}".format(
-                        transaction_id
+                if not is_back_ref:
+                    raise NoOPError(
+                        "No sched_f transaction found for transaction_id {}".format(
+                            transaction_id
+                        )
                     )
-                )
+                else:
+                    return schedF_list
             merged_list = []
             for dictF in schedF_list:
                 entity_id = dictF.get("entity_id")
@@ -839,10 +873,18 @@ def get_aggregate_general_elec_exp(request):
         )
         logger.debug("cvg_start_date:" + str(cvg_start_date))
         logger.debug("cvg_end_date:" + str(cvg_end_date))
+        # TODO: need to make sure the logic  is correct,  why 3 dates?
         with connection.cursor() as cursor:
             cursor.execute(
-                """SELECT aggregate_general_elec_exp FROM public.sched_f WHERE payee_cand_id = %s AND expenditure_date >= %s AND
-                expenditure_date <= %s AND expenditure_date <= %s ORDER BY expenditure_date DESC, create_date DESC """,
+                """
+                SELECT aggregate_general_elec_exp 
+                FROM public.sched_f 
+                WHERE payee_cand_id = %s 
+                AND expenditure_date >= %s 
+                AND expenditure_date <= %s 
+                AND expenditure_date <= %s
+                AND delete_ind is distinct from 'Y' 
+                ORDER BY expenditure_date DESC, create_date DESC""",
                 [beneficiary_cand_id, cvg_start_date, cvg_end_date, expenditure_date],
             )
             if cursor.rowcount != 0:
@@ -920,16 +962,17 @@ def agg_dates(cmte_id, beneficiary_cand_id, expenditure_date):
         expenditure_year = (
             datetime.datetime.strptime(expenditure_date, "%m/%d/%Y").date().year
         )
-        for i, val in enumerate(election_year_list):
-            if i == len(election_year_list) - 2:
-                break
-            if (
-                election_year_list[i + 1] < expenditure_year
-                and expenditure_year <= election_year_list[i]
-            ):
-                end_date = datetime.date(election_year_list[i], 12, 31)
-                start_year = election_year_list[i] - add_year
-                start_date = datetime.date(start_year, 1, 1)
+        if len(election_year_list) >= 2:
+            for i, val in enumerate(election_year_list):
+                if i == len(election_year_list) - 2:
+                    break
+                if (
+                    election_year_list[i + 1] < expenditure_year
+                    and expenditure_year <= election_year_list[i]
+                ):
+                    end_date = datetime.date(election_year_list[i], 12, 31)
+                    start_year = election_year_list[i] - add_year
+                    start_date = datetime.date(start_year, 1, 1)
         if not end_date:
             if datetime.datetime.now().year % 2 == 1:
                 end_year = datetime.datetime.now().year + add_year
