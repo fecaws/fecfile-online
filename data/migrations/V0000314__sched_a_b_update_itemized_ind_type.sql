@@ -303,9 +303,6 @@ UNION ALL
     sl.line_number
    FROM sched_l sl;
 
-ALTER TABLE public.all_transactions_view
-    OWNER TO postgres;
-
 
 CREATE OR REPLACE VIEW public.all_receipts_transactions_view AS 
  SELECT sa.cmte_id,
@@ -388,8 +385,6 @@ CREATE OR REPLACE VIEW public.all_receipts_transactions_view AS
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text
   WHERE sa.transaction_type_identifier::text <> ALL (ARRAY['LEVIN_PARTN_MEMO'::character varying::text, 'LEVIN_TRIB_REC'::character varying::text, 'LEVIN_PARTN_REC'::character varying::text, 'LEVIN_ORG_REC'::character varying::text, 'LEVIN_INDV_REC'::character varying::text, 'LEVIN_NON_FED_REC'::character varying::text, 'LEVIN_OTH_REC'::character varying::text, 'LEVIN_PAC_REC'::character varying::text]);
 
-ALTER TABLE public.all_receipts_transactions_view
-    OWNER TO postgres;
 
 -- View: public.all_disbursements_transactions_view
 
@@ -628,8 +623,6 @@ UNION
      JOIN reports rp ON rp.cmte_id::text = sf.cmte_id::text AND rp.report_id = sf.report_id
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text;
 
-ALTER TABLE public.all_disbursements_transactions_view
-    OWNER TO postgres;
 
     -- View: public.all_other_transactions_view
 
@@ -1163,8 +1156,6 @@ UNION
      JOIN reports rp ON rp.cmte_id::text = h6.cmte_id::text AND rp.report_id = h6.report_id
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text;
 
-ALTER TABLE public.all_other_transactions_view
-    OWNER TO postgres;
 
 -- View: public.all_loans_debts_transactions_view
 
@@ -1296,8 +1287,6 @@ UNION
      JOIN reports rp ON rp.cmte_id::text = sd.cmte_id::text AND rp.report_id = sd.report_id
      JOIN ref_rpt_types rrt ON rp.report_type::text = rrt.rpt_type::text;
 
-ALTER TABLE public.all_loans_debts_transactions_view
-    OWNER TO postgres;
 
 -- View: public.all_contacts_view
 
@@ -1335,6 +1324,4 @@ CREATE OR REPLACE VIEW public.all_contacts_view
    FROM entity e
   ORDER BY e.last_update_date DESC;
 
-ALTER TABLE public.all_contacts_view
-    OWNER TO postgres;
 
