@@ -309,7 +309,7 @@ UNION
               WHERE csa.transaction_id::text = se.back_ref_transaction_id::text)) = 'Y'::bpchar THEN false
             ELSE true
         END AS iseditable,
-        NULL::character varying AS forceitemizable,
+        NULL::bool AS forceitemizable,
         CASE
             WHEN (( SELECT count(cs.transaction_id) AS count
                FROM all_transactions_view cs
@@ -382,7 +382,7 @@ UNION
               WHERE csa.transaction_id::text = sf.back_ref_transaction_id::text)) = 'Y'::bpchar THEN false
             ELSE true
         END AS iseditable,
-        NULL::character varying AS forceitemizable,
+        NULL::bool AS forceitemizable,
         CASE
             WHEN (( SELECT count(cs.transaction_id) AS count
                FROM all_transactions_view cs
