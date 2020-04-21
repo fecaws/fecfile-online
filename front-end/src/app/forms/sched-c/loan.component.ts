@@ -1,26 +1,21 @@
-import { F3xMessageService } from './../form-3x/service/f3x-message.service';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, NavigationStart } from '@angular/router';
+import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NgbTooltipConfig, NgbTypeaheadSelectItemEvent } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { ReportTypeService } from '../../forms/form-3x/report-type/report-type.service';
-import { FormsService } from '../../shared/services/FormsService/forms.service';
 import { MessageService } from '../../shared/services/MessageService/message.service';
 import { alphaNumeric } from '../../shared/utils/forms/validation/alpha-numeric.validator';
 import { validateAmount } from '../../shared/utils/forms/validation/amount.validator';
 import { UtilService } from '../../shared/utils/util.service';
 import { ScheduleActions } from '../form-3x/individual-receipt/schedule-actions.enum';
-import { LoanModel } from '../sched-c/model/loan.model';
-import { LoanMessageService } from '../sched-c/service/loan-message.service';
 import { LoanService } from '../sched-c/service/loan.service';
 import { TransactionsMessageService } from '../transactions/service/transactions-message.service';
 import { TypeaheadService } from './../../shared/partials/typeahead/typeahead.service';
-import { DialogService } from './../../shared/services/DialogService/dialog.service';
 import { ContributionDateValidator } from './../../shared/utils/forms/validation/contribution-date.validator';
+import { F3xMessageService } from './../form-3x/service/f3x-message.service';
 
 export enum ActiveView {
   Loans = 'Loans',
@@ -75,14 +70,9 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
 
   public entityType = 'IND';
 
-  private _formType = '';
-  private _transactionTypePrevious: string = null;
-  private _contributionAggregateValue = 0.0;
   private _selectedEntity: any;
   private _contributionAmountMax = 12;
   private readonly _childFieldNamePrefix = 'child*';
-  private _loanToEdit: LoanModel;
-  private _loading: boolean = false;
   private _selectedChangeWarn: any;
   private _transactionId: string;
   private _transactionTypeIdentifier: string;
@@ -94,10 +84,9 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
   private typeChangeEventOccured = false;
   _routeListener: Subscription;
   private c1ExistsFlag: any;
+  reportId: any;
 
   constructor(
-    private _http: HttpClient,
-    private _fb: FormBuilder,
     private _loansService: LoanService,
     private _config: NgbTooltipConfig,
     private _router: Router,
@@ -105,50 +94,29 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
     private _messageService: MessageService,
     private _decimalPipe: DecimalPipe,
     private _typeaheadService: TypeaheadService,
-    private _dialogService: DialogService,
-    private _LoanSumamrysMessageService: LoanMessageService,
-    private _formsService: FormsService,
     private _receiptService: ReportTypeService,
-    private _activatedRoute: ActivatedRoute,
     private _transactionsMessageService: TransactionsMessageService,
     private _contributionDateValidator: ContributionDateValidator,
-    private _f3xMessageService: F3xMessageService
+    private _f3xMessageService: F3xMessageService,
+    private _activatedRoute: ActivatedRoute
   ) {
     this._config.placement = 'right';
     this._config.triggers = 'click';
-
-
-
     this._clearFormSubscription = this._f3xMessageService.getInitFormMessage().subscribe(message => {
       if (this.frmLoan) {
         this.frmLoan.reset();
         this.setupForm();
       }
     });
-
+    this.reportId = this._activatedRoute.snapshot.queryParams.reportId;
   }
 
   ngOnInit(): void {
-    /* this._routeListener = this._router.events.subscribe(val => {
-
-      //whenver navigation starts, check the current form and set dirty status in the service to be retreived during GuardCheck
-      if (val instanceof NavigationStart) {
-        this._formsService.setFormDirtyFlag(this.frmLoan);
-      }
-
-
-      //check
-      console.info('checking router can deactivate or not');
-      console.info('route value: ' + val);
-    }); */
-
     this.setupForm();
   }
 
   private setupForm() {
     this._selectedEntity = null;
-    this._loanToEdit = null;
-    this._formType = this._activatedRoute.snapshot.paramMap.get('form_id');
     this._transactionTypeIdentifier = 'LOANS_OWED_BY_CMTE';
     this._transactionCategory = 'loans-and-debts';
     this._messageService.clearMessage();
@@ -157,22 +125,16 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   public ngOnChanges(changes: SimpleChanges): void {
-    console.log('inside ngOnChanges');
     this.ngOnInit();
   }
 
   public ngOnDestroy(): void {
     this._messageService.clearMessage();
     this._clearFormSubscription.unsubscribe();
-    //this._routeListener.unsubscribe();
   }
-
-
-
 
   private _setForm(fields: any): void {
     const formGroup: any = [];
-    console.log('_setForm fields ', fields);
     fields.forEach(el => {
       if (el.hasOwnProperty('cols')) {
         el.cols.forEach(e => {
@@ -373,14 +335,16 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
     /*    this is just a flag to distinguish what caused the loadDynamicFormFields() method to be invoked,
     as it can be invoked during initial form population during edit or during change event
     on ngselect  */
-    this.typeChangeEventOccured = true;
-    this.entityType = entityOption.code;
-    this.frmLoan.patchValue({ entity_type: entityOption.code }, { onlySelf: true });
-    if (this.scheduleAction === ScheduleActions.edit) {
-      this._prePopulateFormForEdit(this.transactionDetail);
-    }
-    else {
-      this.loadDynamiceFormFields();
+    if(entityOption !== undefined) {
+      this.typeChangeEventOccured = true;
+      this.entityType = entityOption.code;
+      this.frmLoan.patchValue({ entity_type: entityOption.code }, { onlySelf: true });
+      if (this.scheduleAction === ScheduleActions.edit) {
+        this._prePopulateFormForEdit(this.transactionDetail);
+      }
+      else {
+        this.loadDynamiceFormFields();
+      }
     }
   }
 
@@ -519,7 +483,30 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
       distinctUntilChanged(),
       switchMap(searchText => {
         if (searchText) {
-          return this._typeaheadService.getContacts(searchText, 'last_name');
+          /*
+          let result = this._typeaheadService.getContacts(searchText, 'last_name');
+
+          let hasValue = false;
+          result.pipe(map(contacts => {
+            if(Array.isArray(contacts)) {
+              if(contacts.length !== 0) {
+                hasValue = true;
+              }
+            }
+          }));
+
+          if(hasValue) {
+            result = result.pipe(map(contacts => contacts.filter(element => element.entity_type === 'IND' || element.entity_type === 'ORG')));
+          }
+
+          return result;
+          */
+         return this._typeaheadService.getContacts(searchText, 'last_name')
+          .map(contacts => {
+            let f = contacts.filter(con => con.entity_type === 'IND' || con.entity_type === 'ORG');
+            return (f.length > 0) ? f : null;
+          });
+
         } else {
           return Observable.of([]);
         }
@@ -535,7 +522,29 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
       distinctUntilChanged(),
       switchMap(searchText => {
         if (searchText) {
-          return this._typeaheadService.getContacts(searchText, 'first_name');
+          /*
+          let result = this._typeaheadService.getContacts(searchText, 'first_name');
+
+          let hasValue = false;
+          result.pipe(map(contacts => {
+            if(Array.isArray(contacts)) {
+              if(contacts.length !== 0) {
+                hasValue = true;
+              }
+            }
+          }));
+
+          if(hasValue) {
+            result = result.pipe(map(contacts => contacts.filter(element => element.entity_type === 'IND' || element.entity_type === 'ORG')));
+          }
+
+          return result;
+          */
+         return this._typeaheadService.getContacts(searchText, 'first_name')
+          .map(contacts => {
+            let f = contacts.filter(con => con.entity_type === 'IND' || con.entity_type === 'ORG');
+            return (f.length > 0) ? f : null;
+          });
         } else {
           return Observable.of([]);
         }
@@ -583,7 +592,30 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
       distinctUntilChanged(),
       switchMap(searchText => {
         if (searchText) {
-          return this._typeaheadService.getContacts(searchText, 'entity_name');
+          /*
+          let result = this._typeaheadService.getContacts(searchText, 'entity_name');
+
+          let hasValue = false;
+          result.pipe(map(contacts => {
+            if(Array.isArray(contacts)) {
+              if(contacts.length !== 0) {
+                hasValue = true;
+              }
+            }
+          }));
+
+          if(hasValue) {
+            result = result.pipe(map(contacts => contacts.filter(element => element.entity_type === 'IND' || element.entity_type === 'ORG')));
+          }
+
+          return result;
+          */
+
+          return this._typeaheadService.getContacts(searchText, 'entity_name')
+            .map(contacts => {
+              let f = contacts.filter(con => con.entity_type === 'IND' || con.entity_type === 'ORG');
+              return (f.length > 0) ? f : null;
+            });
         } else {
           return Observable.of([]);
         }
@@ -694,14 +726,14 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
             if (res.data.hasOwnProperty('individualFormFields')) {
               if (Array.isArray(res.data.individualFormFields)) {
                 this.individualFormFields = res.data.individualFormFields;
-                console.log('this.individualFormFields =', this.individualFormFields);
+                //console.log('this.individualFormFields =', this.individualFormFields);
               }
             }
 
             if (res.data.hasOwnProperty('OrganizationFormFields')) {
               if (Array.isArray(res.data.OrganizationFormFields)) {
                 this.organizationFormFields = res.data.OrganizationFormFields;
-                console.log('this.organizationFormFields =', this.organizationFormFields);
+                //console.log('this.organizationFormFields =', this.organizationFormFields);
               }
             }
 
@@ -720,14 +752,14 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
             if (res.data.hasOwnProperty('entityTypes')) {
               if (Array.isArray(res.data.entityTypes)) {
                 this.entityTypes = res.data.entityTypes;
-                console.log('this.entityTypes', this.entityTypes);
+                //console.log('this.entityTypes', this.entityTypes);
               }
             }
 
             if (res.data.hasOwnProperty('secured')) {
               if (Array.isArray(res.data.secured)) {
                 this.secured = res.data.secured;
-                console.log('this.secured', this.secured);
+                //console.log('this.secured', this.secured);
               }
             }
 
@@ -737,7 +769,6 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
               }
             }
 
-            this._loading = false;
           } // typeof res.data
         } // res.hasOwnProperty('data')
 
@@ -761,13 +792,13 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
 
 
   public loadDynamiceFormFields(): void {
-    console.log(' loadDynamiceFormFields this.entityType', this.entityType);
+    //console.log(' loadDynamiceFormFields this.entityType', this.entityType);
     if (this.entityType === 'IND') {
       this.formFields = this.individualFormFields;
     } else if (this.entityType === 'ORG') {
       this.formFields = this.organizationFormFields;
     }
-    console.log(' loadDynamiceFormFields this.entityType', this.entityType);
+    //console.log(' loadDynamiceFormFields this.entityType', this.entityType);
     this._setForm(this.formFields);
   }
 
@@ -949,15 +980,15 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
       }
       // LoanObj.entity_type = this.entityType;
       LoanObj['is_loan_secured'] = this.frmLoan.get('secured').value;
-      console.log('LoanObj =', JSON.stringify(LoanObj));
+      //console.log('LoanObj =', JSON.stringify(LoanObj));
 
       localStorage.setItem('LoanObj', JSON.stringify(LoanObj));
+      
       this._loansService
-        .saveSched_C(this.scheduleAction, this._transactionTypeIdentifier, LoanObj.entity_type)
+        .saveSched_C(this.scheduleAction, this._transactionTypeIdentifier, LoanObj.entity_type, this.reportId)
         .subscribe(res => {
           if (res) {
-            console.log('_LoansService.saveContact res', res);
-            this._loanToEdit = null;
+            //console.log('_LoansService.saveContact res', res);
             this.frmLoan.reset();
             this._selectedEntity = null;
             localStorage.removeItem(LoanObj);
@@ -988,7 +1019,7 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
       for (const name in controls) {
         if (controls[name].invalid) {
           invalid.push(name);
-          console.log('invalid form field on submit = ' + name);
+          //console.log('invalid form field on submit = ' + name);
         }
       }
     }
@@ -1050,7 +1081,7 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
 
     const reportId = this._receiptService.getReportIdFromStorage(this.formType);
     this._loansService.getDataSchedule(reportId, transactionDetail.transaction_id).subscribe((res: any) => {
-      console.log();
+      //console.log();
       if (!res) {
         return;
       }
@@ -1225,7 +1256,7 @@ export class LoanComponent implements OnInit, OnDestroy, OnChanges {
 
     this._clearFormValues();
     let reportId = this._receiptService.getReportIdFromStorage(this.formType);
-    console.log('reportId', reportId);
+    //console.log('reportId', reportId);
 
     if (!reportId) {
       reportId = '0';

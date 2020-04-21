@@ -28,7 +28,9 @@
           <input type="text" name="search" class="form-control-sm" placeholder="Search for..." />
           <i class="search-icon" aria-hidden="true"></i>
         </div>
-        <app-header class="container"></app-header>
+        <app-header class="container"
+          [formType]="formType"
+        ></app-header>
       </div>
     </nav>
   </div>
@@ -46,7 +48,7 @@
             {{ committeeName }}
           </h2> 
         </div>
-        <div class="float-right">
+        <div class="float-right" [hidden]="_activatedRoute?.snapshot?.queryParams?.allTransactions === 'true'">
           <div class="float-right" *ngIf="showFormDueDate">
             <div>
               <div>

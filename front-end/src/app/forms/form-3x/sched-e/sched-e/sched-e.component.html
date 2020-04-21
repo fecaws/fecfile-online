@@ -41,7 +41,18 @@
           </button>
           <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
             <button class="dropdown-item" (click)="printPreview()"><i class="print-icon"></i> Print</button>
-            <button class="dropdown-item"><i class="file-import-icon" (click)="ImportTransactions()"></i> Import</button>
+            <button class="dropdown-item"  (click)="ImportTransactions()">
+              <i class="file-import-icon"></i> Import
+            </button>
+            <button class="dropdown-item" (click)="toggleAggregation()">
+              <i class="calculator-icon" *ngIf="isShowForceAggregate()"></i> {{isAggregate?' Un-Aggregate':' Aggregate'}}
+            </button>
+            <button class="dropdown-item" (click)="toggleDissemination()" *ngIf="!addByDissemination && (disseminationDate !== null && disseminationDate !== '') && (disbursementDate !== null && disbursementDate !== '')">
+              <i class="calendar-icon" ></i> Add by Dissemination date
+            </button>
+            <button class="dropdown-item" (click)="toggleDissemination()" *ngIf="addByDissemination && (disbursementDate !== null && disbursementDate !== '')">
+              <i class="calendar-icon" ></i> Add by Disbursement date
+            </button>
           </div>
         </div>
       </div>
@@ -349,6 +360,26 @@
                             should fall within {{ coverageStartDate }} and {{ coverageEndDate }} (Coverage Dates of Report). If you
                             need to add a transaction with a date that falls outside of the coverage period for this report,
                             you will need to check the memo code box.
+                            <!-- Entered date is outside of the report coverage period. Please enter transactions for this
+                              coverage period only. -->
+                          </div>
+                        </ng-container>
+                        <ng-container *ngIf="frmIndividualReceipt.get(col?.name).errors">
+                          <div class="text-error text-left"
+                            *ngIf="frmIndividualReceipt.get(col?.name).errors?.reportFiled">
+                            The report corresponding to this date is already filed. You must amend the report first.
+                            <!-- Entered date is outside of the report coverage period. Please enter transactions for this
+                              coverage period only. -->
+                          </div>
+                          <div class="text-error text-left"
+                            *ngIf="frmIndividualReceipt.get(col?.name).errors?.reportNotFound">
+                            The report corresponding to this date is not found.
+                            <!-- Entered date is outside of the report coverage period. Please enter transactions for this
+                              coverage period only. -->
+                          </div>
+                          <div class="text-error text-left"
+                            *ngIf="frmIndividualReceipt.get(col?.name).errors?.dateEmpty">
+                            This date cannot be empty if adding IE by dissemination date. 
                             <!-- Entered date is outside of the report coverage period. Please enter transactions for this
                               coverage period only. -->
                           </div>
@@ -665,7 +696,7 @@
 
               <ng-template #allOtherTrx>
                 <div *ngIf="scheduleAction === editScheduleAction; else createActions">
-                  <button class="btn btn-previous btn-left" type="button" (click)="viewTransactions()">
+                  <button class="btn btn-previous btn-left" type="button" (click)="cancel()">
                     Cancel
                   </button>
                   <button class="btn btn-secondary btn-right" (click)="updateOnly()">
