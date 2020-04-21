@@ -3,5 +3,9 @@ export const environment = {
   name: 'local',
   apiUrl: 'http://localhost:8080/api/v1',
   appTitle: 'FECfile',
-  validateSuccess: 'All required fields have passed validation.'
+  validateSuccess: 'All required fields have passed validation.',
+  awsRegion: 'us-east-1',
+  awsIdentityPoolId: '##################################',
+  ACCESS_KEY: _process.env.ACCESS_KEY,
+  SECRET_KEY: _process.env.SECRET_KEY
 };

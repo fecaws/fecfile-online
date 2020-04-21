@@ -1,5 +1,15 @@
 @import '../../scss/global';
 
+.session-timed-out.modal-backdrop {
+  background-color: #5B616B;
+  opacity: 1.0 !important;
+  background-image:url("../../../../assets/img/fec-logo-5opac.png");
+  background-repeat: no-repeat;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+}
 .modal {
   .modal-dialog {
     .modal-content {
@@ -42,6 +52,9 @@
       }
       .info-header {
         background-color: $dodgerBlue;
+      }
+      .info-header-dark {
+        background-color: #112e51;
       }            
       .modal-body {
         color: $black;

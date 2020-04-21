@@ -1,17 +1,18 @@
-import { Injectable } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { CookieService } from 'ngx-cookie-service';
 import { Observable } from 'rxjs';
 import 'rxjs/add/observable/of';
-import { CookieService } from 'ngx-cookie-service';
-import { environment } from '../../../../environments/environment';
-import { LoanModel } from '../model/loan.model';
-import { OrderByPipe } from 'src/app/shared/pipes/order-by/order-by.pipe';
-import { FilterPipe, FilterTypeEnum } from 'src/app/shared/pipes/filter/filter.pipe';
-import { DatePipe } from '@angular/common';
-import { ZipCodePipe } from 'src/app/shared/pipes/zip-code/zip-code.pipe';
 import { map } from 'rxjs/operators';
+import { FilterPipe } from 'src/app/shared/pipes/filter/filter.pipe';
+import { OrderByPipe } from 'src/app/shared/pipes/order-by/order-by.pipe';
+import { ZipCodePipe } from 'src/app/shared/pipes/zip-code/zip-code.pipe';
+import { environment } from '../../../../environments/environment';
 import { ReportTypeService } from '../../../forms/form-3x/report-type/report-type.service';
 import { ScheduleActions } from '../../form-3x/individual-receipt/schedule-actions.enum';
+import { LoanModel } from '../model/loan.model';
 
 export interface GetLoanResponse {
   loans: LoanModel[];
@@ -56,7 +57,10 @@ export class LoanService {
     private _http: HttpClient,
     private _cookieService: CookieService,
     private _reportTypeService: ReportTypeService,
+    private _activatedRoute: ActivatedRoute
   ) {
+
+
     // mock out the recycle cnt
     for (let i = 0; i < 13; i++) {
       const t1: any = this.createMockTrx();
@@ -112,7 +116,7 @@ export class LoanService {
       )
       .pipe(map(res => {
         if (res) {
-          console.log('get_outstanding_loans API res: ', res);
+          //console.log('get_outstanding_loans API res: ', res);
 
           return res;
         }
@@ -140,7 +144,7 @@ export class LoanService {
     )
       .pipe(map(res => {
         if (res) {
-          console.log('get_outstanding_loans API res: ', res);
+          //console.log('get_outstanding_loans API res: ', res);
 
           return res;
         }
@@ -663,7 +667,7 @@ export class LoanService {
      )
      .pipe(map(res => {
          if (res) {
-           console.log('Trash Restore response: ', res);
+           //console.log('Trash Restore response: ', res);
            return res;
          }
          return false;
@@ -725,10 +729,12 @@ export class LoanService {
   * @param      {string}           formType  The form type
   * @param      {ScheduleActions}  scheduleAction  The type of action to save (add, edit)
   */
-  public saveSched_C(scheduleAction: ScheduleActions, transactionTypeIdentifier: string, subType: string): Observable<any> {
+  public saveSched_C(scheduleAction: ScheduleActions, transactionTypeIdentifier: string, subType: string, reportId :string= null): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
     const url: string = '/sc/schedC';
-    const reportId: string = this._reportTypeService.getReportIdFromStorage('3X').toString();
+    if(!reportId){
+      reportId = this._reportTypeService.getReportIdFromStorage('3X').toString();
+    }
     const loan: any = JSON.parse(localStorage.getItem('LoanObj'));
     const loanByCommFromIndObj: any = {
       api_call: '/sc/schedC',
@@ -773,8 +779,8 @@ export class LoanService {
     let loanhiddenFields: any;
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
 
-    console.log(" saveSched_C transactionTypeIdentifier =", transactionTypeIdentifier)
-    console.log(" saveSched_C subType =", subType)
+    //console.log(" saveSched_C transactionTypeIdentifier =", transactionTypeIdentifier)
+    //console.log(" saveSched_C subType =", subType)
 
     for (const [key, value] of Object.entries(loan)) {
       if (value !== null) {
@@ -794,7 +800,7 @@ export class LoanService {
       loanhiddenFields = loanToCommObj;
     }
 
-    console.log("loanhiddenFields", loanhiddenFields);
+    //console.log("loanhiddenFields", loanhiddenFields);
 
     //Add loan hidden fields
     for (const [key, value] of Object.entries(loanhiddenFields)) {
@@ -804,7 +810,7 @@ export class LoanService {
         }
       }
     }
-    console.log("saveSched_C reportId =", reportId);
+    //console.log("saveSched_C reportId =", reportId);
 
     formData.append('report_id', reportId);
 
@@ -816,7 +822,7 @@ export class LoanService {
         .pipe(
           map(res => {
             if (res) {
-              console.log(" saveLoan called res...!", res);
+              //console.log(" saveLoan called res...!", res);
               return res;
             }
             return false;
@@ -861,11 +867,12 @@ export class LoanService {
    * @param      {string}           formType  The form type
    * @param      {ScheduleActions}  scheduleAction  The type of action to save (add, edit)
    */
-  public saveSched_C2(scheduleAction: ScheduleActions, endorserForm: any, hiddenFields: any): Observable<any> {
+  public saveSched_C2(scheduleAction: ScheduleActions, endorserForm: any, hiddenFields: any, reportId:string = null): Observable<any> {
     const token: string = JSON.parse(this._cookieService.get('user'));
     const url: string = '/sc/schedC2';
-    const reportId: string = this._reportTypeService.getReportIdFromStorage('3X').toString();
-    // const loan: any = JSON.parse(localStorage.getItem('LoanObj'));
+    if(!reportId){
+      reportId = this._reportTypeService.getReportIdFromStorage('3X').toString();
+    }
 
     const hiddenFieldsObj: any = {
       api_call: '/sc/schedC2',
@@ -877,48 +884,10 @@ export class LoanService {
       transaction_type_identifier: 'LOANS_OWED_BY_CMTE',
       entity_type: 'IND',
       entity_id: hiddenFields.entity_id,
-      //also pass an additional attribute callled guarantor_entity_id since thats what is it is mapped to in db
       guarantor_entity_id: hiddenFields.entity_id
     };
 
-    /*     const loanByCommFromIndObj: any = {
-          api_call:'/sc/schedC',
-          line_number: 13,
-          //transaction_id:'16G',
-          transaction_id:loan.transaction_id,
-          back_ref_transaction_id: '',
-          back_ref_sched_name: '',
-          transaction_type: 'LOAN_FROM_IND',
-          transaction_type_identifier:'LOANS_OWED_BY_CMTE'
-        };
-        const loanByCommFromBankObj: any = {
-          api_call:'/sc/schedC',
-          line_number: 13,
-          //transaction_id:'16F',
-          transaction_id:loan.transaction_id,
-          back_ref_transaction_id: '',
-          back_ref_sched_name: '',
-          transaction_type: 'LOAN_FROM_BANK',
-          transaction_type_identifier:'LOANS_OWED_BY_CMTE'
-        };
-        const loanToCommObj: any = {
-          api_call:'/sc/schedC',
-          line_number: 13,
-          transaction_id:'',
-          back_ref_transaction_id: '',
-          back_ref_sched_name: '',
-          transaction_type: 'LOAN_TO_COMM',
-          transaction_type_identifier:'LOANS_OWED_TO_CMTE'
-        }; */
 
-    /*const committeeDetails: any = JSON.parse(localStorage.getItem('committee_details'));
-    let reportType: any = JSON.parse(localStorage.getItem(`form_${formType}_report_type`));
-
-    if (reportType === null || typeof reportType === 'undefined') {
-      reportType = JSON.parse(localStorage.getItem(`form_${formType}_report_type_backup`));
-    }*/
-
-    //const transactionType: any = JSON.parse(localStorage.getItem(`form_${formType}_transaction_type`));
     const formData: FormData = new FormData();
     let httpOptions = new HttpHeaders();
     let loanhiddenFields: any;
@@ -933,18 +902,9 @@ export class LoanService {
       }
     }
 
-    /* if (transactionTypeIdentifier==='LOANS_OWED_BY_CMTE'){
-      if (subType === 'IND'){
-        loanhiddenFields= loanByCommFromIndObj;
-      }else if (subType === 'ORG'){
-        loanhiddenFields= loanByCommFromBankObj;  
-      } 
-    } else if (transactionTypeIdentifier==='LOANS_OWED_TO_CMTE'){
-      loanhiddenFields= loanToCommObj;   
-    } */
     loanhiddenFields = hiddenFieldsObj;
 
-    console.log("loanhiddenFields", loanhiddenFields);
+    //console.log("loanhiddenFields", loanhiddenFields);
 
     //Add loan hidden fields
     for (const [key, value] of Object.entries(loanhiddenFields)) {
@@ -954,7 +914,7 @@ export class LoanService {
         }
       }
     }
-    console.log("saveSched_C reportId =", reportId);
+    //console.log("saveSched_C reportId =", reportId);
 
     formData.append('report_id', reportId);
 
@@ -966,7 +926,7 @@ export class LoanService {
         .pipe(
           map(res => {
             if (res) {
-              console.log(" saveLoan called res...!", res);
+              //console.log(" saveLoan called res...!", res);
               return res;
             }
             return false;

@@ -1,6 +1,7 @@
+import { SchedHMessageServiceService } from './../../../sched-h-service/sched-h-message-service.service';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnInit, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, SimpleChanges, ViewEncapsulation, Input , ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgbTooltipConfig, NgbTypeaheadSelectItemEvent } from '@ng-bootstrap/ng-bootstrap';
@@ -35,6 +36,11 @@ import { ScheduleActions } from './../../individual-receipt/schedule-actions.enu
 export class SchedEComponent extends IndividualReceiptComponent implements OnInit {
 
 
+  @Input() transactionData: any;
+  @Input() transactionDataForChild: any;
+  @Input() parentTransactionModel: any;
+
+  public addByDissemination : boolean = false;
 
   public hideCandidateState = false;
   public coverageStartDate = '';
@@ -44,6 +50,7 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
   public candOfficeStatesByTransactionType: any;
   public displayCandStateField = false;
   private _minStateSelectionForMultistate = 6;
+  
 
   public supportOpposeTypes = [
     { 'code': 'S', 'description': 'Support' },
@@ -80,7 +87,8 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
     _reportsService: ReportsService,
     private _multistateValidator: MultiStateValidator,
     private _changeDetector: ChangeDetectorRef,
-    private _schedEService: SchedEService) {
+    private _schedEService: SchedEService,
+    _schedHMessageServiceService:SchedHMessageServiceService) {
     super(
       _http,
       _fb,
@@ -101,7 +109,8 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
       _transactionsMessageService,
       _contributionDateValidator,
       _transactionsService,
-      _reportsService
+      _reportsService,
+      _schedHMessageServiceService
     );
 
     _messageService.getMessage().takeUntil(this._schedEonDestroy$).subscribe(message => {
@@ -144,34 +153,94 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
     return null;
   }
 
+  get disseminationDate(){
+    if (this.frmIndividualReceipt && this.frmIndividualReceipt.get('dissemination_date')) {
+      return this.frmIndividualReceipt.get('dissemination_date').value;
+    }
+    return null;
+  }
 
-/*   public ngOnChanges(changes: SimpleChanges) {
-    this.formType = '3X';
-    super.ngOnChanges(changes);
-  } */
+  get disbursementDate(){
+    if (this.frmIndividualReceipt && this.frmIndividualReceipt.get('disbursement_date')) {
+      return this.frmIndividualReceipt.get('disbursement_date').value;
+    }
+    return null;
+  }
 
 
   public ngOnInit() {
     this.loaded = false;
     this.formFieldsPrePopulated = true;
-    this.formType = '3X';
+    this.formType = this._activatedRoute.snapshot.paramMap.get('form_id');
+    this._parentTransactionModel = this.parentTransactionModel;
     super.ngOnInit();
     this.abstractScheduleComponent = AbstractScheduleParentEnum.schedEComponent;
     this._reportId = this._activatedRoute.snapshot.queryParams.reportId;
-    this._reportsService.getCoverageDates(this._reportId).subscribe(res => {
-      if (res) {
-        this.coverageStartDate = this._utilService.formatDate(res.cvg_start_date);
-        this.coverageEndDate = this._utilService.formatDate(res.cvg_end_date);
-      }
-    })
+    if(this._reportId){
+      this._reportsService.getCoverageDates(this._reportId).subscribe(res => {
+        if (res) {
+          this.coverageStartDate = this._utilService.formatDate(res.cvg_start_date);
+          this.coverageEndDate = this._utilService.formatDate(res.cvg_end_date);
+        }
+      });
+    }
 
   }
-
-  
 
   public ngOnDestroy(): void {
     this._schedEonDestroy$.next(true);
     super.ngOnDestroy();
+  }
+
+  public toggleDissemination(){
+    if(!this.addByDissemination){
+      this.addIeByDissemination();
+    }
+    else{
+      this.addIeByDisbursement();
+    }
+    this.addByDissemination = !this.addByDissemination;
+    this.frmIndividualReceipt.markAsDirty();
+  }
+
+  public addIeByDissemination() {
+    //remove validation on disbursement date
+    this.frmIndividualReceipt.controls['disbursement_date'].clearValidators();
+    this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
+
+    this._receiptService.getReportIdByTransactionDate(this._utilService.formatDate(this.disseminationDate)).subscribe(res => {
+      if (res) {
+        if (res.reportId) {
+          if (res.status && res.status !== 'Filed') {
+            let elementName = 'associated_report_id';
+              let field = this.hiddenFields.find(element => element.name === elementName);
+              if (field) {
+                field.value = res.reportId.toString();
+              }
+              else {
+                this.hiddenFields.push({ type: 'hidden', name: elementName, value: res.reportId.toString() });
+              }
+          }
+          else if (res.status && res.status === 'Filed') {
+            this.frmIndividualReceipt.controls['dissemination_date'].setErrors({ reportFiled: true });
+          }
+        }
+        else {
+          this.frmIndividualReceipt.controls['dissemination_date'].setErrors({ reportNotFound: true });
+        }
+      }
+    })
+  } 
+
+  public addIeByDisbursement() {
+
+    this.frmIndividualReceipt.controls['disbursement_date'].clearValidators();
+    this.frmIndividualReceipt.controls['disbursement_date'].setValidators([Validators.required, this._contributionDateValidator.contributionDate(this.coverageStartDate, this.coverageEndDate)]);
+    this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
+
+    this.frmIndividualReceipt.controls['dissemination_date'].setErrors(null);
+    let elementName = 'associated_report_id';
+    this.hiddenFields = this.hiddenFields.filter(element => element.name !== elementName);
   }
 
   /**Add any child specific initializations, validators here */
@@ -182,16 +251,18 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
       } else {
         this.frmIndividualReceipt.controls['disbursement_date'].setValidators([this._contributionDateValidator.contributionDate(this.coverageStartDate, this.coverageEndDate), Validators.required]);
       }
-      // this.frmIndividualReceipt.controls['disbursement_date'].setValidators([Validators.required]);
       this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
     }
 
     if (this.frmIndividualReceipt.controls['election_other_description']) {
       this.frmIndividualReceipt.controls['election_other_description'].clearValidators();
-      // this.frmIndividualReceipt.controls['election_other_description'].setValidators[();
       this.frmIndividualReceipt.controls['election_other_description'].updateValueAndValidity();
     }
 
+    if(!this.entityTypes || (this.entityTypes && this.entityTypes.length === 0)){
+      this.entityTypes = [{ entityType: "ORG", entityTypeDescription: "Organization", group: "org-group"}, { entityType: "IND", entityTypeDescription: "Individual", group: "ind-group"}];
+    }
+    
     //TODO -- currently for some of the forms api is sending entityTypes as null. Setting it here based on transaction type until that is fixed
     if (this.transactionType === 'IE_CC_PAY' || this.transactionType === 'IE_PMT_TO_PROL') {
       let entityItem = { entityType: "ORG", entityTypeDescription: "Organization", group: "org-group", selected: true };
@@ -294,6 +365,15 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
       this._utilService.addOrEditObjectValueInArray(this.hiddenFields,'hidden','completing_entity_id',trx.completing_entity_id);
       this._utilService.addOrEditObjectValueInArray(this.hiddenFields,'hidden','payee_entity_id',trx.payee_entity_id);
     }
+
+    this.handleTransactionIfAssociatedByDisseminationDate(trx);
+  }
+
+
+  private handleTransactionIfAssociatedByDisseminationDate(trx:any) {
+    if(trx && trx.associatedbydissemination){
+      this.toggleDissemination();
+    }
   }
 
   public isFieldVisible(colName: string): boolean {
@@ -320,43 +400,76 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
 
   private updateOfficeSoughtFields($event: any, col: any) {
     if ($event && $event.code === 'P') {
-      //hide state and district and update validations
+      // hide state and district and update validations
       this.updateOfficeSoughtForPresident(col);
-    }
-    else if ($event && $event.code === 'S') {
-      //show state && hide district and update validations
+    } else if ($event && $event.code === 'S') {
+      // show state && hide district and update validations
       this.updateOfficeSoughtForSenate(col);
-    }
-    else if ($event && $event.code === 'H') {
-      //show state and district and update validations
+    } else if ($event && $event.code === 'H') {
+      // show state and district and update validations
       this.updateOfficeSoughtForHouse(col);
     }
 
-    //on any update to officeSought fields, YTD needs to be calculated and set. 
+    // on any update to officeSought fields, YTD needs to be calculated and set.
     this.updateYTDAmount();
   }
 
   private updateYTDAmount() {
-
-    console.log('YTD is being recalculated ...');
+    // console.log('YTD is being recalculated ...');
     let currentExpenditureAmount = this._convertAmountToNumber(this.frmIndividualReceipt.controls['expenditure_amount'].value);
+    const currentAggregate = this._convertAmountToNumber(this.frmIndividualReceipt.controls['expenditure_aggregate'].value);
+
     if (this.scheduleAction === ScheduleActions.edit) {
-      this.frmIndividualReceipt.patchValue({
-        expenditure_aggregate:
-          this._decimalPipe.transform(this._originalExpenditureAggregate - this._originalExpenditureAmount +
-            this._convertAmountToNumber(this.frmIndividualReceipt.controls['expenditure_amount'].value), '.2-2')
-      }, { onlySelf: true });
-    }
-    else if (this.transactionType.endsWith('_MEMO')){
-      this.frmIndividualReceipt.patchValue({
-        expenditure_aggregate:
-          this._decimalPipe.transform(this._convertAmountToNumber(this.frmIndividualReceipt.controls['expenditure_amount'].value), '.2-2')
-      }, { onlySelf: true });
-    }
-    else  {
+      let newAggregate = null;
+      const originalAggregationInd = this._utilService.aggregateIndToBool(this._transactionToEdit.aggregation_ind);
+      if (this._transactionToEdit) {
+        if (originalAggregationInd === this.isAggregate) {
+          // the aggregation indicator is same since initial load
+          if (this.isAggregate && originalAggregationInd === true) {
+          // is Aggregated already check if amount changed
+            if (this._originalExpenditureAmount !== currentExpenditureAmount) {
+              // amount has changed since last load
+              // recalculate aggregate with new amount
+              newAggregate = this._originalExpenditureAggregate - this._originalExpenditureAmount + currentExpenditureAmount;
+            } else {
+              newAggregate = this._originalExpenditureAggregate;
+            }
+          } else if (!this.isAggregate && originalAggregationInd === false) {
+            // check if aggregate is the same as initial load
+            if (currentAggregate === this._originalExpenditureAggregate) {
+              // do nothing
+            } else {
+              newAggregate = this._originalExpenditureAggregate;
+            }
+          }
+        } else {
+          // the aggregation indicator has changed since initial load
+          // recalculate aggregate
+          if (this.isAggregate && originalAggregationInd === false) {
+            // amount was not aggregated during initial load
+            // aggregate the amount now
+            newAggregate = currentExpenditureAmount  + this._originalExpenditureAggregate;
+            this.frmIndividualReceipt.patchValue(
+                {expenditure_aggregate: this._decimalPipe.transform(newAggregate, '.2-2')}, {onlySelf: true});
+          } else if (this.isAggregate === false && originalAggregationInd === true) {
+            // amount was aggregated during initial load
+            // un-aggregate the amount now
+              newAggregate = this._originalExpenditureAggregate - this._originalExpenditureAmount;
+          }
+        }
+
+      }
+      if (newAggregate != null ) {
+        this.frmIndividualReceipt.patchValue(
+            {expenditure_aggregate: this._decimalPipe.transform(newAggregate, '.2-2')}, {onlySelf: true});
+      }
+    } else  {
       this._schedEService.getAggregate(this.frmIndividualReceipt.value).subscribe(res => {
 
-        this._currentAggregate = "0";
+        this._currentAggregate = '0';
+        if (!this.isAggregate) {
+          currentExpenditureAmount = 0;
+        }
 
         if (res && res.ytd_amount) {
           this._currentAggregate = res.ytd_amount;
@@ -372,7 +485,7 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
         }, { onlySelf: true });
       });
     }
-     
+
   }
 
   private _convertAmountToNumber(amount: string) {
@@ -506,23 +619,37 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
 
   public dateChange(fieldName: string) {
 
-    //Remove valdiations from the other date field if one is present
-    if (fieldName === 'disbursement_date' && this.frmIndividualReceipt.controls[fieldName] && this.frmIndividualReceipt.controls[fieldName].value) {
-      this.frmIndividualReceipt.controls['dissemination_date'].clearValidators();
-      this.frmIndividualReceipt.controls['dissemination_date'].updateValueAndValidity();
-    }
-    else if (fieldName === 'dissemination_date' && this.frmIndividualReceipt.controls[fieldName] && this.frmIndividualReceipt.controls[fieldName].value) {
-      this.frmIndividualReceipt.controls['disbursement_date'].clearValidators();
-      this.frmIndividualReceipt.controls['disbursement_date'].setValidators([this._contributionDateValidator.contributionDate(this.coverageStartDate, this.coverageEndDate)]);
-      this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
-    }
-    else if ((this.frmIndividualReceipt.controls['dissemination_date'] && this.frmIndividualReceipt.controls['disbursement_date']) &&
-     (!this.frmIndividualReceipt.controls['dissemination_date'].value && !this.frmIndividualReceipt.controls['disbursement_date'].value)) {
-      this.frmIndividualReceipt.controls['disbursement_date'].setValidators([this._contributionDateValidator.contributionDate(this.coverageStartDate, this.coverageEndDate), Validators.required]);
-      this.frmIndividualReceipt.controls['dissemination_date'].setValidators([Validators.required]);
-      this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
-      this.frmIndividualReceipt.controls['dissemination_date'].updateValueAndValidity();
+      //Remove valdiations from the other date field if one is present
+      if (fieldName === 'disbursement_date' && this.frmIndividualReceipt.controls[fieldName] && this.frmIndividualReceipt.controls[fieldName].value) {
+        this.frmIndividualReceipt.controls['dissemination_date'].clearValidators();
+        this.frmIndividualReceipt.controls['dissemination_date'].updateValueAndValidity();
+      }
+      else if (fieldName === 'dissemination_date' && this.frmIndividualReceipt.controls[fieldName] && this.frmIndividualReceipt.controls[fieldName].value) {
+        this.frmIndividualReceipt.controls['disbursement_date'].clearValidators();
+        this.frmIndividualReceipt.controls['disbursement_date'].setValidators([this._contributionDateValidator.contributionDate(this.coverageStartDate, this.coverageEndDate)]);
+        this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
+      }
+      else if ((this.frmIndividualReceipt.controls['dissemination_date'] && this.frmIndividualReceipt.controls['disbursement_date']) &&
+       (!this.frmIndividualReceipt.controls['dissemination_date'].value && !this.frmIndividualReceipt.controls['disbursement_date'].value)) {
+        this.frmIndividualReceipt.controls['disbursement_date'].setValidators([this._contributionDateValidator.contributionDate(this.coverageStartDate, this.coverageEndDate), Validators.required]);
+        this.frmIndividualReceipt.controls['dissemination_date'].setValidators([Validators.required]);
+        this.frmIndividualReceipt.controls['disbursement_date'].updateValueAndValidity();
+        this.frmIndividualReceipt.controls['dissemination_date'].updateValueAndValidity();
+  
+      }
 
+    if(this.addByDissemination){
+      if(!this.disseminationDate || !this.disbursementDate){
+        if(!this.disseminationDate){
+          this.frmIndividualReceipt.controls['dissemination_date'].setErrors({ dateEmpty: true });
+        }
+        if(!this.disbursementDate){
+          this.frmIndividualReceipt.controls['disbursement_date'].setErrors({ dateEmpty: true });
+        }
+      }
+      else{
+        this.addIeByDissemination();
+      }
     }
   }
 
@@ -539,10 +666,20 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
     return amount.toString().replace(new RegExp(',', 'g'), '');
   }
 
+  public viewTransactions() {
+    this.addSchedESpecificMetadata();
+    super.viewTransactions();
+  }
+
   public saveOnly() {
     this.addSchedESpecificMetadata();
     super.saveOnly();
     this.rollbackIfSaveFailed();
+  }
+
+  public saveOrWarn(){
+    this.addSchedESpecificMetadata();
+    super.saveOrWarn();
   }
 
   public updateOnly() {
@@ -565,8 +702,12 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
     super.returnToParent(scheduleAction);
   }
 
+ 
   private addSchedESpecificMetadata() {
-    this._utilService.addOrEditObjectValueInArray(this.hiddenFields, 'hidden','full_election_code', this.electionCode[0] + this.electionYear);
+    if(this.hiddenFields && this.electionCode && this.electionYear){
+      this._utilService.addOrEditObjectValueInArray(this.hiddenFields, 'hidden','full_election_code', this.electionCode[0] + this.electionYear);
+
+    }
   }
 
 
@@ -687,5 +828,12 @@ export class SchedEComponent extends IndividualReceiptComponent implements OnIni
 
     return `${payeeCmteID}, ${candidateId}, ${lastName}, ${firstName}, ${office},
       ${officeState}, ${officeDistrict}`;
+  }
+
+  public toggleAggregation(): void {
+    this.isAggregate = !this.isAggregate;
+
+    this.updateYTDAmount();
+
   }
 }

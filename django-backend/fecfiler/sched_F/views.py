@@ -155,6 +155,7 @@ def schedF_sql_dict(data):
         "state",
         "zip_code",
         "prefix",
+        "aggregation_ind",
     ]
     try:
         output = {k: v for k, v in data.items() if k in valid_fields}
@@ -290,6 +291,7 @@ def put_sql_schedF(data):
                   payee_cand_district = %s,
                   memo_code = %s,
                   memo_text = %s,
+                  aggregation_ind = %s,
                   last_update_date = %s
               WHERE transaction_id = %s AND report_id = %s AND cmte_id = %s 
               AND delete_ind is distinct from 'Y';
@@ -328,6 +330,7 @@ def put_sql_schedF(data):
         data.get("payee_cand_district"),
         data.get("memo_code"),
         data.get("memo_text"),
+        data.get("aggregation_ind"),
         datetime.datetime.now(),
         data.get("transaction_id"),
         data.get("report_id"),
@@ -438,10 +441,11 @@ def post_sql_schedF(data):
             payee_cand_district,
             memo_code,
             memo_text,
+            aggregation_ind,
             create_date,
             last_update_date
             )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s); 
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s); 
         """
         _v = (
             data.get("cmte_id"),
@@ -480,6 +484,7 @@ def post_sql_schedF(data):
             data.get("payee_cand_district"),
             data.get("memo_code"),
             data.get("memo_text"),
+            data.get("aggregation_ind"),
             datetime.datetime.now(),
             datetime.datetime.now(),
         )
@@ -626,6 +631,7 @@ def get_list_schedF(report_id, cmte_id, transaction_id, is_back_ref=False):
             sf.memo_code,
             sf.memo_text,
             sf.delete_ind,
+            sf.aggregation_ind,
             sf.create_date,
             sf.last_update_date,
             (SELECT DISTINCT ON (e.ref_cand_cmte_id) e.entity_id 
@@ -999,7 +1005,8 @@ def update_aggregate_general_elec_exp(cmte_id, beneficiary_cand_id, expenditure_
             cvg_start_date, cvg_end_date, beneficiary_cand_id
         )
         for transaction in transaction_list:
-            if transaction["memo_code"] != "X":
+            # memo_code checking removed
+            if transaction["aggregation_ind"] != 'N':
                 aggregate_amount += float(transaction["expenditure_amount"])
             if transaction["expenditure_date"] >= expenditure_date:
                 put_aggregate_SF(aggregate_amount, transaction["transaction_id"])
@@ -1014,11 +1021,22 @@ def get_SF_transactions_candidate(start_date, end_date, beneficiary_cand_id):
     try:
         with connection.cursor() as cursor:
             cursor.execute(
-                """SELECT json_agg(t) FROM (SELECT t1.transaction_id, t1.expenditure_date, t1.expenditure_amount, 
-                t1.aggregate_general_elec_exp, t1.memo_code FROM public.sched_f t1 WHERE t1.payee_cand_id = %s AND t1.expenditure_date >= %s AND 
-                t1.expenditure_date <= %s AND t1.delete_ind is distinct FROM 'Y' 
-                AND (SELECT t2.delete_ind FROM public.reports t2 WHERE t2.report_id = t1.report_id) is distinct FROM 'Y'
-                ORDER BY t1.expenditure_date ASC, t1.create_date ASC) t""",
+                """SELECT json_agg(t) FROM (
+                    SELECT 
+                    t1.transaction_id, 
+                    t1.expenditure_date, 
+                    t1.expenditure_amount, 
+                    t1.aggregate_general_elec_exp, 
+                    t1.memo_code,
+                    t1.aggregation_ind
+                    FROM public.sched_f t1 
+                    WHERE t1.payee_cand_id = %s 
+                    AND t1.expenditure_date >= %s 
+                    AND t1.expenditure_date <= %s 
+                    AND t1.delete_ind is distinct FROM 'Y' 
+                    AND (SELECT t2.delete_ind FROM public.reports t2 WHERE t2.report_id = t1.report_id) is distinct FROM 'Y'
+                    ORDER BY t1.expenditure_date ASC, t1.create_date ASC
+                ) t""",
                 [beneficiary_cand_id, start_date, end_date],
             )
             if cursor.rowcount == 0:
@@ -1101,3 +1119,79 @@ def get_election_year(office_sought, election_state, election_district):
             "The get_election_year function is throwing an error: " + str(e)
         )
 
+def update_sf_aggregation_status(transaction_id, status):
+    """
+    helpder function to update sf aggregation_ind
+    """
+    _sql = """
+    update public.sched_f
+    set aggregation_ind = %s
+    where transaction_id = %s
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(_sql, [status, transaction_id])
+            if cursor.rowcount == 0:
+                raise Exception(
+                    "The Transaction ID: {} does not exist in sf table".format(
+                        transaction_id
+                    )
+                )
+    except:
+        raise
+
+
+@api_view(["PUT"])
+def force_aggregate_sf(request):
+    """
+    api to force a transaction to be aggregated:
+    1. set aggregate_ind = 'Y'
+    2. re-do entity-based aggregation on sf
+    """
+    try:
+        cmte_id = request.user.username
+        report_id = request.data.get("report_id")
+        transaction_id = request.data.get("transaction_id")
+        if not transaction_id:
+            raise Exception("transaction id is required for this api call.")
+        update_sf_aggregation_status(transaction_id, "Y")
+        tran_data = get_list_schedF(report_id, cmte_id, transaction_id)[0]
+        update_aggregate_general_elec_exp(
+                tran_data["cmte_id"], tran_data["payee_cand_id"], tran_data["expenditure_date"]
+            )
+        return JsonResponse(
+                {"status": "success"}, status=status.HTTP_200_OK
+            )
+    except Exception as e:
+        return Response(
+            "The force_aggregate_sf API is throwing an error: " + str(e),
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["PUT"])
+def force_unaggregate_sf(request):
+    """
+    api to force a transaction to be un-aggregated:
+    1. set aggregate_ind = 'N'
+    2. re-do entity-based aggregation on sf
+    """
+    try:
+        cmte_id = request.user.username
+        report_id = request.data.get("report_id")
+        transaction_id = request.data.get("transaction_id")
+        if not transaction_id:
+            raise Exception("transaction id is required for this api call.")
+        update_sf_aggregation_status(transaction_id, "N")
+        tran_data = get_list_schedF(report_id, cmte_id, transaction_id)[0]
+        update_aggregate_general_elec_exp(
+                tran_data["cmte_id"], tran_data["payee_cand_id"], tran_data["expenditure_date"]
+            )
+        return JsonResponse(
+                {"status": "success"}, status=status.HTTP_200_OK
+            )
+    except Exception as e:
+        return Response(
+            "The force_aggregate_sf API is throwing an error: " + str(e),
+            status=status.HTTP_400_BAD_REQUEST,
+        )

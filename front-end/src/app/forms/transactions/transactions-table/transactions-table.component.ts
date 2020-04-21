@@ -1,34 +1,25 @@
-import { LoanService } from './../../sched-c/service/loan.service';
-import { Component, Input, OnInit, ViewEncapsulation, ViewChild, OnDestroy } from '@angular/core';
-import { style, animate, transition, trigger } from '@angular/animations';
-import { ActivatedRoute, NavigationEnd, Router, NavigationStart, RoutesRecognized } from '@angular/router';
-import { PaginationInstance } from 'ngx-pagination';
+import { Component, Input, OnDestroy, OnInit, ViewChild, ViewEncapsulation } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ModalDirective } from 'ngx-bootstrap/modal';
-import { TransactionModel } from '../model/transaction.model';
+import { PaginationInstance } from 'ngx-pagination';
+import { Subject } from 'rxjs';
+import 'rxjs/add/operator/distinctUntilChanged';
+import 'rxjs/add/operator/takeUntil';
+import { Subscription } from 'rxjs/Subscription';
+import { ConfirmModalComponent, ModalHeaderClassEnum } from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
+import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
 import { SortableColumnModel } from 'src/app/shared/services/TableService/sortable-column.model';
-import { TransactionsService, GetTransactionsResponse } from '../service/transactions.service';
 import { TableService } from 'src/app/shared/services/TableService/table.service';
 import { UtilService } from 'src/app/shared/utils/util.service';
-import { ActiveView } from '../transactions.component';
-import { TransactionsMessageService } from '../service/transactions-message.service';
-import { Subscription } from 'rxjs/Subscription';
-import {
-  ConfirmModalComponent,
-  ModalHeaderClassEnum
-} from 'src/app/shared/partials/confirm-modal/confirm-modal.component';
-import { DialogService } from 'src/app/shared/services/DialogService/dialog.service';
-import { TransactionFilterModel } from '../model/transaction-filter.model';
 import { ReportTypeService } from '../../../forms/form-3x/report-type/report-type.service';
-import { environment } from 'src/environments/environment';
 import { IndividualReceiptService } from '../../form-3x/individual-receipt/individual-receipt.service';
 import { TransactionTypeService } from '../../form-3x/transaction-type/transaction-type.service';
-import { ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
-import { filter } from 'rxjs/operators';
-import { ScheduleActions } from '../../form-3x/individual-receipt/schedule-actions.enum';
-import { Subject } from 'rxjs';
-import 'rxjs/add/operator/takeUntil';
 import { FilterTypes } from '../enums/filterTypes.enum';
-import { forEach } from '@angular/router/src/utils/collection';
+import { TransactionFilterModel } from '../model/transaction-filter.model';
+import { TransactionModel } from '../model/transaction.model';
+import { TransactionsMessageService } from '../service/transactions-message.service';
+import { GetTransactionsResponse, TransactionsService } from '../service/transactions.service';
+import { ActiveView } from '../transactions.component';
 
 const transactionCategoryOptions = [];
 
@@ -40,12 +31,12 @@ const transactionCategoryOptions = [];
     '../../../shared/partials/confirm-modal/confirm-modal.component.scss'
   ],
   encapsulation: ViewEncapsulation.None,
-  animations: [
+  /* animations: [
     trigger('fadeInOut', [
       transition(':enter', [style({ opacity: 0 }), animate(500, style({ opacity: 1 }))]),
       transition(':leave', [animate(0, style({ opacity: 0 }))])
     ])
-  ]
+  ] */
 })
 export class TransactionsTableComponent implements OnInit, OnDestroy {
   @ViewChild('columnOptionsModal')
@@ -187,6 +178,9 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
   //subscriptions are piling up, causing a single api call to be made n+1 times. 
   private onDestroy$ = new Subject();
   loadDefaultReceiptsTabSubscription: Subscription;
+  routerSubscription: Subscription;
+
+  selectedFromMultiplePages: Array <TransactionModel> = [];
 
   constructor(
     private _transactionsService: TransactionsService,
@@ -199,8 +193,15 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     private _activatedRoute: ActivatedRoute,
     private _receiptService: IndividualReceiptService,
     private _transactionTypeService: TransactionTypeService,
-    private _loanService: LoanService
   ) {
+
+    const paginateConfig: PaginationInstance = {
+      id: 'forms__trx-table-pagination',
+      itemsPerPage: this.maxItemsPerPage,
+      currentPage: 1
+    };
+    this.config = paginateConfig;
+
     this.showPinColumnsSubscription = this._transactionsMessageService.getShowPinColumnMessage().subscribe(message => {
       this.showPinColumns();
     });
@@ -214,7 +215,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
             this.formType = filters.formType;
           }
         }
-        this.getPage(this.config.currentPage);
+        this.getPage(1);
       });
 
     this.loadDefaultReceiptsTabSubscription = this._transactionsMessageService.getLoadDefaultTabMessage()
@@ -241,22 +242,21 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
       });
 
 
-    let routeSubscription = _activatedRoute.queryParams;
-    routeSubscription.takeUntil(this.onDestroy$).subscribe(p => {
+    this.routerSubscription = _activatedRoute.queryParams.takeUntil(this.onDestroy$)
+    .distinctUntilChanged().subscribe(p => {
       this.transactionCategory = p.transactionCategory;
+      if (p.allTransactions === true || p.allTransactions === 'true') {
+        this._allTransactions = true;
+      } else {
+        this._allTransactions = false;
+      }
       this.getPage(1);
       this.clonedTransaction = {};
       this.setSortableColumns();
       if (p.edit === 'true' || p.edit === true) {
         this.editMode = true;
       }
-      if (p.allTransactions === true || p.allTransactions === 'true') {
-        this._allTransactions = true;
-        this.ngOnInit();
-        this.getPage(1);
-      } else {
-        this._allTransactions = false;
-      }
+      
     });
   }
 
@@ -267,14 +267,6 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     this.committeeDetails = JSON.parse(localStorage.getItem('committee_details'));
     this.pageReceivedTransactions = false;
     this.pageReceivedReports = false;
-
-    const paginateConfig: PaginationInstance = {
-      id: 'forms__trx-table-pagination',
-      itemsPerPage: this.maxItemsPerPage,
-      currentPage: 1
-    };
-    this.config = paginateConfig;
-    // this.config.currentPage = 1;
 
     this.getCachedValues();
     this.cloneSortableColumns = this._utilService.deepClone(this.sortableColumns);
@@ -291,22 +283,22 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
       // this.reportId = this._getReportIdFromStorage();
     }
     if (this.reportId) {
-      this.getPage(this.config.currentPage);
+      // this.getPage(this.config.currentPage);
     }
 
     // When coming from transaction route the reportId is not received
     // from the input perhaps due to the ngDoCheck in transactions-component.
     // TODO look at replacing ngDoCheck and reportId as Input()
     // with a message subscription service.
-    if (this.routeData) {
+    /* if (this.routeData) {
       if (this.routeData.accessedByRoute) {
         if (this.routeData.reportId) {
-          console.log('reportId for transaction accessed directly by route is ' + this.routeData.reportId);
+          //console.log('reportId for transaction accessed directly by route is ' + this.routeData.reportId);
           this.reportId = this.routeData.reportId;
           this.getPage(this.config.currentPage);
         }
       }
-    }
+    } */
 
     this._transactionTypeService.getTransactionCategories('3X').subscribe(res => {
       if (res) {
@@ -338,6 +330,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         }
       }
     });
+    this.getPage(this.config.currentPage);
+    this.applyDisabledColumnOptions();
   }
 
   /**
@@ -349,6 +343,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     this.keywordFilterSearchSubscription.unsubscribe();
     this.loadTransactionsSubscription.unsubscribe();
     this.loadDefaultReceiptsTabSubscription.unsubscribe();
+    this.routerSubscription.unsubscribe();
     this.onDestroy$.next(true);
   }
 
@@ -381,7 +376,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
             if (trx.transaction_id === transactionId) {
               if (trx.hasOwnProperty('child')) {
                 for (const subTrx of trx.child) {
-                  console.log('sub tran id ' + subTrx.transaction_id);
+                  //console.log('sub tran id ' + subTrx.transaction_id);
                 }
               }
             }
@@ -472,6 +467,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         const transactionsModelL = this._transactionsService.mapFromServerFields(res.transactions);
         this.transactionsModel = transactionsModelL;
 
+        this.setSelectedForMultiplyPages();
+
         if (this.clonedTransaction && this.clonedTransaction.hasOwnProperty('transaction_id')) {
           for (
             let transactionModelIndex = 0;
@@ -504,7 +501,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         this.numberOfPages = res.totalPages;
         this.allTransactionsSelected = false;
       }, error => {
-        console.log('API Error occured: ' + error);
+        //console.log('API Error occured: ' + error);
         this.apiError = true;
       });
   }
@@ -572,6 +569,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         allTransactions: this._allTransactions
       }
     });
+
+    this.selectedFromMultiplePages = [];
   }
 
   /**
@@ -641,6 +640,8 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
 
         const transactionsModelL = this._transactionsService.mapFromServerFields(res.transactions);
         this.transactionsModel = transactionsModelL;
+
+        this.setSelectedForMultiplyPages();
 
         // handle non-numeric amounts
         // TODO handle this server side in API
@@ -851,16 +852,26 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    */
   public printAllSelected(): void {
     //alert('Print all transactions is not yet supported');
-    console.log('TransactionsTableComponent printAllSelected...!');
+    //console.log('TransactionsTableComponent printAllSelected...!');
 
     let trxIds = '';
     const selectedTransactions: Array<TransactionModel> = [];
     let unItemizedCount = 0;
     let selectedCount = 0;
-    for (const trx of this.transactionsModel) {
+    let reportIdSet = new Set();
+    //for (const trx of this.transactionsModel) {
+    for (const trx of this.selectedFromMultiplePages) {
       if (trx.selected) {
         selectedCount++;
         // remove un-itemized  trxIds here when printing multiple
+        reportIdSet.add(trx.reportId);
+        
+        //if multiple transactions from multiple reports are selected, then do not let them proceed. 
+        if(reportIdSet.size > 1){
+          this.showMultipleReportsWarn();
+          return;
+        }
+        
         if (trx.itemized && trx.itemized === 'U') {
           unItemizedCount++;
           continue;
@@ -874,13 +885,17 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     } else {
 
       trxIds = trxIds.substr(0, trxIds.length - 2);
+      let reportId = null;
+      if(reportIdSet && reportIdSet.size === 1){
+        reportId = reportIdSet.values().next();
+      }
       //this._reportTypeService.signandSaveSubmitReport(this.formType, 'Saved' );
-      this._reportTypeService.printPreview('transaction_table_screen', '3X', trxIds);
+      this._reportTypeService.printPreview('transaction_table_screen', '3X', trxIds, reportId.value);
     }
   }
 
   public printPreview(): void {
-    console.log('TransactionsTableComponent printPreview...!');
+    //console.log('TransactionsTableComponent printPreview...!');
 
     this._reportTypeService.printPreview('transaction_table_screen', '3X');
   }
@@ -907,8 +922,10 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     // let iseditable = true;
     let unEditableTypesArray = [];
     let linkedTransactionsArray = [];
+    let filedTransactionsArray = [];
     const selectedTransactions: Array<TransactionModel> = [];
-    for (const trx of this.transactionsModel) {
+    //for (const trx of this.transactionsModel) {
+    for (const trx of this.selectedFromMultiplePages) {
       if (trx.selected) {
 
         //this condition only applies to H1 and H2s
@@ -919,13 +936,17 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         if (!trx.iseditable) {
           unEditableTypesArray.push(trx.type);
         }
+
+        if (trx.reportstatus === 'Filed'){
+          filedTransactionsArray.push(`${trx.type} - ${trx.reportType}`);
+        }
         
         selectedTransactions.push(trx);
         trxIds += trx.transactionId + ', ';
       }
     }
 
-    if (unEditableTypesArray.length > 0 || linkedTransactionsArray.length > 0) {
+    if (unEditableTypesArray.length > 0 || linkedTransactionsArray.length > 0 || filedTransactionsArray.length > 0) {
       let message = '';
       if (unEditableTypesArray.length > 0) {
         message += "You cannot delete the following selected transaction types because they are auto-generated. ";
@@ -940,6 +961,14 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         message += "You cannot delete the following selected transaction types because they are linked to other transactions. Please delete them first.";
         let linkedTransactionsSet = new Set(linkedTransactionsArray);
         linkedTransactionsSet.forEach(transactionType => {
+          message += `    \n \u2022 ${transactionType}`;
+        });
+      } 
+
+      if (filedTransactionsArray.length > 0) {
+        message += "You cannot delete the following selected transaction types because the report(s) associated with them are already filed. If you want to change, you must Amend the report.";
+        let filedTransactionsSet = new Set(filedTransactionsArray);
+        filedTransactionsSet.forEach(transactionType => {
           message += `    \n \u2022 ${transactionType}`;
         });
       } 
@@ -1060,7 +1089,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     if (trx.itemized && (trx.itemized === 'U' || trx.itemized === 'u' )) {
     this.showUnItemizedWarn();
     } else {
-      this._reportTypeService.printPreview('transaction_table_screen', '3X', trx.transactionId);
+      this._reportTypeService.printPreview('transaction_table_screen', '3X', trx.transactionId, trx.reportId);
     }
   }
 
@@ -1307,21 +1336,23 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
     // on the current page.
 
     this.bulkActionCounter = 0;
-    // for (const t of this.transactionsModel) {
-    //   t.selected = this.allTransactionsSelected;
-    //   if (this.allTransactionsSelected) {
-    //     this.bulkActionCounter++;
-    //   }
-    // }
+    for (const t of this.transactionsModel) {
+       t.selected = this.allTransactionsSelected;
+       if (this.allTransactionsSelected) {
+         this.bulkActionCounter++;
+       }
+    }
 
     // TODO replace this with the commented code above when server pagination is ready.
-    for (let i = this.firstItemOnPage - 1; i <= this.lastItemOnPage - 1; i++) {
-      this.transactionsModel[i].selected = this.allTransactionsSelected;
-      if (this.allTransactionsSelected) {
-        this.bulkActionCounter++;
-      }
-    }
+    //for (let i = this.firstItemOnPage - 1; i <= this.lastItemOnPage - 1; i++) {
+    //  this.transactionsModel[i].selected = this.allTransactionsSelected;
+    //  if (this.allTransactionsSelected) {
+    //    this.bulkActionCounter++;
+    //  }
+    //}
     this.bulkActionDisabled = !this.allTransactionsSelected;
+
+    this.selectedForMultiplyPages();
   }
 
   /**
@@ -1345,20 +1376,32 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    *
    * @param the event payload from the click
    */
-  public checkForMultiChecked(e: any): void {
+  public checkForMultiChecked(e: any, trx :any): void {
     if (e.target.checked) {
       this.bulkActionCounter++;
+
+      if(this.selectedFromMultiplePages
+        .filter(obj => obj.transactionId === trx.transactionId).length === 0) {
+        this.selectedFromMultiplePages.push(trx);
+      }
+
     } else {
       this.allTransactionsSelected = false;
       if (this.bulkActionCounter > 0) {
         this.bulkActionCounter--;
       }
+
+      this.selectedFromMultiplePages = this.selectedFromMultiplePages
+        .filter(obj => obj.transactionId !== trx.transactionId);
+
     }
 
     // Transaction View shows bulk action when more than 1 checked
     // Recycle Bin shows delete action when 1 or more checked.
     const count = this.isTransactionViewActive() ? 1 : 0;
     this.bulkActionDisabled = this.bulkActionCounter > count ? false : true;
+
+    this.bulkActionDisabled = this.selectedFromMultiplePages.length > 1 ? false : true;
   }
 
   /**
@@ -1370,26 +1413,30 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    *
    * @returns true if Transactions are permitted to be trashed.
    */
-  public checkIfTrashable(): boolean {
+  // TODO: in allTransaction table there are multiple reports
+  public checkIfTrashable(trx: TransactionModel = null): boolean {
     if (!this.transactionsModel) {
       return false;
     }
     if (this.transactionsModel.length === 0) {
       return false;
     }
-    for (const trx of this.transactionsModel) {
-      if (trx.reportstatus === 'FILED') {
-        return false;
+    if (trx === null) {
+      for (const trxTrash of this.transactionsModel) {
+        if (trxTrash.reportstatus.toUpperCase() === 'FILED') {
+          return false;
+        }
       }
+    } else {
+      return trx.iseditable;
     }
-    return true;
   }
 
   /**
    * Get cached values from session.
    */
   private getCachedValues() {
-    this.applyFiltersCache();
+    /* this.applyFiltersCache();
     switch (this.tableType) {
       case this.transactionsView:
         this.applyColCache(this.transactionSortableColumnsLSK);
@@ -1404,7 +1451,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         break;
       default:
         break;
-    }
+    } */
   }
 
   /**
@@ -1495,7 +1542,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    * component's class variables.
    */
   private setCachedValues() {
-    switch (this.tableType) {
+    /* switch (this.tableType) {
       case this.transactionsView:
         this.setCacheValuesforView(
           this.transactionSortableColumnsLSK,
@@ -1512,7 +1559,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         break;
       default:
         break;
-    }
+    } */
   }
 
   /**
@@ -1542,7 +1589,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
    * Set the Table Columns model.
    */
   private setSortableColumns(): void {
-    let defaultSortColumns = ['type', 'name', 'date', 'memoCode', 'amount', 'aggregate'];
+    let defaultSortColumns = ['reportType','type', 'name', 'date', 'memoCode', 'amount', 'aggregate'];
     let otherSortColumns = [
       'transactionId',
       'street',
@@ -1555,7 +1602,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
       'memoText'
     ];
     if (this.transactionCategory === 'disbursements') {
-      defaultSortColumns = ['type', 'name', 'date', 'memoCode', 'amount', 'purposeDescription'];
+      defaultSortColumns = ['reportType','type', 'name', 'date', 'memoCode', 'amount', 'purposeDescription'];
       otherSortColumns = [
         'transactionId',
         'street',
@@ -1568,7 +1615,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         'electionYear'
       ];
     } else if (this.transactionCategory === 'loans-and-debts') {
-      defaultSortColumns = ['type', 'name', 'loanClosingBalance', 'loanIncurredDate'];
+      defaultSortColumns = ['reportType','type', 'name', 'loanClosingBalance', 'loanIncurredDate'];
       otherSortColumns = [
         'transactionId',
         'street',
@@ -1586,7 +1633,7 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
         'loanPaymentToDate'
       ];
     } else if (this.transactionCategory === 'other') {
-      defaultSortColumns = ['schedule', 'type', 'name', 'amount', 'date', 'memoCode', 'purposeDescription'];
+      defaultSortColumns = ['reportType','schedule', 'type', 'name', 'amount', 'date', 'memoCode', 'purposeDescription'];
       otherSortColumns = ['transactionId', 'street', 'city', 'state', 'zip', 'memoText', 'eventId'];
     }
 
@@ -1649,9 +1696,129 @@ export class TransactionsTableComponent implements OnInit, OnDestroy {
           }
         });
   }
+
+  private showMultipleReportsWarn() {
+    const WARN_MESSAGE = 'Print functionality is not available for transactions from multiple reports. Please select all transacitons from the same report. ';
+    this._dialogService
+        .confirm(WARN_MESSAGE , ConfirmModalComponent, 'Error!', false)
+        .then(res => {
+          if (res === 'okay') {
+          }
+        });
+  }
+
   private isPrintable(trx: any) {
     if (trx.itemized && trx.itemized === 'U' )  {
       return false;
     } else { return true; }
+  }
+
+  private isIKOUT(trx: any) {
+    if(trx.transactionTypeIdentifier === 'IK_OUT' ||
+      trx.transactionTypeIdentifier === 'PARTY_IK_OUT' ||
+      trx.transactionTypeIdentifier === 'PAC_IK_OUT' ||
+      trx.transactionTypeIdentifier === 'IK_BC_OUT' ||
+      trx.transactionTypeIdentifier === 'PAC_IK_BC_OUT' ||
+      trx.transactionTypeIdentifier === 'IK_TRAN_OUT' ||
+      trx.transactionTypeIdentifier === 'IK_TRAN_FEA_OUT' ||
+      trx.transactionTypeIdentifier === 'PARTY_IK_BC_OUT') {
+        return true;
+      }else {
+        return false;
+      }
+  }
+
+  private isForceItemizable(trx: TransactionModel): boolean {
+    if (!this.editMode && !this._allTransactions) {
+      return false;
+    }
+    if (trx) {
+      if (trx.reportstatus.toUpperCase() === 'FILED') {
+        return (trx.forceitemizable && trx.iseditable);
+      }
+      return trx.forceitemizable;
+    } else {
+      return false;
+    }
+  }
+
+  private forceItemizationToggle(trx: TransactionModel): void {
+
+    this._reportTypeService.forceItemizationToggle(trx).subscribe(res => {
+      // on response reload the transaction table to get latest data
+      this.apiError = false;
+      this.getTransactionsPage(this.config.currentPage);
+
+    }, error => {
+      console.error('Error Toggling Itemization ');
+      this.apiError = true;
+    });
+  }
+
+  private getItemizationInd(trx: TransactionModel): string {
+    return this.getCurrentItemizationStatus(trx) ? ' Unitemize' : ' Itemize';
+  }
+  private getCurrentItemizationStatus(trx: TransactionModel): boolean {
+    if (trx && trx.itemized) {
+      if (trx.itemized === 'U' || trx.itemized === 'FU') {
+        return false;
+      } else if (trx.itemized === 'FI' || trx.itemized === 'I') {
+        return true;
+      }
+    } else {
+      return true;
+    }
+  }
+
+  private setSelectedForMultiplyPages() {
+    for (
+      let transactionModelIndex = 0;
+      transactionModelIndex < this.transactionsModel.length;
+      transactionModelIndex++
+    ) {
+      for(const trxMultPages of this.selectedFromMultiplePages) {
+        if(trxMultPages.transactionId === this.transactionsModel[transactionModelIndex].transactionId && trxMultPages.selected)
+        {
+          this.transactionsModel[transactionModelIndex].selected = true;
+        }
+      }
+    }
+
+    this.bulkActionDisabled = this.selectedFromMultiplePages.length > 1 ? false : true;
+  }
+
+  private selectedForMultiplyPages() {
+    for(
+      let transactionModelIndex = 0;
+      transactionModelIndex < this.transactionsModel.length;
+      transactionModelIndex++
+    ) {
+      if(this.allTransactionsSelected) {
+        if(this.selectedFromMultiplePages.filter(obj => obj.transactionId ===
+              this.transactionsModel[transactionModelIndex].transactionId).length === 0)
+        {
+          this.selectedFromMultiplePages.push(this.transactionsModel[transactionModelIndex]);
+        }
+
+      }else {
+        this.selectedFromMultiplePages = this.selectedFromMultiplePages.filter
+          (obj => obj.transactionId !== this.transactionsModel[transactionModelIndex].transactionId);
+
+        this.setSelectedForMultiplyPages();
+      }
+    }
+  }
+
+  /**
+   * enables/disables edit/clone/trash actions on a transaction
+   * @param trx
+   * @return {boolean} true disabled trx action else false
+   */
+  private isDisabled(trx: TransactionModel): boolean {
+    if (trx && trx.reportstatus) {
+    return !trx.iseditable;
+    } else {
+      return true;
+    }
   }
 }
