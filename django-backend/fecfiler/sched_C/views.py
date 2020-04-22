@@ -547,7 +547,6 @@ def update_auto_sched_a(data):
         data.get("donor_cmte_name"),
         data.get("levin_account_id"),
         data.get("transaction_type_identifier"),
-        data.get("aggregation_ind"),
     )
     logger.debug("auto-generation done.")
 
@@ -618,7 +617,6 @@ def auto_generate_sched_a(data):
         data.get("donor_cmte_name"),
         data.get("transaction_type_identifier"),
         data.get("levin_account_id"),
-        data.get("aggregation_ind"),
     )
     logger.debug("auto-generation done.")
 

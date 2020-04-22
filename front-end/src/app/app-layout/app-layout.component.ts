@@ -1,5 +1,4 @@
-import { Subscription } from 'rxjs/Subscription';
-import { Component, HostListener, Input, OnInit, ViewEncapsulation, HostBinding, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Component, HostListener, Input, OnInit, ViewEncapsulation } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { SessionService } from '../shared/services/SessionService/session.service';
@@ -9,7 +8,6 @@ import { UtilService } from '../shared/utils/util.service';
 import { HeaderComponent } from '../shared/partials/header/header.component';
 import { SidebarComponent } from '../shared/partials/sidebar/sidebar.component';
 import { FormsComponent } from '../forms/forms.component';
-import { Subject } from 'rxjs';
 
 @Component({
   selector: 'app-app-layout',
@@ -17,15 +15,7 @@ import { Subject } from 'rxjs';
   styleUrls: ['./app-layout.component.scss'],
   encapsulation: ViewEncapsulation.None
 })
-export class AppLayoutComponent implements OnInit, OnDestroy {
-  ngOnDestroy(): void {
-      this.onDestroy$.next(true);
-      this.subscription.unsubscribe();
-  }
-
-  @HostBinding('@.disabled')
-  public animationsDisabled = true;
-  
+export class AppLayoutComponent implements OnInit {
   @Input() status: any;
 
   public committeeName: string = null;
@@ -46,11 +36,8 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   public toggleMenu: boolean = false;
   public dueDate: string = null;
   public reportOverDue: boolean = false;
-  private subscription: Subscription;
 
   private _step: string = null;
-
-  private onDestroy$ = new Subject();
 
   constructor(
     private _apiService: ApiService,
@@ -59,13 +46,13 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     private _utilService: UtilService,
     private _router: Router,
     private _modalService: NgbModal,
-    public _activatedRoute: ActivatedRoute
+    private _activatedRoute: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     let route: string = this._router.url;
 
-    this._apiService.getCommiteeDetails().takeUntil(this.onDestroy$).subscribe(res => {
+    this._apiService.getCommiteeDetails().subscribe(res => {
       if (res) {
         localStorage.setItem('committee_details', JSON.stringify(res));
 
@@ -75,7 +62,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
       }
     });
 
-    this._apiService.getRadAnalyst().takeUntil(this.onDestroy$).subscribe(res => {
+    this._apiService.getRadAnalyst().subscribe(res => {
       if (res) {
         if (Array.isArray(res.response)) {
           this.radAnalystInfo = res.response[0];
@@ -83,7 +70,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.subscription = this._router.events.takeUntil(this.onDestroy$).subscribe(val => {
+    this._router.events.subscribe(val => {
       if (val instanceof NavigationEnd) {
         if (this.toggleMenu) {
           this.toggleMenu = false;
@@ -154,7 +141,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         formInfo = JSON.parse(localStorage.getItem('form_3X_report_type_backup'));
       }
 
-      // //console.log(" formInfo = ", formInfo);
+      // console.log(" formInfo = ", formInfo);
 
       if (typeof formInfo === 'object') {
         if (formInfo.hasOwnProperty('formType')) {
@@ -199,7 +186,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
           /*if (formInfo.overdue > 0) {
                 this.reportOverDue = true;
               }*/
-          // //console.log("formInfo.overdue =", formInfo.overdue);
+          // console.log("formInfo.overdue =", formInfo.overdue);
           this.reportOverDue = formInfo.overdue;
         }
 

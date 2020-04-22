@@ -16,9 +16,6 @@ export class DebtSummaryModel {
   incurredAmt: any;
   paymentAmt: any;
   closingBalance: any;
-  memoCode: string;
-  aggregate: number;
-  entityId: string;
 
   constructor(debtSummary: any) {
     this.apiCall = debtSummary.apiCall ? debtSummary.apiCall : '';
@@ -26,9 +23,7 @@ export class DebtSummaryModel {
     this.transactionId = debtSummary.transactionId ? debtSummary.transactionId : '';
     this.backRefTransactionId = debtSummary.backRefTransactionId ? debtSummary.backRefTransactionId : '';
     this.transactionTypeIdentifier = debtSummary.transactionTypeIdentifier ? debtSummary.transactionTypeIdentifier : '';
-    this.transactionTypeDescription = debtSummary.transactionTypeDescription
-      ? debtSummary.transactionTypeDescription
-      : '';
+    this.transactionTypeDescription = debtSummary.transactionTypeDescription ? debtSummary.transactionTypeDescription : '';
     this.name = debtSummary.name ? debtSummary.name : '';
     this.reportId = debtSummary.reportId ? debtSummary.reportId : '';
     this.selected = debtSummary.selected;
@@ -41,8 +36,5 @@ export class DebtSummaryModel {
     this.incurredAmt = debtSummary.incurredAmt;
     this.paymentAmt = debtSummary.paymentAmt;
     this.closingBalance = debtSummary.closingBalance;
-    this.memoCode = debtSummary.memoCode;
-    this.aggregate = debtSummary.aggregate;
-    this.entityId = debtSummary.entityId;
   }
 }

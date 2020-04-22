@@ -1,4 +1,3 @@
-import { Subscription } from 'rxjs/Subscription';
 import {
   Component,
   EventEmitter,
@@ -9,8 +8,7 @@ import {
   Renderer2,
   ViewEncapsulation,
   ViewChild
-, ChangeDetectionStrategy, 
-OnDestroy} from '@angular/core';
+} from '@angular/core';
 import { ControlValueAccessor, FormBuilder, FormGroup, FormControl, NgForm, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -31,8 +29,7 @@ import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
   styleUrls: ['./reason.component.scss'],
   encapsulation: ViewEncapsulation.None
 })
-export class ReasonComponent implements OnInit , OnDestroy{
-  
+export class ReasonComponent implements OnInit {
   @Output() status: EventEmitter<any> = new EventEmitter<any>();
   @ViewChild('htmlEditor') htmlEditor: ElementRef;
   @ViewChild('fileInput') fileInput: ElementRef;
@@ -75,7 +72,6 @@ export class ReasonComponent implements OnInit , OnDestroy{
   private _reasonInnerHTML: string = ''; // Shows the value and applys the HTML
   private _reasonTextContent: string = ''; // The plain text, no HTML from editor
   private _setRefresh: boolean = false;
-  queryParamsSub: Subscription;
 
   constructor(
     private _fb: FormBuilder,
@@ -89,7 +85,7 @@ export class ReasonComponent implements OnInit , OnDestroy{
     private _dormSanitizer: DomSanitizer
   ) {
     this._messageService.clearMessage();
-    this.queryParamsSub = _activatedRoute.queryParams.subscribe(p => {
+    _activatedRoute.queryParams.subscribe(p => {
       if (p.refresh === true || p.refresh === 'true') {
         this._setRefresh = true;
         this.ngOnInit();
@@ -145,10 +141,6 @@ export class ReasonComponent implements OnInit , OnDestroy{
       });
       this.fileNameToDisplay = null;
     }
-  }
-
-  ngOnDestroy(): void {
-    this.queryParamsSub.unsubscribe();
   }
 
   ngDoCheck(): void {
@@ -317,8 +309,8 @@ export class ReasonComponent implements OnInit , OnDestroy{
 
         this.htmlEditor.nativeElement.focus();
       } catch (error) {
-        //console.log('There was an error.');
-        //console.log('error: ', error);
+        console.log('There was an error.');
+        console.log('error: ', error);
       }
     }
   }
@@ -337,7 +329,7 @@ export class ReasonComponent implements OnInit , OnDestroy{
 
         window.document.execCommand('insertHTML', false, plainText);
       } catch (error) {
-        //console.log('error: ', error);
+        console.log('error: ', error);
       }
     }
   }
@@ -657,7 +649,7 @@ export class ReasonComponent implements OnInit , OnDestroy{
               }
             },
             error => {
-              //console.log('error: ', error);
+              console.log('error: ', error);
             }
           );
         } else {
@@ -679,7 +671,7 @@ export class ReasonComponent implements OnInit , OnDestroy{
               }
             },
             error => {
-              //console.log('error: ', error);
+              console.log('error: ', error);
             }
           );
         }
@@ -760,7 +752,7 @@ export class ReasonComponent implements OnInit , OnDestroy{
               }
             },
             error => {
-              //console.log('error: ', error);
+              console.log('error: ', error);
             }
           );
         } else {
@@ -779,7 +771,7 @@ export class ReasonComponent implements OnInit , OnDestroy{
               }
             },
             error => {
-              //console.log('error: ', error);
+              console.log('error: ', error);
             }
           );
         }

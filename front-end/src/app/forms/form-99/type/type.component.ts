@@ -1,5 +1,4 @@
-import { Subscription } from 'rxjs/Subscription';
-import { Component, EventEmitter, ElementRef, HostListener, OnInit, Output, ViewChild, ViewEncapsulation, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Component, EventEmitter, ElementRef, HostListener, OnInit, Output, ViewChild, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { environment } from '../../../../environments/environment';
@@ -18,7 +17,7 @@ import { ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
   styleUrls: ['./type.component.scss'],
   encapsulation: ViewEncapsulation.None
 })
-export class TypeComponent implements OnInit, OnDestroy {
+export class TypeComponent implements OnInit {
 
   @Output() status: EventEmitter<any> = new EventEmitter<any>();
   @ViewChild('mswCollapse') mswCollapse;
@@ -38,8 +37,6 @@ export class TypeComponent implements OnInit, OnDestroy {
   private _newForm: boolean = false;
   private _previousUrl: string = null;
   private _setRefresh: boolean = false;
-  queryParamsSubscription: Subscription;
-  routerEventsSubscription: Subscription;
 
   constructor(
     private _fb: FormBuilder,
@@ -49,7 +46,7 @@ export class TypeComponent implements OnInit, OnDestroy {
     private _dialogService: DialogService
   ) {
     this._messageService.clearMessage();
-    this.queryParamsSubscription = _activatedRoute.queryParams.subscribe(p => {
+    _activatedRoute.queryParams.subscribe(p => {
       if (p.refresh) {
         this._setRefresh = true;
         this.ngOnInit();
@@ -64,12 +61,12 @@ export class TypeComponent implements OnInit, OnDestroy {
     this._form99Details = null;
     this._form99Details = JSON.parse(localStorage.getItem('form_99_details'));
     this.committee_details = JSON.parse(localStorage.getItem('committee_details'));
-    //console.log(" type this._form99Details =", this._form99Details)
+    console.log(" type this._form99Details =", this._form99Details)
     this.screenWidth = window.innerWidth;
     this.editMode = this._activatedRoute.snapshot.queryParams.edit === 'false' ? false : true;
 
-    //console.log(" Type this.editMode = ", this.editMode);
-    //console.log(" Type this._form99Details = ", this._form99Details);
+    console.log(" Type this.editMode = ", this.editMode);
+    console.log(" Type this._form99Details = ", this._form99Details);
 
 
     if(this.screenWidth < 768) {
@@ -82,7 +79,7 @@ export class TypeComponent implements OnInit, OnDestroy {
 
     this._setForm();
 
-    this.routerEventsSubscription = this._router
+    this._router
       .events
       .subscribe(e => {
         if(e instanceof NavigationEnd) {
@@ -98,14 +95,9 @@ export class TypeComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
-    this.queryParamsSubscription.unsubscribe();
-    this.routerEventsSubscription.unsubscribe();
-  }
-
  /*ngAfterViewChecked(): void {
   this._form99Details = JSON.parse(localStorage.getItem('form_99_details'));
-  //console.log(" ngAfterViewChecked type this._form99Details =", this._form99Details)
+  console.log(" ngAfterViewChecked type this._form99Details =", this._form99Details)
   this.screenWidth = window.innerWidth;
 
   if(this.screenWidth < 768) {
@@ -284,10 +276,10 @@ export class TypeComponent implements OnInit, OnDestroy {
     This function is called while selecting a list from report screen
   */
   public optionsListClick(type): void {
-    //console.log("Selected report =", type);
+    console.log("Selected report =", type);
     if(document.getElementById(type) != null) {
       document.getElementById(type).click();
-      //console.log("Selected report clicked");
+      console.log("Selected report clicked");
     }
   }
 

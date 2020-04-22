@@ -1,15 +1,13 @@
-import { Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { environment } from '../../../../environments/environment';
 import { MessageService } from '../../services/MessageService/message.service';
-import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-validate',
   templateUrl: './validate.component.html',
   styleUrls: ['./validate.component.scss']
 })
-export class ValidateComponent implements OnInit, OnDestroy {
-  messageSubscription: Subscription;
+export class ValidateComponent implements OnInit {
 
   public validateResults: any = {};
   public showValidateBar: boolean = false;
@@ -20,7 +18,7 @@ export class ValidateComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    this.messageSubscription = this._messageService
+    this._messageService
       .getMessage()
       .subscribe(res => {
         if(typeof res.validateMessage === 'object') {
@@ -33,10 +31,6 @@ export class ValidateComponent implements OnInit, OnDestroy {
           }
         }
       });
-  }
-
-  ngOnDestroy(): void {
-    this.messageSubscription.unsubscribe();
   }
 
   public isArray(obj : any ): boolean {

@@ -169,8 +169,6 @@ def schedE_sql_dict(data):
         "cand_office_state",
         "cand_office_district",
         "cand_election_year",
-        "aggregation_ind",
-        "associatedbydissemination"
     ]
     try:
         datum = {k: v for k, v in data.items() if k in valid_fields}
@@ -266,8 +264,8 @@ def put_schedE(data):
         try:
             put_sql_schedE(data)
             # update sched_d parent if IE debt payment
-            if data.get("transaction_type_identifier") == "IE_B4_DISSE":
-                if float(existing_expenditure) != float(data.get("expenditure_amount")):
+            if data.get("transaction_type_identifier") == "IE_B4_DISSE_MEMO":
+                if float(existing_expenditure) != float(data.get("enpenditure_amount")):
                     update_sched_d_parent(
                         data.get("cmte_id"),
                         data.get("back_ref_transaction_id"),
@@ -298,7 +296,6 @@ def put_sql_schedE(data):
     _sql = """
     UPDATE public.sched_e
     SET transaction_type_identifier= %s,
-        report_id= %s,
         back_ref_transaction_id= %s,
         back_ref_sched_name= %s,
         payee_entity_id= %s,
@@ -325,15 +322,12 @@ def put_sql_schedE(data):
         memo_code= %s,
         memo_text= %s,
         line_number= %s,
-        aggregation_ind = %s,
-        associatedbydissemination = %s,
         last_update_date= %s
-    WHERE transaction_id = %s AND cmte_id = %s 
+    WHERE transaction_id = %s AND report_id = %s AND cmte_id = %s 
     AND delete_ind is distinct from 'Y';
     """
     _v = (
         data.get("transaction_type_identifier"),
-        data.get("report_id"),
         data.get("back_ref_transaction_id"),
         data.get("back_ref_sched_name"),
         data.get("payee_entity_id"),
@@ -360,11 +354,9 @@ def put_sql_schedE(data):
         data.get("memo_code"),
         data.get("memo_text"),
         data.get("line_number"),
-        data.get("aggregation_ind"),
-        data.get("associatedbydissemination"),
         datetime.datetime.now(),
         data.get("transaction_id"),
-        # data.get("report_id"),
+        data.get("report_id"),
         data.get("cmte_id"),
     )
     do_transaction(_sql, _v)
@@ -501,8 +493,7 @@ def get_transactions_election_and_office(start_date, end_date, data):
         SELECT  
                 transaction_id, 
 				expenditure_amount as transaction_amt,
-				COALESCE(dissemination_date, disbursement_date) as transaction_dt,
-                aggregation_ind
+				COALESCE(dissemination_date, disbursement_date) as transaction_dt
         FROM public.sched_e
         WHERE  
             cmte_id = %s
@@ -519,8 +510,7 @@ def get_transactions_election_and_office(start_date, end_date, data):
         SELECT  
                 transaction_id, 
 				expenditure_amount as transaction_amt,
-                COALESCE(dissemination_date, disbursement_date) as transaction_dt,
-                aggregation_ind
+                COALESCE(dissemination_date, disbursement_date) as transaction_dt
         FROM public.sched_e
         WHERE  
             cmte_id = %s
@@ -544,8 +534,7 @@ def get_transactions_election_and_office(start_date, end_date, data):
         SELECT  
                 transaction_id, 
 				expenditure_amount as transaction_amt,
-				COALESCE(dissemination_date, disbursement_date) as transaction_dt,
-                aggregation_ind
+				COALESCE(dissemination_date, disbursement_date) as transaction_dt
         FROM public.sched_e
         WHERE  
             cmte_id = %s
@@ -616,22 +605,15 @@ def update_aggregate_amt_se(data):
             aggregate_start_date, aggregate_end_date, data
         )
         aggregate_amount = 0
-        # dissemination_date, disbursement_date = data.get('dissemination_date'), data.get('disbursement_date')
-        # curr_tran_date = dissemination_date if dissemination_date else disbursement_date 
-        # curr_tran_date =  datetime.datetime.strptime(
-        #                     curr_tran_date, "%Y-%m-%d"
-        #                 ).date()
         for transaction in transaction_list:
-            if transaction[3] != 'N':
-                aggregate_amount += transaction[1]
+            aggregate_amount += transaction[1]
             logger.debug(
                 "update aggregate amount for transaction:{}".format(transaction[0])
             )
             logger.debug("current aggregate amount:{}".format(aggregate_amount))
-            # if curr_tran_date <= transaction[2]:
             update_aggregate_on_transaction(
-                    cmte_id, report_id, transaction[0], aggregate_amount
-                )
+                cmte_id, report_id, transaction[0], aggregate_amount
+            )
             # # checking in reports table if the delete_ind flag is false for the corresponding report
             # if transaction[5] != 'Y':
             #     # checking if the back_ref_transaction_id is null or not.
@@ -768,7 +750,7 @@ def post_schedE(data):
             post_sql_schedE(data)
 
             # update sched_d parent if IE debt payment
-            if data.get("transaction_type_identifier") == "IE_B4_DISSE":
+            if data.get("transaction_type_identifier") == "IE_B4_DISSE_MEMO":
                 update_sched_d_parent(
                     data.get("cmte_id"),
                     data.get("back_ref_transaction_id"),
@@ -807,7 +789,6 @@ def post_schedE(data):
             raise Exception(
                 "The post_sql_schedE function is throwing an error: " + str(e)
             )
-        
         update_aggregate_amt_se(data)
         return data
     except:
@@ -852,13 +833,11 @@ def post_sql_schedE(data):
             memo_code,
             memo_text,
             line_number,
-            aggregation_ind,
-            associatedbydissemination,
             create_date
             )
         VALUES ({})
         """.format(
-            ",".join(["%s"] * 34)
+            ",".join(["%s"] * 32)
         )
         _v = (
             data.get("cmte_id"),
@@ -892,8 +871,6 @@ def post_sql_schedE(data):
             data.get("memo_code"),
             data.get("memo_text"),
             data.get("line_number"),
-            data.get("aggregation_ind"),
-            data.get("associatedbydissemination"),
             datetime.datetime.now(),
         )
         logger.debug("sql:{}".format(_sql))
@@ -923,8 +900,6 @@ def get_schedE(data):
         if forms_obj:
             for SE in forms_obj:
                 SE["election_other_description"] = SE.get("election_other_desc")
-                if SE["associatedbydissemination"]:
-                    SE["associated_report_id"] = SE["report_id"]
                 child_SE = get_list_schedE(
                     SE["report_id"], SE["cmte_id"], SE["transaction_id"], True
                 )
@@ -1071,22 +1046,17 @@ def get_list_schedE(report_id, cmte_id, transaction_id, is_back_ref=False):
             memo_code,
             memo_text,
             line_number,
-            aggregation_ind,
-            associatedbydissemination,
             create_date, 
             last_update_date
             FROM public.sched_e
-            WHERE 
-            
-            cmte_id = %s 
+            WHERE report_id = %s AND cmte_id = %s 
             AND delete_ind is distinct from 'Y'
             """
             if is_back_ref:
-                _sql = _sql + """ AND report_id = %s AND  back_ref_transaction_id = %s) t"""
-                cursor.execute(_sql, (cmte_id, report_id, transaction_id))
+                _sql = _sql + """ AND back_ref_transaction_id = %s) t"""
             else:
                 _sql = _sql + """ AND transaction_id = %s) t"""
-                cursor.execute(_sql, (cmte_id, transaction_id))
+            cursor.execute(_sql, (report_id, cmte_id, transaction_id))
             schedE_list = cursor.fetchone()[0]
             if schedE_list is None and not is_back_ref:
                 raise NoOPError(
@@ -1143,80 +1113,6 @@ def delete_schedE(data):
         raise
 
 
-def update_se_aggregation_status(transaction_id, status):
-    """
-    helpder function to update sa aggregation_ind
-    """
-    _sql = """
-    update public.sched_e
-    set aggregation_ind = %s
-    where transaction_id = %s
-    """
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(_sql, [status, transaction_id])
-            if cursor.rowcount == 0:
-                raise Exception(
-                    "The Transaction ID: {} does not exist in se table".format(
-                        transaction_id
-                    )
-                )
-    except:
-        raise
-
-
-@api_view(["PUT"])
-def force_aggregate_se(request):
-    """
-    api to force a transaction to be aggregated:
-    1. set aggregate_ind = 'Y'
-    2. re-do entity-based aggregation on se
-    """
-    try:
-        cmte_id = request.user.username
-        report_id = request.data.get("report_id")
-        transaction_id = request.data.get("transaction_id")
-        if not transaction_id:
-            raise Exception("transaction id is required for this api call.")
-        update_se_aggregation_status(transaction_id, "Y")
-        tran_data = get_list_schedE(report_id, cmte_id, transaction_id)[0]
-        update_aggregate_amt_se(tran_data)
-        return JsonResponse(
-                {"status": "success"}, status=status.HTTP_200_OK
-            )
-    except Exception as e:
-        return Response(
-            "The force_aggregate_se API is throwing an error: " + str(e),
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-@api_view(["PUT"])
-def force_unaggregate_se(request):
-    """
-    api to force a transaction to be un-aggregated:
-    1. set aggregate_ind = 'N'
-    2. re-do entity-based aggregation on se
-    """
-    try:
-        cmte_id = request.user.username
-        report_id = request.data.get("report_id")
-        transaction_id = request.data.get("transaction_id")
-        if not transaction_id:
-            raise Exception("transaction id is required for this api call.")
-        update_se_aggregation_status(transaction_id, "N")
-        tran_data = get_list_schedE(report_id, cmte_id, transaction_id)[0]
-        update_aggregate_amt_se(tran_data)
-        return JsonResponse(
-                {"status": "success"}, status=status.HTTP_200_OK
-            )
-    except Exception as e:
-        return Response(
-            "The force_aggregate_se API is throwing an error: " + str(e),
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
 @api_view(["POST", "GET", "DELETE", "PUT"])
 def schedE(request):
     """
@@ -1225,7 +1121,6 @@ def schedE(request):
     if request.method == "POST":
         try:
             cmte_id = request.user.username
-            associatedbydissemination = False
             if not ("report_id" in request.data):
                 raise Exception("Missing Input: Report_id is mandatory")
             # handling null,none value of report_id
@@ -1234,15 +1129,10 @@ def schedE(request):
             else:
                 report_id = check_report_id(request.data.get("report_id"))
             # end of handling
-            #also check if an 'override' report_id present, and if so, use that instead. 
-            if(request.data.get("associated_report_id") and check_null_value(request.data.get("associated_report_id"))):
-                report_id = request.data.get("associated_report_id")
-                associatedbydissemination = True
             # datum = schedE_sql_dict(request.data)
             datum = request.data.copy()
             datum["report_id"] = report_id
             datum["cmte_id"] = cmte_id
-            datum["associatedbydissemination"] = associatedbydissemination
             if datum["transaction_type_identifier"] == "IE_MULTI":
                 if "memo_text" in datum:
                     datum["memo_text"] = (
@@ -1341,7 +1231,6 @@ def schedE(request):
     elif request.method == "PUT":
         try:
             datum = schedE_sql_dict(request.data)
-            associatedbydissemination = False
 
             if datum["transaction_type_identifier"] == "IE_MULTI":
                 if "memo_text" in datum:
@@ -1373,13 +1262,8 @@ def schedE(request):
                 report_id = "0"
             else:
                 report_id = check_report_id(request.data.get("report_id"))
-            #also check if an 'override' report_id present, and if so, use that instead. 
-            if(request.data.get("associated_report_id") and check_null_value(request.data.get("associated_report_id"))):
-                report_id = request.data.get("associated_report_id")
-                associatedbydissemination = True
             datum["report_id"] = report_id
             datum["cmte_id"] = request.user.username
-            datum["associatedbydissemination"] = associatedbydissemination
 
             data = put_schedE(datum)
             output = get_schedE(data)

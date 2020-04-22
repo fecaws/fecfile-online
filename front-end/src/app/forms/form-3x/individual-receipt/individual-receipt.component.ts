@@ -1,7 +1,6 @@
-import { Subscription } from 'rxjs/Subscription';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges , ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgbTooltipConfig } from '@ng-bootstrap/ng-bootstrap';
@@ -23,7 +22,6 @@ import { AbstractSchedule } from './abstract-schedule';
 import { AbstractScheduleParentEnum } from './abstract-schedule-parent.enum';
 import { IndividualReceiptService } from './individual-receipt.service';
 import { ScheduleActions } from './schedule-actions.enum';
-import { SchedHMessageServiceService } from '../../sched-h-service/sched-h-message-service.service';
 
 export enum SaveActions {
   saveOnly = 'saveOnly',
@@ -52,7 +50,6 @@ export class IndividualReceiptComponent extends AbstractSchedule implements OnIn
 
   public formType: string;
   public cloned: boolean;
-  queryParamsSubscription: Subscription;
   constructor(
     _http: HttpClient,
     _fb: FormBuilder,
@@ -73,8 +70,7 @@ export class IndividualReceiptComponent extends AbstractSchedule implements OnIn
     _transactionsMessageService: TransactionsMessageService,
     _contributionDateValidator: ContributionDateValidator,
     _transactionsService: TransactionsService,
-    _reportsService: ReportsService, 
-     _schedHMessageServce: SchedHMessageServiceService
+    _reportsService: ReportsService
   ) {
     super(
       _http,
@@ -96,25 +92,32 @@ export class IndividualReceiptComponent extends AbstractSchedule implements OnIn
       _transactionsMessageService,
       _contributionDateValidator,
       _transactionsService,
-      _reportsService, 
-      _schedHMessageServce
+      _reportsService
     );
 
-    this.queryParamsSubscription = _activatedRoute.queryParams.takeUntil(this._onDestroy$).subscribe(p => {
+    _activatedRoute.queryParams.takeUntil(this._onDestroy$).subscribe(p => {
       this.cloned = p.cloned ? true : false;
     });
   }
 
   public ngOnInit() {
-    this.formType = this._activatedRoute.snapshot.paramMap.get('form_id');
+    this.formType = '3X';
     this.abstractScheduleComponent = AbstractScheduleParentEnum.schedMainComponent;
     localStorage.removeItem(`form_${this.formType}_saved`);
     super.ngOnInit();
   }
 
+  // tslint:disable-next-line:use-life-cycle-interface
+  public ngDoCheck() {
+    if (this.frmIndividualReceipt != null) {
+      if (this.frmIndividualReceipt.dirty) {
+        localStorage.setItem(`form_${this.formType}_saved`, JSON.stringify({ saved: false }));
+      }
+    }
+  }
   public ngOnChanges(changes: SimpleChanges) {
     // OnChanges() can be triggered before OnInit().  Ensure formType is set.
-    this.formType = this._activatedRoute.snapshot.paramMap.get('form_id');
+    this.formType = '3X';
     if (this.mainTransactionTypeText === 'Loans and Debts') {
       this.mainTransactionTypeText = 'Debts';
     }
@@ -125,7 +128,6 @@ export class IndividualReceiptComponent extends AbstractSchedule implements OnIn
   public ngOnDestroy(): void {
     localStorage.removeItem(`form_${this.formType}_saved`);
     this._onDestroy$.next(true);
-    this.queryParamsSubscription.unsubscribe();
     super.ngOnDestroy();
   }
 }
