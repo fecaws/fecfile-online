@@ -29,8 +29,7 @@ import { SignComponent } from './shared/partials/sign/sign.component';
 import { SubmitComponent } from './shared/partials/submit/submit.component';
 import { ContactsComponent } from './contacts/contacts.component';
 import { AddNewContactComponent } from './contacts/addnew/addnew_contacts.component';
-import { HelpComponent } from './help/help.component';
-// import { ImportContactsComponent } from './contacts/import/import-contacts/import-contacts.component';
+import {HelpComponent} from './help/help.component';
 
 export const AppRoutes: Routes = [
   {
@@ -95,27 +94,12 @@ export const AppRoutes: Routes = [
       { path: 'settings', component: SettingsComponent, pathMatch: 'full', canActivate: [CanActivateGuard] },
       { path: 'contacts', component: ContactsComponent, pathMatch: 'full', canActivate: [CanActivateGuard] },
       {
-        path: 'forms/form/1M',
-        loadChildren: 'src/app/f1m-module/f1m/f1m.module#F1mModule'
-      },
-      {
-        path: 'import-contacts',
-        loadChildren: 'src/app/import-contacts-module/import-contacts.module#ImportContactsModule'
-      },
-      {
-        path: 'addContact',
-        component: AddNewContactComponent,
-        pathMatch: 'full',
-        canActivate: [CanActivateGuard],
-        canDeactivate: [CanDeactivateGuardService]
-      },
-      {
         path: 'forms/form/:form_id',
         component: FormsComponent,
         pathMatch: 'full',
         canActivate: [CanActivateGuard],
         canDeactivate: [CanDeactivateGuardService],
-        // runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+       // runGuardsAndResolvers: 'paramsOrQueryParamsChange',
         children: [
           {
             path: ':form_step',
@@ -126,14 +110,7 @@ export const AppRoutes: Routes = [
           }
         ]
       },
-
-      {
-        path: 'signandSubmit/:form_id',
-        component: SignComponent,
-        pathMatch: 'full',
-        canActivate: [CanActivateGuard],
-        canDeactivate: [CanDeactivateGuardService]
-      },
+      { path: 'signandSubmit/:form_id', component: SignComponent, pathMatch: 'full', canActivate: [CanActivateGuard] },
       { path: 'submitform/:form_id', component: SubmitComponent, pathMatch: 'full', canActivate: [CanActivateGuard] },
       {
         path: 'forms/form/edit/:form_id/:report_id',
@@ -142,14 +119,16 @@ export const AppRoutes: Routes = [
         canActivate: [CanActivateGuard],
         canDeactivate: [CanDeactivateGuardService]
       },
-      { path: 'help', component: HelpComponent, pathMatch: 'full', canActivate: [CanActivateGuard] }
+      { path: 'addContact',
+        component: AddNewContactComponent,
+        pathMatch: 'full',
+        canActivate: [CanActivateGuard],
+        canDeactivate: [CanDeactivateGuardService]
+       },
+      { path: 'help', component: HelpComponent, pathMatch: 'full', canActivate: [CanActivateGuard] },
     ]
   },
   { path: '**', redirectTo: '' }
 ];
 
-export const routing = RouterModule.forRoot(AppRoutes, {
-  useHash: true,
-  enableTracing: false,
-  onSameUrlNavigation: 'reload'
-});
+export const routing = RouterModule.forRoot(AppRoutes, {useHash: true, enableTracing: false});

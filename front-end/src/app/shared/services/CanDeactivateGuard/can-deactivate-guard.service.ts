@@ -5,24 +5,23 @@ import { FormsComponent } from '../../../forms/forms.component';
 import { PreviewComponent } from '../../partials/preview/preview.component';
 import { SignComponent } from '../../partials/sign/sign.component';
 import { TransactionsComponent } from 'src/app/forms/transactions/transactions.component';
-import { ImportContactsComponent } from 'src/app/import-contacts-module/import-contacts/import-contacts.component';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CanDeactivateGuardService implements CanDeactivate<FormsComponent | PreviewComponent |
-SignComponent | TransactionsComponent | ImportContactsComponent> {
+    SignComponent | TransactionsComponent> {
 
   constructor() { }
 
   canDeactivate(
-    component: FormsComponent | PreviewComponent | SignComponent | ImportContactsComponent,
+	  component: FormsComponent | PreviewComponent | SignComponent,
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ) {
 
-    let url: string = state.url;
+     let url: string = state.url;
 
-    return component.canDeactivate ? component.canDeactivate() : true;
+     return component.canDeactivate ? component.canDeactivate() : true;
   }
 }

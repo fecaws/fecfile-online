@@ -21,24 +21,13 @@ public confirm(message?: string,
     headerClass?: ModalHeaderClassEnum,
     dataMap?: Map<string, any>,
     cancelTitle?: string): Promise<any> {
-const defaultModalOptions: any = {
+const modalOptions: any = {
 'backdrop': true,
 'keyboard': false,
 };
-const sessionModalOptions: any = {
-  backdrop: true,
-  keyboard: false,
-  backdropClass: 'session-timed-out',
-};
-let currentModalOption;
-if (modalTitle && modalTitle.toLowerCase() === 'session expired') {
-  currentModalOption = sessionModalOptions;
-} else {
-  currentModalOption = defaultModalOptions;
-}
 
 const modalRef = this._modalService
-.open(modalContent, currentModalOption);
+.open(modalContent, modalOptions);
 
 if (message) {
 modalRef.componentInstance.message = message;

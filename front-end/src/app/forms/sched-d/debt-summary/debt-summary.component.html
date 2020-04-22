@@ -39,9 +39,6 @@
               <button class="dropdown-item" (click)="exportAllSelected()">
                 <i class="file-export-icon"></i> Export
               </button>
-              <button class="dropdown-item" (click)="trashAllSelected()">
-                <i class="trash-icon"></i> Trash
-              </button>
             </div>
           </div>
         </th>
@@ -74,7 +71,7 @@
             {{ debt.closingBalance | currency: 'USD':'symbol-narrow':'1.2-2' }}
           </td>
           <td>
-            <div  class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
+            <div [@fadeInOut] class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
               <button class="btn btn-sm btn-primary" ngbDropdownToggle [disabled]="!bulkActionDisabled">
                 <i class="ellipsis-icon"></i>
               </button>
@@ -101,10 +98,10 @@
             class="payment-bg"
           >
             <td style="padding-left: 70px;" colspan="2">{{ payment.transactionTypeDescription }}</td>
-            <td  colspan="2">{{ payment.paymentDate | date: 'MM/dd/yyyy' }}</td>
-            <td  colspan="2">{{ payment.paymentAmt | currency: 'USD':'symbol-narrow':'1.2-2' }}</td>
+            <td [@fadeInOut] colspan="2">{{ payment.paymentDate | date: 'MM/dd/yyyy' }}</td>
+            <td [@fadeInOut] colspan="2">{{ payment.paymentAmt | currency: 'USD':'symbol-narrow':'1.2-2' }}</td>
             <td>
-              <div  class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
+              <div [@fadeInOut] class="btn-group" ngbDropdown role="group" aria-label="Action dropdown">
                 <button class="btn btn-sm btn-primary" ngbDropdownToggle>
                   <i class="ellipsis-icon"></i>
                 </button>

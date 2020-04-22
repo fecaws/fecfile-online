@@ -13,6 +13,5 @@ export enum FilterTypes {
   loanAmount = 'loanAmount',
   loanClosingBalance = 'loanClosingBalance',
   schedule = 'schedule',
-  debtBeginningBalance = "debtBeginningBalance", 
-  reportType = "reportType"
+  debtBeginningBalance = "debtBeginningBalance"
 }

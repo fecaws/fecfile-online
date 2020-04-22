@@ -1,4 +1,4 @@
-import { Component, EventEmitter, ElementRef, HostListener, OnInit, Input, Output, ViewChild, ViewEncapsulation , ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, ElementRef, HostListener, OnInit, Input, Output, ViewChild, ViewEncapsulation } from '@angular/core';
 import { ReportdetailsComponent } from '../reportdetails/reportdetails.component';
 import { FormsService } from '../../shared/services/FormsService/forms.service';
 import { ActivatedRoute } from '@angular/router';
@@ -19,7 +19,7 @@ export enum ActiveView {
   templateUrl: './reportheader.component.html',
   styleUrls: ['./reportheader.component.scss'],
   encapsulation: ViewEncapsulation.None,
-  /* animations: [
+  animations: [
     trigger('fadeInOut', [
       transition(':enter', [
         style({ opacity: 0 }),
@@ -29,7 +29,7 @@ export enum ActiveView {
         animate(10, style({ opacity: 0 }))
       ])
     ])
-  ] */
+  ]
 })
 
 export class ReportheaderComponent implements OnInit {
@@ -53,7 +53,6 @@ private applyFiltersSubscription: Subscription;
 
 private filters: ReportFilterModel = new ReportFilterModel();
 private readonly filtersLSK = 'reports.filters';
-private activeRoutesSubscription :Subscription;
 
   constructor(
     private _formService: FormsService,
@@ -80,7 +79,7 @@ private activeRoutesSubscription :Subscription;
       
     }
 
-    this.activeRoutesSubscription = this._activeRoute
+    this._activeRoute
         .params
         .subscribe( params => {
           this.existingReportId = params.reportId;
@@ -141,7 +140,6 @@ private activeRoutesSubscription :Subscription;
    */
   public ngOnDestroy(): void {
     this.applyFiltersSubscription.unsubscribe();
-    this.activeRoutesSubscription.unsubscribe();
   }
 
 

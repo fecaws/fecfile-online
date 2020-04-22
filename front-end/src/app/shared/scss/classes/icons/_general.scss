@@ -30,21 +30,6 @@
   @extend .fa-user-circle;
 }
 
-.users-icon {
-  @extend .fas;
-  @extend .fa-users;
-}
-
-.database-server-icon {
-  @extend .fas;
-  @extend .fa-server;
-}
-
-.cloud-icon {
-  @extend .fas;
-  @extend .fa-cloud;
-}
-
 .settings-icon {
   @extend .fas;
   @extend .fa-cog;
@@ -135,11 +120,6 @@
     @extend .fa-pencil-alt;
 }
 
-.edit-broom {
-  @extend .fas;
-  @extend .fa-broom;
-}
-
 .clipboard-icon {
     @extend .fas;
     @extend .fa-clipboard;
@@ -175,11 +155,6 @@
   @extend .fa-file-import;
 }
 
-.file-upload-icon {
-  @extend .fas;
-  @extend .fa-file-upload;
-}
-
 .file-export-icon {
   @extend .fas;
   @extend .fa-file-export;
@@ -190,11 +165,6 @@
   @extend .fa-print;
 }
 
-.calculator-icon{
-  @extend .fas;
-  @extend  .fa-calculator;
-}
-
 .table-icon {
   @extend .fas;
   @extend .fa-table;
@@ -203,9 +173,4 @@
 .undo-icon {
   @extend .fas;
   @extend .fa-undo;
-}
-
-.exclamation-triangle-icon {
-  @extend .fas;
-  @extend .fa-exclamation-triangle;
 }

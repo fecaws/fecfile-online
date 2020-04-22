@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, OnChanges, Output, EventEmitter, Input, SimpleChanges , ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, OnChanges, Output, EventEmitter, Input, SimpleChanges } from '@angular/core';
 import { IndividualReceiptComponent } from '../form-3x/individual-receipt/individual-receipt.component';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FormsService } from 'src/app/shared/services/FormsService/forms.service';
@@ -25,7 +25,6 @@ import { AbstractScheduleParentEnum } from '../form-3x/individual-receipt/abstra
 import { schedFstaticFormFields } from './static-form-fields.json';
 import { Observable } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-import { SchedHMessageServiceService } from '../sched-h-service/sched-h-message-service.service';
 
 /**
  * Schedule F is a sub-transaction of Schedule D.
@@ -43,10 +42,6 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
   @Input() transactionType: string;
   @Input() scheduleAction: ScheduleActions;
   @Input() forceChangeDetection: Date;
-  @Input() parentTransactionModel: any;
-  @Input() transactionData: any;
-  @Input() transactionDataForChild: any;
-
   @Output() status: EventEmitter<any>;
 
   public showPart2: boolean;
@@ -76,8 +71,7 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
     _transactionsMessageService: TransactionsMessageService,
     _contributionDateValidator: ContributionDateValidator,
     _transactionsService: TransactionsService,
-    _reportsService: ReportsService, 
-    _schedHMessageServce: SchedHMessageServiceService
+    _reportsService: ReportsService
   ) {
     super(
       _http,
@@ -99,8 +93,7 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
       _transactionsMessageService,
       _contributionDateValidator,
       _transactionsService,
-      _reportsService, 
-      _schedHMessageServce
+      _reportsService
     );
   }
 
@@ -119,7 +112,6 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
     this.noValidationRequired.push('subordinate_cmte_street_1');
     this.validateDesignatedFiler.push('designating_cmte_id');
     this.validateDesignatedFiler.push('designating_cmte_name');
-    this._parentTransactionModel = this.parentTransactionModel;
     super.ngOnInit();
     this.showPart2 = false;
     this._setTransactionDetail();
@@ -284,14 +276,9 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
    * Cancel the payment and return to the start or first part.
    */
   public cancelSFPayment() {
-    this.canDeactivate().then(result => {
-      if (result === true) {
-        localStorage.removeItem(`form_${this.formType}_saved`);
-        // this.showPart2 = false;
-        this.clearFormValues();
-        this.returnToParent(this.editScheduleAction);
-      }
-    });
+    this.showPart2 = false;
+    this.clearFormValues();
+    this.returnToParent(this.editScheduleAction);
   }
 
   /**
@@ -357,7 +344,7 @@ export class SchedFComponent extends AbstractSchedule implements OnInit, OnDestr
   }
 
   public onFilerChange(change): void {
-    //console.log('change %s', change);
+    console.log('change %s', change);
     if (change === 'Y') {
       this.isDesignatedFiler = true;
       this.addValidator(this.validateDesignatedFiler, this.isDesignatedFiler);

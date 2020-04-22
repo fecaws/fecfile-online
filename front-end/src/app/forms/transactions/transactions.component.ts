@@ -1,5 +1,5 @@
 import { animate, style, transition, trigger } from '@angular/animations';
-import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TransactionsMessageService } from './service/transactions-message.service';
 import { TransactionFilterModel } from './model/transaction-filter.model';
@@ -28,12 +28,12 @@ export enum ActiveView {
   templateUrl: './transactions.component.html',
   styleUrls: ['./transactions.component.scss'],
   encapsulation: ViewEncapsulation.None,
-  /* animations: [
+  animations: [
     trigger('fadeInOut', [
       transition(':enter', [style({ opacity: 0 }), animate(500, style({ opacity: 1 }))]),
       transition(':leave', [animate(10, style({ opacity: 0 }))])
     ])
-  ] */
+  ]
 })
 export class TransactionsComponent implements OnInit, OnDestroy {
   @Output() sidebarSwitch: EventEmitter<any> = new EventEmitter<any>();
@@ -110,7 +110,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   private viewTransactionSubscription: Subscription;
   private getReattributeTransactionSubscription: Subscription;
   private getRedesignateTransactionSubscription: Subscription;
-  activatedRouteSubscription: Subscription;
 
   constructor(
     private _activatedRoute: ActivatedRoute,
@@ -144,7 +143,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       .getEditTransactionMessage()
       .subscribe((trx: TransactionModel) => {
         this.transactionToEdit = trx;
-        //console.log(trx.transactionTypeIdentifier + 'identifier for edit');
+        console.log(trx.transactionTypeIdentifier + 'identifier for edit');
         this.showEdit();
       });
 
@@ -152,7 +151,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     .getReattributeTransactionMessage()
     .subscribe((trx: TransactionModel) => {
       this.transactionToEdit = trx;
-      //console.log(trx.transactionTypeIdentifier + 'identifier for edit');
+      console.log(trx.transactionTypeIdentifier + 'identifier for edit');
       this.showReattribute();
     });
 
@@ -160,7 +159,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     .getRedesignateTransactionMessage()
     .subscribe((trx: TransactionModel) => {
       this.transactionToEdit = trx;
-      //console.log(trx.transactionTypeIdentifier + 'identifier for edit');
+      console.log(trx.transactionTypeIdentifier + 'identifier for edit');
       this.showRedesignate();
     });
 
@@ -177,7 +176,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         this.showTransactions();
       });
 
-      this.activatedRouteSubscription = _activatedRoute.queryParams.subscribe(p => {
+      _activatedRoute.queryParams.subscribe(p => {
         this.transactionCategory = p.transactionCategory;
       });
 
@@ -207,10 +206,10 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this._step = this._activatedRoute.snapshot.paramMap.get('step');
     this.allTransactions = this._activatedRoute.snapshot.queryParams.allTransactions;
 
-    //console.log('TransactionsComponent this._step', this._step);
+    console.log('TransactionsComponent this._step', this._step);
     this.routeData = { accessedByRoute: true, formType: this.formType, reportId: reportIdRoute };
 
-    //console.log('TransactionsComponent this._step', this._step);
+    console.log('TransactionsComponent this._step', this._step);
 
     localStorage.removeItem(`form_${this.formType}_view_transaction_screen`);
 
@@ -218,7 +217,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       if (res) {
         this.transactionCategories = res.data.transactionCategories;
 
-        //console.log('this.transactionCategories: ', this.transactionCategories);
+        console.log('this.transactionCategories: ', this.transactionCategories);
       }
     });
 
@@ -279,8 +278,6 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.viewTransactionSubscription.unsubscribe();
     this.getRedesignateTransactionSubscription.unsubscribe();
     this.getReattributeTransactionSubscription.unsubscribe();
-    this.activatedRouteSubscription.unsubscribe();
-    localStorage.removeItem('transactions.filters');
   }
 
   public goToPreviousStep(): void {
@@ -581,7 +578,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       }
     }
 
-    //console.log('tagArray: ' + JSON.stringify(this.tagArray));
+    console.log('tagArray: ' + JSON.stringify(this.tagArray));
 
     this.filters = filters;
   }
@@ -828,7 +825,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
         this.removeTagArrayItem(type);
         break;
       default:
-        //console.log('unexpected type received for remove tag');
+        console.log('unexpected type received for remove tag');
     }
   }
 
@@ -1090,7 +1087,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   }
 
   public printPreview(): void {
-    //console.log('TransactionsTableComponent printPreview...!');
+    console.log('TransactionsTableComponent printPreview...!');
 
     this._reportTypeService.printPreview('transaction_table_screen', '3X');
   }

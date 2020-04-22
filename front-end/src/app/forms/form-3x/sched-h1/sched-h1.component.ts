@@ -2,8 +2,8 @@ import { SchedHServiceService } from './../../sched-h-service/sched-h-service.se
 import { SchedHMessageServiceService } from './../../sched-h-service/sched-h-message-service.service';
 import { ScheduleActions } from './../individual-receipt/schedule-actions.enum';
 import { NgForm } from '@angular/forms';
-import { Component, OnInit, Output, EventEmitter, ViewChild, Input, OnChanges, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
-import { Observable, Subscription, Subject } from 'rxjs';
+import { Component, OnInit, Output, EventEmitter, ViewChild } from '@angular/core';
+import { Observable, Subscription } from 'rxjs';
 import 'rxjs/add/observable/of';
 import { environment } from '../../../../environments/environment';
 import { CookieService } from 'ngx-cookie-service';
@@ -20,9 +20,7 @@ import { TransactionsMessageService } from '../../transactions/service/transacti
 })
 
 
-export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
-  @Input() forceChangeDetection: Date;
-  @Input() transactionData: any;
+export class SchedH1Component implements OnInit {
   @Output() status: EventEmitter<any> = new EventEmitter<any>();
   @ViewChild('f') form: NgForm;
 
@@ -46,14 +44,6 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
   removedH1PacSubscription: Subscription;
 
   pacSaveDisable = true;
-  partySaveDisable = true;
-
-  private onDestroy$ = new Subject();
-  reportId: any;
-
-  adSelected = false;
-  gvSelected = false;
-  pcSelected = false;
 
   constructor(
     private _http: HttpClient,
@@ -64,7 +54,7 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
     private _individualReceiptService: IndividualReceiptService,
     private _transactionsMessageService: TransactionsMessageService,
   ) {
-    //console.log('h1 constructor ...');
+    console.log('h1 constructor ...');
     this.populateFormForEdit = this._schedHMessageServiceService.
       getpopulateHFormForEditMessage()
       .subscribe(
@@ -79,37 +69,31 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
         });
 
     this.removedH1Subscription = this._transactionsMessageService
-      .getRemoveH1TransactionsMessage()
-      .subscribe(
-        message => {
-          if (message.scheduleType === 'Schedule H1') {
-            this.getH1Disable = false;
+        .getRemoveH1TransactionsMessage()
+        .subscribe(
+          message => {
+            if(message.scheduleType === 'Schedule H1') {
+              this.getH1Disable = false;
 
-            this.checkH1PacDisabled();
+              this.checkH1PacDisabled();
 
-            this.scheduleAction = ScheduleActions.add;
-            this.form.control.patchValue({ h1_election_year_options: '' }, { onlySelf: true });
+              this.scheduleAction = ScheduleActions.add;
+              this.form.control.patchValue({ h1_election_year_options: '' }, { onlySelf: true });
+            }
           }
-        }
-      );
-
-    this.reportId = this._activatedRoute.snapshot.queryParams.reportId;
+        )
   }
 
 
   ngOnInit() {
     // localStorage.setItem('cmte_type_category', 'PAC')
-    ////console.log(localStorage.getItem('cmte_type_category'));
+    //console.log(localStorage.getItem('cmte_type_category'));
     this.formType = this._activatedRoute.snapshot.paramMap.get('form_id');
     this.checkH1Disabled();
     this.checkH1PacDisabled();
-    if (this.transactionData) {
-      this._schedHMessageServiceService.sendpopulateHFormForEditMessage(this.transactionData);
-    }
   }
 
-  public ngOnChanges() {
-    this._prepareForUnsavedChanges();
+  public ngDoCheck() {
     this.changeH1Disable();
   }
 
@@ -117,28 +101,10 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
     this.populateFormForEdit.unsubscribe();
     this.getH1Subscription.unsubscribe();
     this.removedH1Subscription.unsubscribe();
-    localStorage.removeItem(`form_${this.formType}_saved`);
-    if (this.onDestroy$) {
-      this.onDestroy$.next(true);
-    }
-  }
-
-  private _prepareForUnsavedChanges(): void {
-    if (this.onDestroy$) {
-      this.onDestroy$.next(true);
-    }
-    if (this.form) {
-      this.form.valueChanges.takeUntil(this.onDestroy$)
-        .subscribe(val => {
-          if (this.form.dirty) {
-            localStorage.setItem(`form_${this.formType}_saved`, JSON.stringify({ saved: false }));
-          }
-        });
-    }
   }
 
   isPac() {
-    ////console.log(localStorage.getItem('cmte_type_category'));
+    //console.log(localStorage.getItem('cmte_type_category'));
     // return true;
 
     let ispac = false;
@@ -161,23 +127,31 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
 
     httpOptions = httpOptions.append('Authorization', 'JWT ' + token);
     httpOptions = httpOptions.append('Content-Type', 'application/json');
+    console.log('post h1 url:' + url);
 
+    // build form data and adding report_id
     const formData: FormData = new FormData();
+    // formData = new FormData() 
     let h1_obj = { "transaction_type_identifier": "ALLOC_H1" };
-    
+    // set report_id
     h1_obj['report_id'] = '0'
 
     let reportType: any = JSON.parse(localStorage.getItem(`form_${this.formType}_report_type`));
     if (reportType === null || typeof reportType === 'undefined') {
       reportType = JSON.parse(localStorage.getItem(`form_${this.formType}_report_type_backup`));
     }
-    if(this.reportId){
-      h1_obj['report_id'] = this.reportId;
-    } else if (reportType.hasOwnProperty('reportId')) {
+    console.log(reportType);
+    if (reportType.hasOwnProperty('reportId')) {
       h1_obj['report_id'] = reportType.reportId;
+      // formData.append('report_id', reportType.reportId);
     } else if (reportType.hasOwnProperty('reportid')) {
+      // formData.append('report_id', reportType.reportid);
       h1_obj['report_id'] = reportType.reportid;
     }
+    console.log(reportType.reportid)
+    // formData.append('federal_percent', '0.45');
+    // formData.append('non_federal_percent', '0.55');
+    // h1_obj['report_id'] = '121';
 
     if (this.isPac()) {
       h1_obj['federal_percent'] = f.value.federal_share / 100;
@@ -190,18 +164,6 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
       }
       if (f.value.applied_activity3) {
         h1_obj['public_communications'] = true;
-      }
-
-      if (this.scheduleAction === ScheduleActions.add) {
-        if(this.adSelected) {
-          h1_obj['administrative'] = false;
-        }
-        if(this.gvSelected) {
-          h1_obj['generic_voter_drive'] = false;
-        }
-        if(this.pcSelected) {
-          h1_obj['public_communications'] = false;
-        }
       }
     } else {
       if (f.value.h1_election_year_options === '1') {
@@ -228,10 +190,9 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
         headers: httpOptions
       }).subscribe(
         res => {
-          //console.log(res);
+          console.log(res);
           f.value.message = 'h1 saved.'
           f.reset();
-          localStorage.setItem(`form_${this.formType}_saved`, JSON.stringify({ saved: true }));
           this.previousStep();
         });
     }
@@ -241,7 +202,7 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
         headers: httpOptions
       }).subscribe(
         res => {
-          //console.log(res);
+          console.log(res);
           f.value.message = 'h1 saved.'
           f.reset();
           //also reset this.transaction_id so future transactions dont accidentally use it.
@@ -253,14 +214,10 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
   }
 
   public editH1(item: any) {
-    if (this.onDestroy$) {
-      this.onDestroy$.next(true);
-    }
     this.scheduleAction = ScheduleActions.edit;
     this.transaction_id = item.transaction_id;
 
     this.pacSaveDisable = false;
-    this.partySaveDisable = false;
 
     this.checkH1Disabled();
     this.checkH1PacDisabled();
@@ -273,13 +230,13 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
       this.form.control.patchValue({ applied_activity3: item.public_communications }, { onlySelf: true });
 
       this.getH1PacSubscription = this.getH1Pac().subscribe(
-        res => {
-          if (res && this.isPac()) {
-            if (res.administrative !== 0 && !item.administrative) { this.h1PacADDisabled = true };
+        res=>{
+          if(res && this.isPac()) {
+            if(res.administrative === 1 && !item.administrative) { this.h1PacADDisabled = true };
 
-            if (res.generic_voter_drive !== 0 && !item.generic_voter_drive) { this.h1PacGVDisabled = true };
+            if(res.generic_voter_drive === 1 && !item.generic_voter_drive) { this.h1PacGVDisabled = true };
 
-            if (res.public_communications !== 0 && !item.public_communications) { this.h1PacPCDisabled = true };
+            if(res.public_communications === 1 && !item.public_communications) { this.h1PacPCDisabled = true };
           }
         }
       )
@@ -297,7 +254,6 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
         this.form.control.patchValue({ h1_election_year_options: '4' }, { onlySelf: true });
       }
     }
-    this._prepareForUnsavedChanges();
   }
 
   public handleFedShareFieldKeyup(e, f: NgForm) {
@@ -343,37 +299,34 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
   }
 
   public checkH1Disabled() {
-    if (this.scheduleAction === ScheduleActions.add) {
+    if(this.scheduleAction === ScheduleActions.add) {
       this.getH1Subscription = this.getH1().subscribe(
-        res => {
-          if (res.length !== 0 && !this.isPac()) {
-            if (res[0].federal_percent === 0.28) {
+        res=>{
+          if(res.length === 1 && !this.isPac()) {
+            if(res[0].federal_percent === 0.28) {
               this.form.control.patchValue({ h1_election_year_options: '1' }, { onlySelf: true });
-            } else if (res[0].federal_percent === 0.36) {
+            }else if(res[0].federal_percent === 0.36) {
               this.form.control.patchValue({ h1_election_year_options: '2' }, { onlySelf: true });
-            } else if (res[0].federal_percent === 0.21) {
+            }else if(res[0].federal_percent === 0.21) {
               this.form.control.patchValue({ h1_election_year_options: '3' }, { onlySelf: true });
-            } else if (res[0].federal_percent === 0.15) {
+            }else if(res[0].federal_percent === 0.15) {
               this.form.control.patchValue({ h1_election_year_options: '4' }, { onlySelf: true });
             }
             this.getH1Disable = true;
-            this.h1Disabled = true;
-          } else {
+          }else{
             this.getH1Disable = false;
-            this.h1Disabled = false;
           }
         }
       )
-      //this.h1Disabled = this.getH1Disable;
-      //this.h1Disabled = true;
-    } else {
+      this.h1Disabled = this.getH1Disable;
+    }else {
       this.h1Disabled = false;
     }
   }
 
   public getH1(): Observable<any> {
 
-    const reportId = this.reportId ? this.reportId :this._individualReceiptService.getReportIdFromStorage(this.formType);
+    const reportId = this._individualReceiptService.getReportIdFromStorage(this.formType);
     const token: string = JSON.parse(this._cookieService.get('user'));
     const url: string = `${environment.apiUrl}/sh1/schedH1`;
 
@@ -388,95 +341,81 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
       params,
       headers: httpOptions
     })
-      .pipe(map(res => {
-        if (res) {
-          //console.log('Get H1 res: ', res);
-          return res;
-        }
-        return false;
+    .pipe(map(res => {
+      if (res) {
+        console.log('Get H1 res: ', res);
+        return res;
+      }
+      return false;
       })
-      )
+    )
   }
 
   public changeH1Disable() {
-    if (this._activatedRoute.snapshot.queryParams.step === 'step_2') {
-      this.h1Disabled = this.getH1Disable;
-      this.h1PacADDisabled = this.getH1PacADDisable;
-      this.h1PacGVDisabled = this.getH1PacGVDisable;
-      this.h1PacPCDisabled = this.getH1PacPCDisable;
+    if(this._activatedRoute.snapshot.queryParams.step === 'step_2') {
+        this.h1Disabled = this.getH1Disable;
+        this.h1PacADDisabled = this.getH1PacADDisable;
+        this.h1PacGVDisabled = this.getH1PacGVDisable;
+        this.h1PacPCDisabled = this.getH1PacPCDisable;
 
-      if (this.scheduleAction === ScheduleActions.add) {
-        if (this.form.value.federal_share) {
-          this.form.control.patchValue({ federal_share: null }, { onlySelf: true });
+        if(this.scheduleAction  === ScheduleActions.add) {
+          if(this.form.value.federal_share) {
+            this.form.control.patchValue({ federal_share: null }, { onlySelf: true });
+          }
+          if(this.form.value.federal_share) {
+            this.form.control.patchValue({ nonfederal_share: null }, { onlySelf: true });
+          }
+
+          if(!this.h1PacADDisabled) {
+            this.form.control.patchValue({ applied_activity1: null }, { onlySelf: true });
+          }
+
+          if(!this.h1PacGVDisabled) {
+            this.form.control.patchValue({ applied_activity2: null }, { onlySelf: true });
+          }
+
+          if(!this.h1PacPCDisabled) {
+            this.form.control.patchValue({ applied_activity3: null }, { onlySelf: true });
+          }
+        }else if(this.scheduleAction  === ScheduleActions.edit) {
+          this.form.reset();
+          this.scheduleAction = ScheduleActions.add;
+          this.checkH1PacDisabled();
         }
-        if (this.form.value.federal_share) {
-          this.form.control.patchValue({ nonfederal_share: null }, { onlySelf: true });
-        }
 
-        if (!this.h1PacADDisabled) {
-          this.form.control.patchValue({ applied_activity1: null }, { onlySelf: true });
-        }
-
-        if (!this.h1PacGVDisabled) {
-          this.form.control.patchValue({ applied_activity2: null }, { onlySelf: true });
-        }
-
-        if (!this.h1PacPCDisabled) {
-          this.form.control.patchValue({ applied_activity3: null }, { onlySelf: true });
-        }
-      } else if (this.scheduleAction === ScheduleActions.edit) {
-        this.form.reset();
-        this.scheduleAction = ScheduleActions.add;
-        this.checkH1PacDisabled();
-      }
-
-      this.pacSaveDisable = true;
-      this.partySaveDisable = true;
-
+        this.pacSaveDisable = true;
     }
   }
 
   public checkH1PacDisabled() {
-    if (this.scheduleAction === ScheduleActions.add) {
+    if(this.scheduleAction === ScheduleActions.add) {
       this.getH1PacSubscription = this.getH1Pac().subscribe(
-        res => {
-          if (res && this.isPac()) {
-            if (res.administrative !== 0) {
+        res=>{
+          if(res && this.isPac()) {
+            if(res.administrative === 1) {
               this.form.control.patchValue({ applied_activity1: 'administrative' }, { onlySelf: true });
               this.getH1PacADDisable = true;
-              this.adSelected = true;
-              if (this.scheduleAction === ScheduleActions.add) {
-                this.h1PacADDisabled = true;
-              }
-            } else {
+            }else {
               this.form.control.patchValue({ applied_activity1: '' }, { onlySelf: true });
               this.getH1PacADDisable = false;
             }
 
-            if (res.generic_voter_drive !== 0) {
+            if(res.generic_voter_drive === 1) {
               this.form.control.patchValue({ applied_activity2: 'generic_voter_drive' }, { onlySelf: true });
               this.getH1PacGVDisable = true;
-              this.gvSelected = true;
-              if (this.scheduleAction === ScheduleActions.add) {
-                this.h1PacGVDisabled = true;
-              }
-            } else {
+            }else {
               this.form.control.patchValue({ applied_activity2: '' }, { onlySelf: true });
               this.getH1PacGVDisable = false;
             }
 
-            if (res.public_communications !== 0) {
+            if(res.public_communications === 1) {
               this.form.control.patchValue({ applied_activity3: 'public_communications' }, { onlySelf: true });
               this.getH1PacPCDisable = true;
-              this.pcSelected = true;
-              if (this.scheduleAction === ScheduleActions.add) {
-                this.h1PacPCDisabled = true;
-              }
-            } else {
+            }else {
               this.form.control.patchValue({ applied_activity3: '' }, { onlySelf: true });
               this.getH1PacPCDisable = false;
             }
-          } else {
+          }else{
             this.getH1PacADDisable = false;
             this.getH1PacGVDisable = false;
             this.getH1PacPCDisable = false;
@@ -486,7 +425,7 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
       this.h1PacADDisabled = this.getH1PacADDisable;
       this.h1PacGVDisabled = this.getH1PacGVDisable;
       this.h1PacPCDisabled = this.getH1PacPCDisable;
-    } else {
+    }else {
       this.h1PacADDisabled = false;
       this.h1PacGVDisabled = false;
       this.h1PacPCDisabled = false;
@@ -495,7 +434,7 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
 
   public getH1Pac(): Observable<any> {
 
-    const reportId = this.reportId ? this.reportId : this._individualReceiptService.getReportIdFromStorage(this.formType);
+    const reportId = this._individualReceiptService.getReportIdFromStorage(this.formType);
     const token: string = JSON.parse(this._cookieService.get('user'));
     const url: string = `${environment.apiUrl}/sh1/validate_pac_h1`;
 
@@ -510,37 +449,25 @@ export class SchedH1Component implements OnInit, OnChanges, OnDestroy {
       params,
       headers: httpOptions
     })
-      .pipe(map(res => {
-        if (res) {
-          //console.log('Get H1 Pac res: ', res);
-          return res;
-        }
-        return false;
+    .pipe(map(res => {
+      if (res) {
+        console.log('Get H1 Pac res: ', res);
+        return res;
+      }
+      return false;
       })
-      )
+    )
   }
 
   public clickPacOptions(e: any) {
-    if (!this.form.value.applied_activity1 && e.target.value === 'administrative'
+    if(!this.form.value.applied_activity1 && e.target.value === 'administrative'
       || !this.form.value.applied_activity2 && e.target.value === 'generic_voter_drive'
       || !this.form.value.applied_activity3 && e.target.value === 'public_communication') {
-      this.pacSaveDisable = false;
-    } else if (!this.form.value.applied_activity2 && !this.form.value.applied_activity3 && this.form.value.applied_activity1 && e.target.value === 'administrative'
+        this.pacSaveDisable = false;
+    }else if(!this.form.value.applied_activity2 && !this.form.value.applied_activity3 && this.form.value.applied_activity1 && e.target.value === 'administrative'
       || !this.form.value.applied_activity1 && !this.form.value.applied_activity3 && this.form.value.applied_activity2 && e.target.value === 'generic_voter_drive'
       || !this.form.value.applied_activity1 && !this.form.value.applied_activity2 && this.form.value.applied_activity3 && e.target.value === 'public_communication') {
-      this.pacSaveDisable = true;
-    }
-  }
-
-  public clickPartyOptions(e: any) {
-    if(this.scheduleAction === ScheduleActions.add) {
-      if(e.target.value) {
-        this.partySaveDisable = false;
-       }else{
-        this.partySaveDisable = true;
-      }
-    }else if(this.scheduleAction === ScheduleActions.edit) {
-      this.partySaveDisable = false;
+        this.pacSaveDisable = true;
     }
   }
 

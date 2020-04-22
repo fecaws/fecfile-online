@@ -1,5 +1,5 @@
 import { animate, style, transition, trigger } from '@angular/animations';
-import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, OnDestroy, Output, EventEmitter, Input } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContactsMessageService } from './service/contacts-message.service';
 import { ContactFilterModel } from './model/contacts-filter.model';
@@ -7,7 +7,6 @@ import { Subscription } from 'rxjs/Subscription';
 import { ContactModel } from './model/contacts.model';
 
 import { MessageService } from '../shared/services/MessageService/message.service';
-import { Subject } from 'rxjs';
 
 
 export enum ActiveView {
@@ -37,7 +36,7 @@ export enum FilterTypes {
   templateUrl: './contacts.component.html',
   styleUrls: ['./contacts.component.scss'],
   encapsulation: ViewEncapsulation.None,
-  /* animations: [
+  animations: [
     trigger('fadeInOut', [
       transition(':enter', [
         style({ opacity: 0 }),
@@ -47,7 +46,7 @@ export enum FilterTypes {
         animate(10, style({ opacity: 0 }))
       ])
     ])
-  ] */
+  ]
 })
 export class ContactsComponent implements OnInit, OnDestroy {
   @Output() sidebarSwitch: EventEmitter<any> = new EventEmitter<any>();
@@ -85,8 +84,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
 
   private filters: ContactFilterModel = new ContactFilterModel();
   private readonly filtersLSK = 'contacts.filters';
-  private onDestroy$ = new Subject();
-  private keywordGroup: any = [];
+  private keywordGroup: any  = [];
   constructor(
     private _activatedRoute: ActivatedRoute,
     private _contactsMessageService: ContactsMessageService,
@@ -98,7 +96,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
         (message: any) => {
 
           this.determineTags(message);
-
+          
           if (message.isClearKeyword) {
             this.clearSearch();
           } else {
@@ -107,7 +105,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
         }
       );
 
-    this.editContactSubscription = this._contactsMessageService.getEditContactMessage()
+      this.editContactSubscription = this._contactsMessageService.getEditContactMessage()
       .subscribe(
         (trx: ContactModel) => {
           this.transactionToEdit = trx;
@@ -115,7 +113,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
         }
       );
 
-    this.showContactSubscription = this._contactsMessageService.getShowContactsMessage()
+      this.showContactSubscription = this._contactsMessageService.getShowContactsMessage()
       .subscribe(
         message => {
           this.showContacts();
@@ -158,7 +156,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.applyFiltersSubscription.unsubscribe();
     this.editContactSubscription.unsubscribe();
     this.showContactSubscription.unsubscribe();
-    this.onDestroy$.next(true);
   }
 
 
@@ -171,7 +168,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
     // new and changed added filters should go at the end.
     // unchanged should appear in the beginning.
 
-
+    
     // State
     if (this.filters.filterStates.length > 0) {
       const stateGroup = [];
@@ -195,70 +192,75 @@ export class ContactsComponent implements OnInit, OnDestroy {
         for (const cat of filters.filterStates) {
           stateGroup.push(cat);
         }
-        this.tagArray.push({ type: FilterTypes.state, prefix: null, group: stateGroup });
+        this.tagArray.push({type: FilterTypes.state, prefix: null, group: stateGroup});
       }
     } else {
       this.removeTagArrayItem(FilterTypes.state);
     }
 
-    // type
-    if (this.filters.filterTypes.length > 0) {
-      const typeGroup = [];
+   // type
+   if (this.filters.filterTypes.length > 0) {
+    const typeGroup = [];
 
-      // is tag showing? Then modify it is the curr position
-      // TODO put type strings in constants file as an enumeration
-      // They are also used in the filter component as well.
+    // is tag showing? Then modify it is the curr position
+    // TODO put type strings in constants file as an enumeration
+    // They are also used in the filter component as well.
 
-      let typeTag = false;
-      for (const tag of this.tagArray) {
-        if (tag.type === FilterTypes.type) {
-          typeTag = true;
-          for (const cat of filters.filterTypes) {
-            typeGroup.push(cat);
-          }
-          tag.group = typeGroup;
-        }
-      }
-      // If tag is not already showing, add it to the tag array.
-      if (!typeTag) {
+    let typeTag = false;
+    for (const tag of this.tagArray) {
+      if (tag.type === FilterTypes.type) {
+        typeTag = true;
         for (const cat of filters.filterTypes) {
           typeGroup.push(cat);
         }
-        this.tagArray.push({ type: FilterTypes.type, prefix: null, group: typeGroup });
+        tag.group = typeGroup;
+
       }
-    } else {
-      this.removeTagArrayItem(FilterTypes.type);
     }
-    /*
-    // keywords
-    if (this.filters.keywords.length > 0) {
-      const keywordGroup = [];
-  
-      // is tag showing? Then modify it is the curr position
-      // TODO put type strings in constants file as an enumeration
-      // They are also used in the filter component as well.
-  
-      let typeTag = false;
-      for (const tag of this.tagArray) {
-        if (tag.type === FilterTypes.keyword) {
-          typeTag = true;
-          for (const cat of filters.filterKeywords) {
-            keywordGroup.push(cat);
-          }
-          tag.group = keywordGroup;
-        }
+    // If tag is not already showing, add it to the tag array.
+    if (!typeTag) {
+      for (const cat of filters.filterTypes) {
+        typeGroup.push(cat);
+
       }
-      // If tag is not already showing, add it to the tag array.
-      if (!typeTag) {
+      this.tagArray.push({type: FilterTypes.type, prefix: null, group: typeGroup});
+    }
+
+  } else {
+    this.removeTagArrayItem(FilterTypes.type);
+  }
+  /*
+  // keywords
+  if (this.filters.keywords.length > 0) {
+    const keywordGroup = [];
+
+    // is tag showing? Then modify it is the curr position
+    // TODO put type strings in constants file as an enumeration
+    // They are also used in the filter component as well.
+
+    let typeTag = false;
+    for (const tag of this.tagArray) {
+      if (tag.type === FilterTypes.keyword) {
+        typeTag = true;
         for (const cat of filters.filterKeywords) {
           keywordGroup.push(cat);
         }
-        this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: keywordGroup});
-      }
-    } else {
-      this.removeTagArrayItem(FilterTypes.keyword);
-    } */
+        tag.group = keywordGroup;
 
+      }
+      this.tagArray.push({type: FilterTypes.type, prefix: null, group: typeGroup});
+    }
+    // If tag is not already showing, add it to the tag array.
+    if (!typeTag) {
+      for (const cat of filters.filterKeywords) {
+        keywordGroup.push(cat);
+      }
+      this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: keywordGroup});
+    }
+  } else {
+    this.removeTagArrayItem(FilterTypes.keyword);
+  } */
+   
     this.filters = filters;
   }
 
@@ -275,13 +277,13 @@ export class ContactsComponent implements OnInit, OnDestroy {
 
     // TODO emit search message to the table contacts component
     if (this.searchText) {
-
-      this.searchTextArray.push(this.searchText);
-      // this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: [this.searchText]});
+      
+     this.searchTextArray.push(this.searchText);
+     // this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: [this.searchText]});
       //this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: 'Contact_Search'});
-
-      this._messageService.getMessage().takeUntil(this.onDestroy$).subscribe(res => {
-        if (res === 'Filter deleted') {
+      
+      this._messageService.getMessage().subscribe(res => {
+        if (res==='Filter deleted'){
           if (this.keywordGroup.length > 0) {
             /*while (this.keywordGroup.length > 0) {
               this.keywordGroup.pop();
@@ -293,39 +295,39 @@ export class ContactsComponent implements OnInit, OnDestroy {
       });
 
       this._messageService.getMessage().subscribe(res => {
-        if (res.hasOwnProperty('filterstatus')) {
-          if (res.filterstatus === 'deleted') {
+        if (res.hasOwnProperty('filterstatus')){
+          if (res.filterstatus==='deleted'){
             if (this.keywordGroup.length > 0) {
               /*while (this.keywordGroup.length > 0) {
                 this.keywordGroup.pop();
               }*/
-              this.keywordGroup = [];
+              this.keywordGroup=[];
 
             }
           }
         }
       });
-
+      
       // const contactFilter =localStorage.getItem(this.filtersLSK);
       //onsole.log("contactFilter =", contactFilter);
 
       if (this.keywordGroup.length === 0) {
-        this.tagArray.push({ type: FilterTypes.keyword, prefix: null, group: this.keywordGroup });
-        this.keywordGroup.push(this.searchText);
-      } else {
-        this.keywordGroup.push(this.searchText);
+          this.tagArray.push({type: FilterTypes.keyword, prefix: null, group: this.keywordGroup});
+          this.keywordGroup.push(this.searchText);
+      } else{
+           this.keywordGroup.push(this.searchText);
       }
-
-
+      
+      
 
       this.searchText = '';
     }
 
-    //console.log(" before search this.tagArray =", this.tagArray);
+    console.log(" before search this.tagArray =", this.tagArray);
     this.doSearch();
     //this.showFilters();
     this.isShowFilters = true;
-    this.showSideBar = true;
+    this.showSideBar=true;
   }
 
 
@@ -340,13 +342,13 @@ export class ContactsComponent implements OnInit, OnDestroy {
   }
 
 
-  /**
- * Clear the keyword search items
- */
+    /**
+   * Clear the keyword search items
+   */
   public clearSearchAndFilters() {
 
     // send a message to remove the filters from UI.
-    this._contactsMessageService.sendRemoveFilterMessage({ removeAll: true });
+    this._contactsMessageService.sendRemoveFilterMessage({removeAll: true});
 
     // And reset the filter model for the search.
     this.filters = new ContactFilterModel();
@@ -404,7 +406,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Remove the Date filter tag and inform the filter component to clear it.
    */
   public removeDateFilter() {
-    this.removeFilter('date', null);
+      this.removeFilter('date', null);
   }
 
 
@@ -412,7 +414,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Remove the Amount filter tag and inform the filter component to clear it.
    */
   public removeAmountFilter() {
-
+   
     this.removeFilter(FilterTypes.amount, null);
   }
 
@@ -421,13 +423,13 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Remove the Aggregate Amount filter tag and inform the filter component to clear it.
    */
   public removeAggregateAmountFilter() {
-
+   
     this.removeFilter(FilterTypes.aggregateAmount, null);
   }
 
 
   public removeMemoFilter() {
-
+    
     this.removeFilter(FilterTypes.memoCode, null);
   }
 
@@ -447,7 +449,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * @param value
    */
   private removeFilter(key: string, value: string) {
-    this._contactsMessageService.sendRemoveFilterMessage({ key: key, value: value });
+    this._contactsMessageService.sendRemoveFilterMessage({key: key, value: value});
     this.doSearch();
   }
 
@@ -480,7 +482,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
         this.removeTagArrayGroupItem(type, index);
         break;
       default:
-    }
+      }
   }
 
   /**
@@ -556,7 +558,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
   public showRecycleBin() {
     this.view = ActiveView.recycleBin
 
-    // Inform the filter component of the view change
+      // Inform the filter component of the view change
     this._contactsMessageService.sendSwitchFilterViewMessage(ActiveView.recycleBin);
 
     //  alert('Recycle Bin functionality is not yet supported');
@@ -580,7 +582,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this._router.navigate([`/addContact`]);
   }
 
-
+  
 
   /**
    * Show edit for a single transaction.
@@ -603,8 +605,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
    * Import contacts from an external file.
    */
   public doImport() {
-    // this._router.navigate(['/contacts/import']);
-    this._router.navigate(['/import-contacts']);
+    alert('Import contacts is not yet supported');
   }
 
 
@@ -615,13 +616,14 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.isShowFilters = true;
     this.sidebarSwitch.emit(this.isShowFilters);
 
-    if (this.showSideBar) {
-      this.showSideBar = false;
-    } else {
-      this.showSideBar = true;
+    if (this.showSideBar){
+      this.showSideBar=false;
+    } else
+    {
+      this.showSideBar=true;
     }
-
-  }
+    
+   }
 
 
   /**
@@ -629,7 +631,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
    */
   public showCategories() {
     this.isShowFilters = false;
-    this.showSideBar = false;
+    this.showSideBar=false;
   }
 
 
@@ -665,8 +667,8 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this._contactsMessageService.sendDoKeywordFilterSearchMessage(this.filters);
   }
 
-  public onNotify(e): void {
-    if (!e.editView) {
+  public onNotify(e): void {    
+    if(!e.editView){
       this.view = ActiveView.contacts
     }
   }

@@ -5,13 +5,9 @@
 export const environment = {
   production: false,
   name: 'development',
-  apiUrl: 'http://35.172.199.97/api/v1',
-  appTitle: 'FECfile',
-  validateSuccess: 'All required fields have passed validation.',
-  awsRegion: 'us-east-1',
-  awsIdentityPoolId: '######################',
-  ACCESS_KEY: process.env.ACCESS_KEY,
-  SECRET_KEY: process.env.SECRET_KEY
+  apiUrl: '',
+  appTitle: 'FECFile Online',
+  validateSuccess: 'All required fields have passed validation.'
 };
 
 /*

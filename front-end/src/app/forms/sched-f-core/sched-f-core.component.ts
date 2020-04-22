@@ -1,5 +1,4 @@
-import { SchedHMessageServiceService } from './../sched-h-service/sched-h-message-service.service';
-import { Component, OnInit, Output, EventEmitter, Input, SimpleChanges, OnDestroy, OnChanges , ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, Input, SimpleChanges, OnDestroy, OnChanges } from '@angular/core';
 import {FormBuilder, ValidationErrors, Validators} from '@angular/forms';
 import { FormsService } from 'src/app/shared/services/FormsService/forms.service';
 import { IndividualReceiptService } from '../form-3x/individual-receipt/individual-receipt.service';
@@ -46,8 +45,6 @@ export class SchedFCoreComponent extends AbstractSchedule implements OnInit, OnD
   private subordinateFields = [];
   private designatedFields = [];
   readonly optional  = '(Optional)'
-  routesSubscription: Subscription;
-  initFormSubscription: Subscription;
 
   constructor(
     _http: HttpClient,
@@ -69,8 +66,7 @@ export class SchedFCoreComponent extends AbstractSchedule implements OnInit, OnD
     _transactionsMessageService: TransactionsMessageService,
     _contributionDateValidator: ContributionDateValidator,
     _transactionsService: TransactionsService,
-    _reportsService: ReportsService, 
-    _schedHMessageServiceService:SchedHMessageServiceService
+    _reportsService: ReportsService
   ) {
     super(
       _http,
@@ -92,16 +88,15 @@ export class SchedFCoreComponent extends AbstractSchedule implements OnInit, OnD
       _transactionsMessageService,
       _contributionDateValidator,
       _transactionsService,
-      _reportsService, 
-      _schedHMessageServiceService
+      _reportsService
     );
-    this.routesSubscription = _activatedRoute.queryParams.subscribe(p => {
+    _activatedRoute.queryParams.subscribe(p => {
       this.cloned = p.cloned ? true : false;
       if (p.showPart2) {
         this.showPart2 = p.showPart2;
       }
     });
-    this.initFormSubscription = _f3xMessageService.getInitFormMessage().subscribe(message => {
+    _f3xMessageService.getInitFormMessage().subscribe(message => {
       this.resetForm();
     });
   }
@@ -141,8 +136,6 @@ export class SchedFCoreComponent extends AbstractSchedule implements OnInit, OnD
   public ngOnDestroy(): void {
     this.subordinateFields = [];
     this.designatedFields = [];
-    this.routesSubscription.unsubscribe();
-    this.initFormSubscription.unsubscribe();
     super.ngOnDestroy();
   }
 
@@ -367,7 +360,7 @@ export class SchedFCoreComponent extends AbstractSchedule implements OnInit, OnD
     super.saveOnly();
   }
   public onFilerChange(change): void {
-    //console.log('change %s', change);
+    console.log('change %s', change);
     if (change === 'Y') {
       this.isDesignatedFiler = true;
       this.addValidator(this.designatedFields,  this.isDesignatedFiler);
